@@ -63,6 +63,18 @@
 
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
         <% if (typeof user !== 'undefined' && user) { %>
+          <!-- Bell icon -->
+          <li class="nav-item me-2">
+            <a class="nav-link position-relative" href="/notifications" title="Уведомления">
+              <i class="bi bi-bell fs-5"></i>
+              <% const _unc = typeof unreadNotifCount !== 'undefined' ? unreadNotifCount : 0; %>
+              <% if (_unc > 0) { %>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notif-badge" id="notif-badge"><%= _unc %></span>
+              <% } else { %>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notif-badge d-none" id="notif-badge"></span>
+              <% } %>
+            </a>
+          </li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" href="#" role="button" data-bs-toggle="dropdown">
               <i class="bi bi-person-circle"></i>

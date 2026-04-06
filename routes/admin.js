@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { createNotification } = require('../utils/notifications');
 
 const router = express.Router();
 const adminOnly = [requireAuth, requireRole(['admin'])];
@@ -273,6 +274,92 @@ router.post('/users/:id/block', ...adminOnly, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.redirect('/admin/users?error=' + encodeURIComponent('Ошибка'));
+  }
+});
+
+// ─── GET /admin/users/:id/change-role ─────────────────────────────────────────
+
+router.get('/users/:id/change-role', ...adminOnly, async (req, res) => {
+  try {
+    const uRes = await pool.query('SELECT id, email, first_name, last_name, role FROM users WHERE id=$1', [req.params.id]);
+    if (uRes.rows.length === 0) return res.status(404).render('error', { message: 'Пользователь не найден' });
+    const u = uRes.rows[0];
+    if (u.role !== 'patient') {
+      return res.redirect('/admin/users?error=' + encodeURIComponent('Можно изменить роль только пациенту'));
+    }
+    const specs = await pool.query('SELECT id, name FROM specializations ORDER BY name');
+    res.render('admin/change_role', {
+      title: 'Назначить врачом — Админ-панель',
+      targetUser: u,
+      specializations: specs.rows,
+      error: req.query.error || null,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).render('error', { message: 'Ошибка загрузки' });
+  }
+});
+
+// ─── POST /admin/users/:id/change-role ───────────────────────────────────────
+
+router.post('/users/:id/change-role', ...adminOnly, async (req, res) => {
+  const { specialization_id, cabinet, experience_years, education, description } = req.body;
+  const userId = parseInt(req.params.id, 10);
+
+  try {
+    const uRes = await pool.query('SELECT id, role FROM users WHERE id=$1', [userId]);
+    if (uRes.rows.length === 0) return res.status(404).render('error', { message: 'Пользователь не найден' });
+    if (uRes.rows[0].role !== 'patient') {
+      return res.redirect('/admin/users?error=' + encodeURIComponent('Можно изменить роль только пациенту'));
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("UPDATE users SET role = 'doctor' WHERE id = $1", [userId]);
+      await client.query(
+        `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (user_id) DO UPDATE SET specialization_id=$2, cabinet=$3, experience_years=$4, education=$5, description=$6`,
+        [userId, specialization_id || null, cabinet || null, parseInt(experience_years) || 0, education || null, description || null]
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    res.redirect('/admin/users?success=' + encodeURIComponent('Пользователь назначен врачом'));
+  } catch (err) {
+    console.error('Change role error:', err);
+    res.redirect('/admin/users?error=' + encodeURIComponent('Ошибка изменения роли'));
+  }
+});
+
+// ─── POST /admin/users/:id/delete ────────────────────────────────────────────
+
+router.post('/users/:id/delete', ...adminOnly, async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  try {
+    if (userId === req.session.user.id) {
+      return res.redirect('/admin/users?error=' + encodeURIComponent('Нельзя удалить самого себя'));
+    }
+    const active = await pool.query(
+      "SELECT COUNT(*) FROM appointments WHERE (doctor_id=$1 OR patient_id=$1) AND status='booked' AND appointment_date >= CURRENT_DATE",
+      [userId]
+    );
+    if (parseInt(active.rows[0].count) > 0) {
+      return res.redirect('/admin/users?error=' + encodeURIComponent(
+        `У пользователя есть ${active.rows[0].count} активных записей. Сначала отмените их.`
+      ));
+    }
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    res.redirect('/admin/users?success=' + encodeURIComponent('Пользователь удалён'));
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.redirect('/admin/users?error=' + encodeURIComponent('Ошибка удаления'));
   }
 });
 

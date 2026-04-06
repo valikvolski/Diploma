@@ -11,6 +11,7 @@ const ticketsRoutes = require('./routes/tickets');
 const profileRoutes = require('./routes/profile');
 const doctorRoutes = require('./routes/doctor');
 const adminRoutes = require('./routes/admin');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,8 +29,14 @@ app.use(session({
   cookie: { secure: false },
 }));
 
-app.use((req, res, next) => {
+const { getUnreadCount } = require('./utils/notifications');
+
+app.use(async (req, res, next) => {
   res.locals.user = req.session.user || null;
+  res.locals.unreadNotifCount = 0;
+  if (req.session && req.session.user) {
+    try { res.locals.unreadNotifCount = await getUnreadCount(req.session.user.id); } catch (_) {}
+  }
   next();
 });
 
@@ -40,6 +47,7 @@ app.use('/tickets', ticketsRoutes);
 app.use('/profile', profileRoutes);
 app.use('/doctor', doctorRoutes);
 app.use('/admin', adminRoutes);
+app.use('/notifications', notificationsRoutes);
 
 app.get('/', (req, res) => {
   res.render('index');

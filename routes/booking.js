@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { notifyAppointmentCreated } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -163,6 +164,8 @@ router.post(
         'INSERT INTO tickets (appointment_id, ticket_number) VALUES ($1, $2) RETURNING id',
         [appointmentId, ticketNumber]
       );
+
+      notifyAppointmentCreated(appointmentId).catch(e => console.error('Notify error:', e));
 
       res.redirect(`/tickets/${ticketRes.rows[0].id}`);
     } catch (err) {

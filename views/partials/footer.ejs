@@ -8,5 +8,24 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<% if (typeof user !== 'undefined' && user) { %>
+<script>
+async function updateNotificationBadge() {
+  try {
+    const res = await fetch('/notifications/api/unread-count');
+    const data = await res.json();
+    const badge = document.getElementById('notif-badge');
+    if (!badge) return;
+    if (data.count > 0) {
+      badge.textContent = data.count > 99 ? '99+' : data.count;
+      badge.classList.remove('d-none');
+    } else {
+      badge.classList.add('d-none');
+    }
+  } catch (_) {}
+}
+setInterval(updateNotificationBadge, 30000);
+</script>
+<% } %>
 </body>
 </html>

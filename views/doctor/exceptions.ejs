@@ -68,16 +68,40 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
 <div class="modal fade" id="addExcModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form method="POST" action="/doctor/exceptions">
+      <form method="POST" action="/doctor/exceptions" id="excForm">
         <div class="modal-header"><h5 class="modal-title fw-bold">Добавить исключение</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
+          <!-- Режим: один день / период -->
           <div class="mb-3">
-            <label class="form-label fw-semibold">Дата</label>
-            <input type="date" class="form-control" name="exception_date" min="<%= todayStr %>" required>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="mode" id="modeSingle" value="single" checked>
+              <label class="form-check-label" for="modeSingle">Один день</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="mode" id="modePeriod" value="period">
+              <label class="form-check-label" for="modePeriod">Период (несколько дней)</label>
+            </div>
           </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col" id="dateFromGroup">
+              <label class="form-label fw-semibold" id="dateFromLabel">Дата</label>
+              <input type="date" class="form-control" name="exception_date" id="excDateFrom" min="<%= todayStr %>" required>
+            </div>
+            <div class="col" id="dateToGroup" style="display:none">
+              <label class="form-label fw-semibold">Дата окончания</label>
+              <input type="date" class="form-control" name="date_to" id="excDateTo" min="<%= todayStr %>">
+            </div>
+          </div>
+
           <div class="mb-3">
             <label class="form-label fw-semibold">Причина</label>
-            <input type="text" class="form-control" name="reason" placeholder="Отпуск, больничный и т.д.">
+            <textarea class="form-control" name="reason" rows="2" placeholder="Отпуск, больничный и т.д."></textarea>
+          </div>
+
+          <div class="alert alert-warning small py-2 mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Все существующие записи на выбранные даты будут автоматически отменены, а пациенты получат уведомления.
           </div>
         </div>
         <div class="modal-footer">
@@ -88,5 +112,31 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
     </div>
   </div>
 </div>
+
+<script>
+(function() {
+  const modeSingle = document.getElementById('modeSingle');
+  const modePeriod = document.getElementById('modePeriod');
+  const dateToGroup = document.getElementById('dateToGroup');
+  const dateFromLabel = document.getElementById('dateFromLabel');
+  const excDateTo = document.getElementById('excDateTo');
+  const excDateFrom = document.getElementById('excDateFrom');
+
+  function toggle() {
+    const isPeriod = modePeriod.checked;
+    dateToGroup.style.display = isPeriod ? '' : 'none';
+    dateFromLabel.textContent = isPeriod ? 'Дата начала' : 'Дата';
+    excDateTo.required = isPeriod;
+  }
+
+  modeSingle.addEventListener('change', toggle);
+  modePeriod.addEventListener('change', toggle);
+
+  excDateFrom.addEventListener('change', function() {
+    excDateTo.min = this.value;
+    if (excDateTo.value && excDateTo.value < this.value) excDateTo.value = this.value;
+  });
+})();
+</script>
 
 <%- include('../partials/footer') %>

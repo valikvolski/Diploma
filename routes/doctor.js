@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { notifyAppointmentCancelled } = require('../utils/notifications');
 
 const router = express.Router();
 const docOnly = [requireAuth, requireRole(['doctor'])];
@@ -102,24 +103,90 @@ router.get('/exceptions', ...docOnly, async (req, res) => {
   }
 });
 
+// ─── Helper: generate date range ─────────────────────────────────────────────
+
+function dateRange(from, to) {
+  const dates = [];
+  const cur = new Date(from + 'T12:00:00Z');
+  const end = new Date((to || from) + 'T12:00:00Z');
+  while (cur <= end) {
+    const y = cur.getUTCFullYear();
+    const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(cur.getUTCDate()).padStart(2, '0');
+    dates.push(`${y}-${m}-${d}`);
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 // ─── POST /doctor/exceptions ─────────────────────────────────────────────────
 
 router.post('/exceptions', ...docOnly, async (req, res) => {
-  const { exception_date, reason } = req.body;
+  const { exception_date, date_to, reason, mode } = req.body;
   const today = new Date().toISOString().split('T')[0];
+  const dateFrom = exception_date;
 
-  if (!exception_date || exception_date < today) {
+  if (!dateFrom || dateFrom < today) {
     return res.redirect('/doctor/exceptions?error=' + encodeURIComponent('Дата должна быть сегодня или позже'));
   }
 
+  const dateTo = (mode === 'period' && date_to && date_to >= dateFrom) ? date_to : dateFrom;
+  const dates = dateRange(dateFrom, dateTo);
+
+  if (dates.length > 60) {
+    return res.redirect('/doctor/exceptions?error=' + encodeURIComponent('Максимум 60 дней за один раз'));
+  }
+
+  const doctorId = req.session.user.id;
+  const reasonText = reason || 'Выходной';
+  let totalCancelled = 0;
+
   try {
-    await pool.query(
-      `INSERT INTO schedule_exceptions (doctor_id, exception_date, reason)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (doctor_id, exception_date) DO UPDATE SET reason = $3`,
-      [req.session.user.id, exception_date, reason || 'Выходной']
-    );
-    res.redirect('/doctor/exceptions?success=' + encodeURIComponent('Исключение добавлено'));
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      for (const d of dates) {
+        const affected = await client.query(
+          "SELECT id FROM appointments WHERE doctor_id=$1 AND appointment_date=$2 AND status='booked'",
+          [doctorId, d]
+        );
+
+        if (affected.rows.length > 0) {
+          await client.query(
+            "UPDATE appointments SET status='cancelled' WHERE doctor_id=$1 AND appointment_date=$2 AND status='booked'",
+            [doctorId, d]
+          );
+          totalCancelled += affected.rows.length;
+
+          for (const apt of affected.rows) {
+            await notifyAppointmentCancelled(apt.id, 'Врач не работает в этот день: ' + reasonText);
+          }
+        }
+
+        await client.query(
+          `INSERT INTO schedule_exceptions (doctor_id, exception_date, reason)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (doctor_id, exception_date) DO UPDATE SET reason = $3`,
+          [doctorId, d, reasonText]
+        );
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    let msg = dates.length === 1
+      ? 'Исключение добавлено'
+      : `Добавлено исключений: ${dates.length}`;
+    if (totalCancelled > 0) {
+      msg += `, отменено записей: ${totalCancelled}, уведомления отправлены`;
+    }
+    res.redirect('/doctor/exceptions?success=' + encodeURIComponent(msg));
   } catch (err) {
     console.error('Exception add error:', err);
     res.redirect('/doctor/exceptions?error=' + encodeURIComponent('Ошибка добавления'));
@@ -194,6 +261,11 @@ router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
     }
 
     await pool.query('UPDATE appointments SET status = $1 WHERE id = $2', [status, apptId]);
+
+    if (status === 'cancelled') {
+      await notifyAppointmentCancelled(apptId, 'Запись отменена врачом');
+    }
+
     const dateParam = redirect_date || new Date().toISOString().split('T')[0];
     res.redirect(`/doctor/patients?date=${dateParam}&success=` + encodeURIComponent('Статус обновлён'));
   } catch (err) {

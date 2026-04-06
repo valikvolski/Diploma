@@ -495,6 +495,22 @@ a:hover { text-decoration: underline; }
 }
 .table td { vertical-align: middle; }
 
+/* ── Уведомления ────────────────────────────────────────────── */
+.notif-badge {
+  font-size: .6rem;
+  padding: .25em .5em;
+}
+
+.notification-item {
+  border-radius: var(--radius) !important;
+  cursor: pointer;
+  transition: transform .1s, box-shadow .1s;
+}
+.notification-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow) !important;
+}
+
 /* ── Адаптивность ───────────────────────────────────────────── */
 @media (max-width: 576px) {
   .auth-card .card-body { padding: 1.75rem 1.25rem !important; }
