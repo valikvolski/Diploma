@@ -9,6 +9,8 @@ const doctorsRoutes = require('./routes/doctors');
 const bookingRoutes = require('./routes/booking');
 const ticketsRoutes = require('./routes/tickets');
 const profileRoutes = require('./routes/profile');
+const doctorRoutes = require('./routes/doctor');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +38,8 @@ app.use('/doctors', doctorsRoutes);
 app.use(bookingRoutes);
 app.use('/tickets', ticketsRoutes);
 app.use('/profile', profileRoutes);
+app.use('/doctor', doctorRoutes);
+app.use('/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.render('index');

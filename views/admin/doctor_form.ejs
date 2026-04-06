@@ -1,0 +1,99 @@
+<%- include('../partials/header', { title: title }) %>
+
+<div class="mb-4">
+  <a href="/admin/doctors" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>К списку врачей</a>
+</div>
+
+<div class="card border-0 shadow-sm mx-auto" style="max-width:700px">
+  <div class="card-body p-4">
+    <h4 class="fw-bold mb-4"><%= doctor ? 'Редактировать врача' : 'Добавить врача' %></h4>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+
+    <form method="POST" action="<%= doctor ? '/admin/doctors/' + doctor.id + '/edit' : '/admin/doctors' %>">
+
+      <% if (!doctor) { %>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+            <input type="email" class="form-control" name="email" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Пароль <span class="text-danger">*</span></label>
+            <input type="password" class="form-control" name="password" required minlength="6">
+          </div>
+        </div>
+      <% } %>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Фамилия <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="last_name" value="<%= doctor ? doctor.last_name : '' %>" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Имя <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" name="first_name" value="<%= doctor ? doctor.first_name : '' %>" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Отчество</label>
+          <input type="text" class="form-control" name="middle_name" value="<%= doctor ? doctor.middle_name || '' : '' %>">
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Телефон</label>
+          <input type="tel" class="form-control" name="phone" value="<%= doctor ? doctor.phone || '' : '' %>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Специализация</label>
+          <select class="form-select" name="specialization_id">
+            <option value="">— Не выбрана —</option>
+            <% specializations.forEach(function(s) { %>
+              <option value="<%= s.id %>" <%= (doctor && doctor.specialization_id == s.id) ? 'selected' : '' %>><%= s.name %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Кабинет</label>
+          <input type="text" class="form-control" name="cabinet" value="<%= doctor ? doctor.cabinet || '' : '' %>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Стаж (лет)</label>
+          <input type="number" class="form-control" name="experience_years" min="0" value="<%= doctor ? doctor.experience_years || 0 : 0 %>">
+        </div>
+        <% if (doctor) { %>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Статус</label>
+            <select class="form-select" name="is_blocked">
+              <option value="false" <%= !doctor.is_blocked ? 'selected' : '' %>>Активен</option>
+              <option value="true" <%= doctor.is_blocked ? 'selected' : '' %>>Заблокирован</option>
+            </select>
+          </div>
+        <% } %>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Образование</label>
+        <textarea class="form-control" name="education" rows="2"><%= doctor ? doctor.education || '' : '' %></textarea>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Описание</label>
+        <textarea class="form-control" name="description" rows="3"><%= doctor ? doctor.description || '' : '' %></textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Сохранить</button>
+        <a href="/admin/doctors" class="btn btn-outline-secondary">Отмена</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

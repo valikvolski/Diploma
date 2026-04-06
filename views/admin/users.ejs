@@ -1,0 +1,57 @@
+<%- include('../partials/header', { title: title }) %>
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h3 class="fw-bold mb-0"><i class="bi bi-people text-primary me-2"></i>Пользователи</h3>
+  <form method="GET" action="/admin/users" class="d-flex gap-2">
+    <select name="role" class="form-select form-select-sm" onchange="this.form.submit()" style="width:auto">
+      <option value="">Все роли</option>
+      <option value="patient" <%= roleFilter==='patient'?'selected':'' %>>Пациенты</option>
+      <option value="doctor" <%= roleFilter==='doctor'?'selected':'' %>>Врачи</option>
+      <option value="admin" <%= roleFilter==='admin'?'selected':'' %>>Администраторы</option>
+    </select>
+  </form>
+</div>
+
+<% if (success) { %><div class="alert alert-success alert-dismissible fade show"><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
+<% if (error) { %><div class="alert alert-danger alert-dismissible fade show"><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>#</th><th>Email</th><th>ФИО</th><th>Роль</th><th>Статус</th><th class="text-end">Действие</th></tr>
+      </thead>
+      <tbody>
+        <% users.forEach(function(u) { %>
+          <tr class="<%= u.is_blocked ? 'table-secondary' : '' %>">
+            <td><%= u.id %></td>
+            <td><%= u.email %></td>
+            <td class="fw-semibold"><%= u.last_name %> <%= u.first_name %></td>
+            <td>
+              <% if(u.role==='admin'){%><span class="badge bg-dark">Админ</span><%}
+                 else if(u.role==='doctor'){%><span class="badge bg-primary">Врач</span><%}
+                 else{%><span class="badge bg-info text-dark">Пациент</span><%}%>
+            </td>
+            <td>
+              <% if(u.is_blocked){%><span class="badge bg-danger">Заблокирован</span><%}else{%><span class="badge bg-success">Активен</span><%}%>
+            </td>
+            <td class="text-end">
+              <form method="POST" action="/admin/users/<%= u.id %>/block" class="d-inline">
+                <% if(u.is_blocked){ %>
+                  <button class="btn btn-sm btn-outline-success" title="Разблокировать"><i class="bi bi-unlock"></i></button>
+                <% } else { %>
+                  <button class="btn btn-sm btn-outline-warning" title="Заблокировать"
+                    onclick="return confirm('Заблокировать <%= u.last_name %> <%= u.first_name %>?')"><i class="bi bi-lock"></i></button>
+                <% } %>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<p class="text-muted small mt-3">Всего: <strong><%= users.length %></strong></p>
+
+<%- include('../partials/footer') %>

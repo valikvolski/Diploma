@@ -1,0 +1,48 @@
+<%- include('../partials/header', { title: title }) %>
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h3 class="fw-bold mb-0"><i class="bi bi-tags text-primary me-2"></i>Специализации</h3>
+</div>
+
+<% if (success) { %><div class="alert alert-success alert-dismissible fade show"><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
+<% if (error) { %><div class="alert alert-danger alert-dismissible fade show"><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
+
+<div class="row g-4">
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light"><tr><th>#</th><th>Название</th><th>Врачей</th><th class="text-end">Действие</th></tr></thead>
+          <tbody>
+            <% specializations.forEach(function(s) { %>
+              <tr>
+                <td><%= s.id %></td>
+                <td class="fw-semibold"><%= s.name %></td>
+                <td><span class="badge bg-light text-dark"><%= s.doctor_count %></span></td>
+                <td class="text-end">
+                  <form method="POST" action="/admin/specializations/<%= s.id %>/delete" class="d-inline"
+                    onsubmit="return confirm('Удалить «<%= s.name %>»?')">
+                    <button class="btn btn-sm btn-outline-danger" <%= parseInt(s.doctor_count) > 0 ? 'disabled' : '' %>><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm p-4">
+      <h5 class="fw-bold mb-3">Добавить</h5>
+      <form method="POST" action="/admin/specializations">
+        <div class="mb-3">
+          <input type="text" class="form-control" name="name" placeholder="Название специализации" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-circle me-1"></i>Добавить</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

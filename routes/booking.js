@@ -91,7 +91,7 @@ router.get('/api/doctors/:id/slots', async (req, res) => {
     // Получаем уже занятые слоты
     const bookedRes = await pool.query(
       `SELECT appointment_time FROM appointments
-       WHERE doctor_id = $1 AND appointment_date = $2 AND status = 'booked'`,
+       WHERE doctor_id = $1 AND appointment_date = $2 AND status IN ('booked','completed')`,
       [doctorId, date]
     );
     const bookedSet = new Set(bookedRes.rows.map(r => normalizeTime(r.appointment_time)));

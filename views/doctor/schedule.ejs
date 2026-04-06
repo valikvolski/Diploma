@@ -1,0 +1,145 @@
+<%- include('../partials/header', { title: title }) %>
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h3 class="fw-bold mb-0"><i class="bi bi-calendar-week text-primary me-2"></i>Расписание</h3>
+</div>
+
+<% if (success) { %>
+  <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle-fill me-2"></i><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+<% } %>
+<% if (error) { %>
+  <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle-fill me-2"></i><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+<% } %>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>День недели</th>
+          <th>Начало</th>
+          <th>Окончание</th>
+          <th>Длительность слота</th>
+          <th class="text-end">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (let i = 1; i <= 6; i++) { /* Пн-Сб */ %>
+          <% const sch = scheduleMap[i]; %>
+          <tr>
+            <td class="fw-semibold"><%= weekdays[i] %></td>
+            <% if (sch) { %>
+              <td><%= String(sch.start_time).substring(0,5) %></td>
+              <td><%= String(sch.end_time).substring(0,5) %></td>
+              <td><%= sch.slot_duration %> мин</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-outline-primary edit-schedule-btn"
+                  data-weekday="<%= i %>" data-wdname="<%= weekdays[i] %>"
+                  data-start="<%= String(sch.start_time).substring(0,5) %>"
+                  data-end="<%= String(sch.end_time).substring(0,5) %>"
+                  data-dur="<%= sch.slot_duration %>">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <form method="POST" action="/doctor/schedule/<%= sch.id %>/delete" class="d-inline"
+                  onsubmit="return confirm('Удалить расписание на <%= weekdays[i] %>?')">
+                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            <% } else { %>
+              <td colspan="3" class="text-muted fst-italic">Не работаю</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-outline-success edit-schedule-btn"
+                  data-weekday="<%= i %>" data-wdname="<%= weekdays[i] %>"
+                  data-start="09:00" data-end="14:00" data-dur="30">
+                  <i class="bi bi-plus-lg me-1"></i>Добавить
+                </button>
+              </td>
+            <% } %>
+          </tr>
+        <% } %>
+        <%/* Воскресенье */ %>
+        <% const sunSch = scheduleMap[0]; %>
+        <tr>
+          <td class="fw-semibold"><%= weekdays[0] %></td>
+          <% if (sunSch) { %>
+            <td><%= String(sunSch.start_time).substring(0,5) %></td>
+            <td><%= String(sunSch.end_time).substring(0,5) %></td>
+            <td><%= sunSch.slot_duration %> мин</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-primary edit-schedule-btn"
+                data-weekday="0" data-wdname="<%= weekdays[0] %>"
+                data-start="<%= String(sunSch.start_time).substring(0,5) %>"
+                data-end="<%= String(sunSch.end_time).substring(0,5) %>"
+                data-dur="<%= sunSch.slot_duration %>">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="POST" action="/doctor/schedule/<%= sunSch.id %>/delete" class="d-inline"
+                onsubmit="return confirm('Удалить расписание на Воскресенье?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          <% } else { %>
+            <td colspan="3" class="text-muted fst-italic">Не работаю</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-success edit-schedule-btn"
+                data-weekday="0" data-wdname="<%= weekdays[0] %>" data-start="09:00" data-end="14:00" data-dur="30">
+                <i class="bi bi-plus-lg me-1"></i>Добавить
+              </button>
+            </td>
+          <% } %>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Модальное окно -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="/doctor/schedule">
+        <div class="modal-header"><h5 class="modal-title fw-bold" id="scheduleModalLabel">Расписание</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <input type="hidden" name="weekday" id="modalWeekday">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Начало приёма</label>
+            <input type="time" class="form-control" name="start_time" id="modalStart" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Окончание приёма</label>
+            <input type="time" class="form-control" name="end_time" id="modalEnd" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Длительность приёма (мин)</label>
+            <select class="form-select" name="slot_duration" id="modalDur">
+              <option value="15">15 минут</option>
+              <option value="20">20 минут</option>
+              <option value="30" selected>30 минут</option>
+              <option value="45">45 минут</option>
+              <option value="60">60 минут</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.edit-schedule-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.getElementById('scheduleModalLabel').textContent = this.dataset.wdname;
+    document.getElementById('modalWeekday').value = this.dataset.weekday;
+    document.getElementById('modalStart').value = this.dataset.start;
+    document.getElementById('modalEnd').value = this.dataset.end;
+    document.getElementById('modalDur').value = this.dataset.dur;
+    new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+  });
+});
+</script>
+
+<%- include('../partials/footer') %>

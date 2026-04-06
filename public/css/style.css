@@ -465,6 +465,36 @@ a:hover { text-decoration: underline; }
   main { padding: 0 !important; }
 }
 
+/* ── Админ-панель / Кабинет врача ───────────────────────────── */
+.stat-card {
+  border-radius: var(--radius) !important;
+  transition: transform .15s, box-shadow .15s;
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.admin-link {
+  border-radius: var(--radius) !important;
+  color: var(--text);
+  transition: transform .15s, box-shadow .15s;
+}
+.admin-link:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg) !important;
+  color: var(--primary);
+  text-decoration: none !important;
+}
+
+.table th {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
+.table td { vertical-align: middle; }
+
 /* ── Адаптивность ───────────────────────────────────────────── */
 @media (max-width: 576px) {
   .auth-card .card-body { padding: 1.75rem 1.25rem !important; }

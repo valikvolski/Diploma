@@ -27,15 +27,38 @@
     <div class="collapse navbar-collapse" id="navMenu">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
-          <a class="nav-link" href="/">
-            <i class="bi bi-house me-1"></i>Главная
-          </a>
+          <a class="nav-link" href="/"><i class="bi bi-house me-1"></i>Главная</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/doctors">
-            <i class="bi bi-person-badge me-1"></i>Врачи
-          </a>
+          <a class="nav-link" href="/doctors"><i class="bi bi-person-badge me-1"></i>Врачи</a>
         </li>
+        <% if (typeof user !== 'undefined' && user && user.role === 'doctor') { %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+              <i class="bi bi-briefcase-fill me-1"></i>Кабинет врача
+            </a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="/doctor/patients"><i class="bi bi-people me-2"></i>Пациенты</a></li>
+              <li><a class="dropdown-item" href="/doctor/schedule"><i class="bi bi-calendar-week me-2"></i>Расписание</a></li>
+              <li><a class="dropdown-item" href="/doctor/exceptions"><i class="bi bi-calendar-x me-2"></i>Исключения</a></li>
+            </ul>
+          </li>
+        <% } %>
+        <% if (typeof user !== 'undefined' && user && user.role === 'admin') { %>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+              <i class="bi bi-shield-lock me-1"></i>Админ-панель
+            </a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="/admin"><i class="bi bi-speedometer2 me-2"></i>Обзор</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="/admin/doctors"><i class="bi bi-person-badge me-2"></i>Врачи</a></li>
+              <li><a class="dropdown-item" href="/admin/specializations"><i class="bi bi-tags me-2"></i>Специализации</a></li>
+              <li><a class="dropdown-item" href="/admin/users"><i class="bi bi-people me-2"></i>Пользователи</a></li>
+              <li><a class="dropdown-item" href="/admin/appointments"><i class="bi bi-journal-text me-2"></i>Записи</a></li>
+            </ul>
+          </li>
+        <% } %>
       </ul>
 
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
@@ -61,6 +84,17 @@
                 <li>
                   <a class="dropdown-item" href="/profile/edit">
                     <i class="bi bi-pencil me-2"></i>Редактировать профиль
+                  </a>
+                </li>
+              <% } else if (user.role === 'doctor') { %>
+                <li>
+                  <a class="dropdown-item" href="/doctor/patients">
+                    <i class="bi bi-people me-2"></i>Мои пациенты
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="/doctor/schedule">
+                    <i class="bi bi-calendar-week me-2"></i>Расписание
                   </a>
                 </li>
               <% } else { %>

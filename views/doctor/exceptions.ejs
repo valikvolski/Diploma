@@ -1,0 +1,92 @@
+<%
+const MONTHS = ['января','февраля','марта','апреля','мая','июня',
+                'июля','августа','сентября','октября','ноября','декабря'];
+function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1]+' '+p[0]; }
+%>
+<%- include('../partials/header', { title: title }) %>
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h3 class="fw-bold mb-0"><i class="bi bi-calendar-x text-primary me-2"></i>Исключения из расписания</h3>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExcModal">
+    <i class="bi bi-plus-circle me-1"></i>Добавить исключение
+  </button>
+</div>
+
+<% if (success) { %>
+  <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle-fill me-2"></i><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+<% } %>
+<% if (error) { %>
+  <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle-fill me-2"></i><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+<% } %>
+
+<% if (upcoming.length) { %>
+  <h5 class="fw-semibold mb-3">Предстоящие</h5>
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Дата</th><th>Причина</th><th class="text-end">Действие</th></tr></thead>
+        <tbody>
+          <% upcoming.forEach(function(e) { %>
+            <tr>
+              <td class="fw-semibold"><%= fmtDate(e.exception_date) %></td>
+              <td><%= e.reason || '—' %></td>
+              <td class="text-end">
+                <form method="POST" action="/doctor/exceptions/<%= e.id %>/delete" class="d-inline"
+                  onsubmit="return confirm('Удалить исключение?')">
+                  <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<% if (past.length) { %>
+  <h5 class="fw-semibold mb-3 text-muted">Прошедшие</h5>
+  <div class="card border-0 shadow-sm mb-4 opacity-65">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Дата</th><th>Причина</th></tr></thead>
+        <tbody>
+          <% past.forEach(function(e) { %>
+            <tr><td><%= fmtDate(e.exception_date) %></td><td><%= e.reason || '—' %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<% if (!upcoming.length && !past.length) { %>
+  <div class="text-center py-5"><i class="bi bi-calendar-check text-muted" style="font-size:3rem;opacity:.35"></i><p class="text-muted mt-2">Исключений нет</p></div>
+<% } %>
+
+<!-- Модальное окно добавления -->
+<div class="modal fade" id="addExcModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="/doctor/exceptions">
+        <div class="modal-header"><h5 class="modal-title fw-bold">Добавить исключение</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Дата</label>
+            <input type="date" class="form-control" name="exception_date" min="<%= todayStr %>" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Причина</label>
+            <input type="text" class="form-control" name="reason" placeholder="Отпуск, больничный и т.д.">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Добавить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
