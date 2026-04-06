@@ -6,6 +6,9 @@ const path = require('path');
 const { testConnection } = require('./db/db');
 const authRoutes = require('./routes/auth');
 const doctorsRoutes = require('./routes/doctors');
+const bookingRoutes = require('./routes/booking');
+const ticketsRoutes = require('./routes/tickets');
+const profileRoutes = require('./routes/profile');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +33,9 @@ app.use((req, res, next) => {
 
 app.use('/auth', authRoutes);
 app.use('/doctors', doctorsRoutes);
+app.use(bookingRoutes);
+app.use('/tickets', ticketsRoutes);
+app.use('/profile', profileRoutes);
 
 app.get('/', (req, res) => {
   res.render('index');

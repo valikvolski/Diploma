@@ -306,6 +306,166 @@ a:hover { text-decoration: underline; }
 }
 
 /* ── Адаптивность ───────────────────────────────────────────── */
+/* ── Сетка слотов времени ────────────────────────────────────── */
+.slots-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.slot-btn {
+  min-width: 72px;
+  font-size: .875rem;
+  font-weight: 600;
+  padding: .4rem .6rem;
+  border-radius: 8px;
+  transition: all .15s;
+}
+
+.slot-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(13,110,253,.25);
+}
+
+.slot-btn.active {
+  box-shadow: 0 4px 12px rgba(13,110,253,.35);
+  transform: translateY(-2px);
+}
+
+/* ── Страница талона ─────────────────────────────────────────── */
+.ticket-wrapper {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.ticket-card {
+  border-radius: 16px !important;
+  overflow: hidden;
+  border: none !important;
+}
+
+.ticket-header {
+  background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 60%, #084298 100%);
+}
+
+.ticket-icon {
+  font-size: 2.8rem;
+  opacity: .85;
+}
+
+.ticket-number {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.ticket-label {
+  font-size: .7rem;
+  letter-spacing: .15em;
+}
+
+.ticket-divider {
+  height: 1px;
+  background: repeating-linear-gradient(
+    to right,
+    #dee2e6 0px,
+    #dee2e6 8px,
+    transparent 8px,
+    transparent 16px
+  );
+}
+
+.ticket-section {
+  padding: .75rem 0;
+}
+
+.ticket-section-title {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: .3rem;
+}
+
+.ticket-section-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ticket-time {
+  font-size: 1.4rem;
+  color: var(--primary);
+}
+
+.badge-status {
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.ticket-hint {
+  line-height: 1.5;
+}
+
+/* ── Карточки записей (профиль) ─────────────────────────────── */
+.appointment-card {
+  border-radius: var(--radius) !important;
+  transition: transform .15s, box-shadow .15s;
+}
+.appointment-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.opacity-65 { opacity: .65; }
+
+.nav-tabs .nav-link {
+  color: var(--muted);
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: .6rem 1.2rem;
+  transition: color .15s, border-color .15s;
+}
+.nav-tabs .nav-link.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: none;
+}
+.nav-tabs .nav-link:hover {
+  color: var(--primary);
+  border-bottom-color: #c5d8fb;
+}
+
+/* ── Печать ──────────────────────────────────────────────────── */
+@media print {
+  .no-print,
+  nav,
+  footer,
+  .navbar,
+  .footer-bar { display: none !important; }
+
+  body { background: #fff !important; }
+
+  .ticket-wrapper { max-width: 100%; }
+
+  .ticket-card {
+    box-shadow: none !important;
+    border: 1px solid #dee2e6 !important;
+  }
+
+  .ticket-header {
+    background: #0d6efd !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  main { padding: 0 !important; }
+}
+
+/* ── Адаптивность ───────────────────────────────────────────── */
 @media (max-width: 576px) {
   .auth-card .card-body { padding: 1.75rem 1.25rem !important; }
   .hero-section { padding: 2.5rem 1rem !important; }
@@ -313,4 +473,7 @@ a:hover { text-decoration: underline; }
   .step-circle { width: 36px; height: 36px; font-size: .95rem; }
   .doctor-avatar { width: 60px; height: 60px; }
   .doctor-avatar i { font-size: 1.6rem; }
+  .ticket-number { font-size: 1.2rem; }
+  .slots-grid { gap: .35rem; }
+  .slot-btn { min-width: 60px; font-size: .8rem; }
 }

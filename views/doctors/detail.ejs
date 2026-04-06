@@ -93,26 +93,146 @@ function experienceLabel(n) {
     <% } %>
 
     <!-- Запись на приём -->
-    <div class="card border-0 shadow-sm p-4 appointment-placeholder">
-      <h5 class="fw-bold mb-2">
+    <div class="card border-0 shadow-sm p-4" id="bookingCard">
+      <h5 class="fw-bold mb-3">
         <i class="bi bi-calendar2-plus text-primary me-2"></i>Запись на приём
       </h5>
-      <p class="text-muted small mb-3">
-        Онлайн-запись к этому специалисту будет доступна на следующем этапе.
-        Сейчас вы можете позвонить в регистратуру или прийти лично.
-      </p>
 
-      <div class="d-flex gap-3 flex-wrap">
-        <button class="btn btn-primary px-4" disabled>
-          <i class="bi bi-calendar-plus me-2"></i>Записаться онлайн
-        </button>
-        <a href="tel:<%= doctor.phone %>" class="btn btn-outline-primary px-4">
-          <i class="bi bi-telephone me-2"></i>Позвонить в регистратуру
-        </a>
-      </div>
+      <% if (typeof user !== 'undefined' && user && user.role === 'patient') { %>
+
+        <!-- Выбор даты -->
+        <div class="mb-3">
+          <label for="bookingDate" class="form-label fw-semibold">
+            <i class="bi bi-calendar3 me-1 text-primary"></i>Выберите дату
+          </label>
+          <input
+            type="date"
+            class="form-control"
+            id="bookingDate"
+            min="<%= new Date().toISOString().split('T')[0] %>"
+            style="max-width:220px"
+          />
+        </div>
+
+        <!-- Спиннер -->
+        <div id="slotsSpinner" class="text-center py-3 d-none">
+          <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+          <span class="text-muted">Загрузка расписания...</span>
+        </div>
+
+        <!-- Нет слотов -->
+        <div id="noSlotsMsg" class="alert alert-warning d-none" role="alert">
+          <i class="bi bi-calendar-x me-2"></i>
+          На выбранную дату нет свободного времени. Попробуйте другой день.
+        </div>
+
+        <!-- Сетка слотов -->
+        <div id="slotsSection" class="d-none">
+          <p class="form-label fw-semibold mb-2">
+            <i class="bi bi-clock me-1 text-primary"></i>Выберите время
+          </p>
+          <div id="slotsGrid" class="slots-grid mb-3"></div>
+
+          <!-- Форма бронирования -->
+          <form id="bookingForm" method="POST" action="/appointments">
+            <input type="hidden" name="doctor_id" value="<%= doctor.id %>">
+            <input type="hidden" name="date" id="hiddenDate">
+            <input type="hidden" name="time" id="hiddenTime">
+            <button type="submit" class="btn btn-primary px-4" id="submitBooking" disabled>
+              <i class="bi bi-check-lg me-2"></i>Подтвердить запись
+            </button>
+          </form>
+        </div>
+
+      <% } else if (typeof user !== 'undefined' && user && user.role !== 'patient') { %>
+        <div class="alert alert-info mb-0">
+          <i class="bi bi-info-circle me-2"></i>
+          Записаться на приём могут только пациенты.
+        </div>
+      <% } else { %>
+        <div class="alert alert-light border mb-3">
+          <i class="bi bi-lock me-2 text-primary"></i>
+          Чтобы записаться на приём, необходимо войти в систему.
+        </div>
+        <div class="d-flex gap-2">
+          <a href="/auth/login" class="btn btn-primary px-4">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Войти
+          </a>
+          <a href="/auth/register" class="btn btn-outline-secondary px-4">Регистрация</a>
+        </div>
+      <% } %>
     </div>
 
   </div>
 </div>
+
+<% if (typeof user !== 'undefined' && user && user.role === 'patient') { %>
+<script>
+(function () {
+  const DOCTOR_ID = <%= doctor.id %>;
+  const dateInput    = document.getElementById('bookingDate');
+  const spinner      = document.getElementById('slotsSpinner');
+  const noSlotsMsg   = document.getElementById('noSlotsMsg');
+  const slotsSection = document.getElementById('slotsSection');
+  const slotsGrid    = document.getElementById('slotsGrid');
+  const hiddenDate   = document.getElementById('hiddenDate');
+  const hiddenTime   = document.getElementById('hiddenTime');
+  const submitBtn    = document.getElementById('submitBooking');
+
+  dateInput.addEventListener('change', async function () {
+    const date = this.value;
+    if (!date) return;
+
+    // Сброс
+    slotsSection.classList.add('d-none');
+    noSlotsMsg.classList.add('d-none');
+    spinner.classList.remove('d-none');
+    hiddenTime.value = '';
+    submitBtn.disabled = true;
+
+    try {
+      const res = await fetch(`/api/doctors/${DOCTOR_ID}/slots?date=${date}`);
+      if (!res.ok) throw new Error('Server error');
+      const data = await res.json();
+      renderSlots(data.slots, date);
+    } catch (e) {
+      noSlotsMsg.textContent = 'Ошибка загрузки расписания. Попробуйте позже.';
+      noSlotsMsg.classList.remove('d-none');
+    } finally {
+      spinner.classList.add('d-none');
+    }
+  });
+
+  function renderSlots(slots, date) {
+    if (!slots || slots.length === 0) {
+      noSlotsMsg.classList.remove('d-none');
+      return;
+    }
+
+    slotsGrid.innerHTML = '';
+    slots.forEach(function (slot) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-outline-primary slot-btn';
+      btn.textContent = slot;
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.slot-btn').forEach(function (b) {
+          b.classList.remove('active', 'btn-primary');
+          b.classList.add('btn-outline-primary');
+        });
+        btn.classList.add('active', 'btn-primary');
+        btn.classList.remove('btn-outline-primary');
+        hiddenDate.value = date;
+        hiddenTime.value = slot;
+        submitBtn.disabled = false;
+      });
+      slotsGrid.appendChild(btn);
+    });
+
+    slotsSection.classList.remove('d-none');
+  }
+})();
+</script>
+<% } %>
 
 <%- include('../partials/footer') %>
