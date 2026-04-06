@@ -2,11 +2,34 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { createNotification } = require('../utils/notifications');
 
 const router = express.Router();
 const adminOnly = [requireAuth, requireRole(['admin'])];
 const SALT_ROUNDS = 10;
+
+async function resolveDoctorUserId(inputId, clientOrPool) {
+  const n = parseInt(inputId, 10);
+  if (isNaN(n)) return null;
+
+  // Canonical case: users.id
+  const userHit = await clientOrPool.query(
+    "SELECT id FROM users WHERE id = $1 AND role = 'doctor'",
+    [n]
+  );
+  if (userHit.rows.length > 0) return userHit.rows[0].id;
+
+  // Compatibility case: doctor_profiles.id -> user_id
+  const profileHit = await clientOrPool.query(
+    `SELECT u.id
+     FROM doctor_profiles dp
+     JOIN users u ON u.id = dp.user_id
+     WHERE dp.id = $1 AND u.role = 'doctor'`,
+    [n]
+  );
+  if (profileHit.rows.length > 0) return profileHit.rows[0].id;
+
+  return null;
+}
 
 // ─── GET /admin ──────────────────────────────────────────────────────────────
 
@@ -39,7 +62,7 @@ router.get('/doctors', ...adminOnly, async (req, res) => {
       `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked,
               s.name AS specialization, dp.cabinet, dp.experience_years
        FROM users u
-       LEFT JOIN doctor_profiles dp ON u.id = dp.user_id
+       JOIN doctor_profiles dp ON u.id = dp.user_id
        LEFT JOIN specializations s ON dp.specialization_id = s.id
        WHERE u.role = 'doctor'
        ORDER BY u.last_name`
@@ -113,14 +136,32 @@ router.post('/doctors', ...adminOnly, async (req, res) => {
 
 router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
   try {
-    const uRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+    const resolvedDoctorId = await resolveDoctorUserId(req.params.id, pool);
+    if (!resolvedDoctorId) return res.status(404).render('error', { message: 'Врач не найден' });
+
+    if (String(req.params.id) !== String(resolvedDoctorId)) {
+      return res.redirect(`/admin/doctors/${resolvedDoctorId}/edit`);
+    }
+
+    const uRes = await pool.query(
+      "SELECT * FROM users WHERE id = $1 AND role = 'doctor'",
+      [resolvedDoctorId]
+    );
     if (uRes.rows.length === 0) return res.status(404).render('error', { message: 'Врач не найден' });
-    const dpRes = await pool.query('SELECT * FROM doctor_profiles WHERE user_id = $1', [req.params.id]);
+    const dpRes = await pool.query('SELECT * FROM doctor_profiles WHERE user_id = $1', [resolvedDoctorId]);
     const specs = await pool.query('SELECT id, name FROM specializations ORDER BY name');
 
+    if (dpRes.rows.length === 0) {
+      return res.status(400).render('error', { message: 'Профиль врача отсутствует. Обратитесь к администратору БД.' });
+    }
+
+    const u = uRes.rows[0];
+    const dp = dpRes.rows[0];
+    // Важно: id в шаблоне должен быть users.id (для action формы и проверок). Иначе doctor_profiles.id
+    // перезапишет users.id и POST уйдёт на чужого врача → ложный «email занят» и редирект не туда.
     res.render('admin/doctor_form', {
       title: 'Редактировать врача — Админ-панель',
-      doctor: { ...uRes.rows[0], ...(dpRes.rows[0] || {}) },
+      doctor: { ...u, ...dp, id: u.id, profile_id: dp.id },
       specializations: specs.rows,
       error: req.query.error || null,
     });
@@ -133,29 +174,90 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
 // ─── POST /admin/doctors/:id/edit ────────────────────────────────────────────
 
 router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
-  const { first_name, last_name, middle_name, phone, is_blocked,
-          specialization_id, cabinet, experience_years, education, description } = req.body;
+  const { email, new_password, first_name, last_name, middle_name, phone, is_blocked,
+          specialization_id, cabinet, experience_years, education, description, user_id } = req.body;
+  const rawId = req.params.id;
+
+  if (isNaN(parseInt(rawId, 10))) {
+    return res.redirect('/admin/doctors?error=' + encodeURIComponent('Некорректный ID врача'));
+  }
+  if (!first_name || !last_name || !email) {
+    return res.redirect(`/admin/doctors/${rawId}/edit?error=` + encodeURIComponent('Заполните обязательные поля'));
+  }
 
   try {
-    await pool.query(
-      'UPDATE users SET first_name=$1, last_name=$2, middle_name=$3, phone=$4, is_blocked=$5 WHERE id=$6',
-      [first_name.trim(), last_name.trim(), (middle_name||'').trim(), (phone||'').trim(),
-       is_blocked === 'true', req.params.id]
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    await pool.query(
-      `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (user_id)
-       DO UPDATE SET specialization_id=$2, cabinet=$3, experience_years=$4, education=$5, description=$6`,
-      [req.params.id, specialization_id || null, cabinet || null,
-       parseInt(experience_years) || 0, education || null, description || null]
-    );
+      const doctorId = await resolveDoctorUserId(rawId, client);
+      if (!doctorId) {
+        await client.query('ROLLBACK');
+        return res.redirect('/admin/doctors?error=' + encodeURIComponent('Врач не найден'));
+      }
+
+      const bodyUserId = user_id != null && String(user_id).trim() !== '' ? parseInt(user_id, 10) : null;
+      if (bodyUserId != null && !isNaN(bodyUserId) && bodyUserId !== doctorId) {
+        await client.query('ROLLBACK');
+        return res.redirect(`/admin/doctors/${doctorId}/edit?error=` + encodeURIComponent('Некорректные данные формы'));
+      }
+
+      const emailNorm = email.toLowerCase().trim();
+      const emailConflict = await client.query(
+        'SELECT id FROM users WHERE email = $1 AND id <> $2',
+        [emailNorm, doctorId]
+      );
+      if (emailConflict.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.redirect(`/admin/doctors/${doctorId}/edit?error=` + encodeURIComponent('Email уже занят другим пользователем'));
+      }
+
+      if (new_password && String(new_password).trim().length > 0) {
+        if (String(new_password).trim().length < 6) {
+          await client.query('ROLLBACK');
+          return res.redirect(`/admin/doctors/${doctorId}/edit?error=` + encodeURIComponent('Новый пароль должен быть не короче 6 символов'));
+        }
+        const hash = await bcrypt.hash(String(new_password).trim(), SALT_ROUNDS);
+        await client.query(
+          `UPDATE users
+           SET email=$1, first_name=$2, last_name=$3, middle_name=$4, phone=$5, is_blocked=$6, password_hash=$7
+           WHERE id=$8 AND role='doctor'`,
+          [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), (phone||'').trim(), is_blocked === 'true', hash, doctorId]
+        );
+      } else {
+        await client.query(
+          `UPDATE users
+           SET email=$1, first_name=$2, last_name=$3, middle_name=$4, phone=$5, is_blocked=$6
+           WHERE id=$7 AND role='doctor'`,
+          [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), (phone||'').trim(), is_blocked === 'true', doctorId]
+        );
+      }
+
+      const profileUpdate = await client.query(
+        `UPDATE doctor_profiles
+         SET specialization_id=$1, cabinet=$2, experience_years=$3, education=$4, description=$5
+         WHERE user_id=$6`,
+        [specialization_id || null, cabinet || null, parseInt(experience_years) || 0, education || null, description || null, doctorId]
+      );
+      if (profileUpdate.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.redirect(`/admin/doctors/${doctorId}/edit?error=` + encodeURIComponent('Профиль врача не найден. Изменения не сохранены'));
+      }
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
 
     res.redirect('/admin/doctors?success=' + encodeURIComponent('Врач обновлён'));
   } catch (err) {
     console.error('Update doctor error:', err);
-    res.redirect(`/admin/doctors/${req.params.id}/edit?error=` + encodeURIComponent('Ошибка сохранения'));
+    const rid = await resolveDoctorUserId(req.params.id, pool);
+    const editId = rid != null ? rid : req.params.id;
+    res.redirect(`/admin/doctors/${editId}/edit?error=` + encodeURIComponent('Ошибка сохранения'));
   }
 });
 
@@ -163,16 +265,21 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
 
 router.post('/doctors/:id/delete', ...adminOnly, async (req, res) => {
   try {
+    const resolvedDoctorId = await resolveDoctorUserId(req.params.id, pool);
+    if (!resolvedDoctorId) {
+      return res.redirect('/admin/doctors?error=' + encodeURIComponent('Врач не найден'));
+    }
+
     const active = await pool.query(
       "SELECT COUNT(*) FROM appointments WHERE doctor_id=$1 AND status='booked' AND appointment_date >= CURRENT_DATE",
-      [req.params.id]
+      [resolvedDoctorId]
     );
     if (parseInt(active.rows[0].count) > 0) {
       return res.redirect('/admin/doctors?error=' + encodeURIComponent(
         `У врача есть ${active.rows[0].count} активных записей. Сначала отмените их.`
       ));
     }
-    await pool.query('DELETE FROM users WHERE id=$1 AND role=\'doctor\'', [req.params.id]);
+    await pool.query('DELETE FROM users WHERE id=$1 AND role=\'doctor\'', [resolvedDoctorId]);
     res.redirect('/admin/doctors?success=' + encodeURIComponent('Врач удалён'));
   } catch (err) {
     console.error('Delete doctor error:', err);

@@ -6,26 +6,40 @@
 
 <div class="card border-0 shadow-sm mx-auto" style="max-width:700px">
   <div class="card-body p-4">
-    <h4 class="fw-bold mb-4"><%= doctor ? 'Редактировать врача' : 'Добавить врача' %></h4>
+    <h4 class="fw-bold mb-2"><%= doctor ? 'Редактирование врача' : 'Добавить врача' %></h4>
+    <% if (doctor) { %>
+      <p class="text-muted small mb-4">ID пользователя: <strong><%= doctor.id %></strong><% if (typeof doctor.profile_id !== 'undefined' && doctor.profile_id != null) { %> (профиль #<%= doctor.profile_id %>)<% } %>. Изменения будут сохранены для этой записи.</p>
+    <% } else { %>
+      <p class="text-muted small mb-4">Создание нового врача</p>
+    <% } %>
 
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="alert alert-danger"><%= error %></div>
     <% } %>
 
     <form method="POST" action="<%= doctor ? '/admin/doctors/' + doctor.id + '/edit' : '/admin/doctors' %>">
+    <% if (doctor) { %>
+      <input type="hidden" name="user_id" value="<%= doctor.id %>">
+    <% } %>
 
-      <% if (!doctor) { %>
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-            <input type="email" class="form-control" name="email" required>
-          </div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+          <input type="email" class="form-control" name="email" value="<%= doctor ? doctor.email || '' : '' %>" required>
+        </div>
+        <% if (!doctor) { %>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Пароль <span class="text-danger">*</span></label>
             <input type="password" class="form-control" name="password" required minlength="6">
           </div>
-        </div>
-      <% } %>
+        <% } else { %>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Новый пароль</label>
+            <input type="password" class="form-control" name="new_password" autocomplete="new-password" placeholder="Оставьте пустым, чтобы не менять" title="Если задаёте пароль — не менее 6 символов (проверка на сервере)">
+            <div class="form-text">Если поле пустое, пароль не изменится.</div>
+          </div>
+        <% } %>
+      </div>
 
       <div class="row g-3 mb-3">
         <div class="col-md-4">
@@ -89,7 +103,7 @@
       </div>
 
       <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i>Сохранить</button>
+        <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-lg me-1"></i><%= doctor ? 'Сохранить изменения' : 'Добавить врача' %></button>
         <a href="/admin/doctors" class="btn btn-outline-secondary">Отмена</a>
       </div>
     </form>
