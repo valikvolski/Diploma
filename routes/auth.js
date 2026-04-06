@@ -21,11 +21,11 @@ router.get('/register', (req, res) => {
 // ─── POST /auth/register ─────────────────────────────────────────────────────
 
 router.post('/register', async (req, res) => {
-  const { email, password, first_name, last_name, middle_name, phone } = req.body;
+  const { email, password, password_confirm, first_name, last_name, middle_name, phone } = req.body;
   const formData = { email, first_name, last_name, middle_name, phone };
 
   // Server-side validation
-  if (!email || !password || !first_name || !last_name || !middle_name || !phone) {
+  if (!email || !password || !password_confirm || !first_name || !last_name || !middle_name || !phone) {
     return res.render('auth/register', {
       error: 'Все поля обязательны для заполнения',
       formData,
@@ -42,6 +42,20 @@ router.post('/register', async (req, res) => {
   if (password.length < 6) {
     return res.render('auth/register', {
       error: 'Пароль должен содержать не менее 6 символов',
+      formData,
+    });
+  }
+
+  if (password !== password_confirm) {
+    return res.render('auth/register', {
+      error: 'Пароли не совпадают',
+      formData,
+    });
+  }
+
+  if (!/^\+375[0-9]{9}$/.test(phone.trim())) {
+    return res.render('auth/register', {
+      error: 'Неверный формат телефона. Пример: +375291234567',
       formData,
     });
   }

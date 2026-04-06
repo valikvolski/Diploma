@@ -1,9 +1,89 @@
-<%- include('partials/header', { title: 'Главная — Поликлиника' }) %>
+<%- include('partials/header', { title: 'Главная — Запись к врачу' }) %>
 
-<div class="hero">
-  <h1>Запись к врачу в поликлинике</h1>
-  <p>Удобная онлайн-запись к специалистам вашей поликлиники</p>
-  <a href="/doctors" class="btn btn-primary">Найти врача</a>
+<!-- Hero -->
+<div class="hero-section rounded-4 text-white text-center py-5 px-3 mb-5">
+  <div class="hero-content">
+    <h1 class="display-5 fw-bold mb-3">Запись к врачу онлайн</h1>
+    <p class="lead mb-4 opacity-90">
+      Запишитесь к нужному специалисту в удобное время,<br class="d-none d-md-block">
+      не выходя из дома — быстро и без очередей
+    </p>
+    <div class="d-flex gap-3 justify-content-center flex-wrap">
+      <% if (typeof user !== 'undefined' && user) { %>
+        <a href="/doctors" class="btn btn-light btn-lg fw-semibold px-4">
+          <i class="bi bi-search me-2"></i>Найти врача
+        </a>
+        <a href="/appointments/new" class="btn btn-outline-light btn-lg px-4">
+          <i class="bi bi-calendar-plus me-2"></i>Записаться
+        </a>
+      <% } else { %>
+        <a href="/auth/login" class="btn btn-light btn-lg fw-semibold px-4">
+          <i class="bi bi-search me-2"></i>Найти врача
+        </a>
+        <a href="/auth/register" class="btn btn-outline-light btn-lg px-4">
+          <i class="bi bi-person-plus me-2"></i>Зарегистрироваться
+        </a>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Benefits -->
+<div class="row g-4 mb-5">
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm text-center p-4 benefit-card">
+      <div class="benefit-icon mb-3">
+        <i class="bi bi-calendar2-check"></i>
+      </div>
+      <h5 class="fw-bold">Удобная запись</h5>
+      <p class="text-muted mb-0">Выберите врача, дату и время — запись занимает меньше минуты</p>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm text-center p-4 benefit-card">
+      <div class="benefit-icon mb-3">
+        <i class="bi bi-ticket-perforated"></i>
+      </div>
+      <h5 class="fw-bold">Электронный талон</h5>
+      <p class="text-muted mb-0">Получите подтверждение на e-mail и приходите точно ко времени</p>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm text-center p-4 benefit-card">
+      <div class="benefit-icon mb-3">
+        <i class="bi bi-clock-history"></i>
+      </div>
+      <h5 class="fw-bold">Без очередей</h5>
+      <p class="text-muted mb-0">Ваше время ценно — приходите точно по расписанию без ожидания</p>
+    </div>
+  </div>
+</div>
+
+<!-- How it works -->
+<div class="card border-0 bg-light rounded-4 p-4 p-md-5 mb-4">
+  <h4 class="fw-bold text-center mb-4">Как это работает</h4>
+  <div class="row g-3 text-center">
+    <div class="col-md-3">
+      <div class="step-circle mx-auto mb-2">1</div>
+      <p class="fw-semibold mb-1">Регистрация</p>
+      <p class="text-muted small">Создайте аккаунт за 1 минуту</p>
+    </div>
+    <div class="col-md-3">
+      <div class="step-circle mx-auto mb-2">2</div>
+      <p class="fw-semibold mb-1">Выберите врача</p>
+      <p class="text-muted small">Нужная специальность и удобный врач</p>
+    </div>
+    <div class="col-md-3">
+      <div class="step-circle mx-auto mb-2">3</div>
+      <p class="fw-semibold mb-1">Выберите время</p>
+      <p class="text-muted small">Удобный день и час приёма</p>
+    </div>
+    <div class="col-md-3">
+      <div class="step-circle mx-auto mb-2">4</div>
+      <p class="fw-semibold mb-1">Приходите</p>
+      <p class="text-muted small">Предъявите талон на стойке регистрации</p>
+    </div>
+  </div>
 </div>
 
 <%- include('partials/footer') %>

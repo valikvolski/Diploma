@@ -1,44 +1,92 @@
-<%- include('../partials/header', { title: 'Вход — Поликлиника' }) %>
+<%- include('../partials/header', { title: 'Вход — Запись к врачу' }) %>
 
-<div class="auth-card">
-  <h2 class="auth-title">Вход в систему</h2>
+<div class="auth-wrapper">
+  <div class="auth-card card shadow-sm">
+    <div class="card-body p-4 p-md-5">
 
-  <% if (typeof error !== 'undefined' && error) { %>
-    <div class="alert alert-error"><%= error %></div>
-  <% } %>
+      <div class="text-center mb-4">
+        <div class="auth-icon mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="#0d6efd" viewBox="0 0 16 16">
+            <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+          </svg>
+        </div>
+        <h4 class="fw-bold text-dark">Вход в систему</h4>
+        <p class="text-muted small">Введите ваши данные для входа</p>
+      </div>
 
-  <% if (typeof success !== 'undefined' && success) { %>
-    <div class="alert alert-success"><%= success %></div>
-  <% } %>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i><%= error %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
 
-  <form method="POST" action="/auth/login" class="auth-form" novalidate>
-    <div class="form-group">
-      <label for="email">Email</label>
-      <input
-        type="email"
-        id="email"
-        name="email"
-        required
-        placeholder="example@mail.ru"
-        autofocus
-      />
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <i class="bi bi-check-circle-fill me-2"></i><%= success %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% } %>
+
+      <form method="POST" action="/auth/login" novalidate>
+
+        <div class="mb-3">
+          <label for="email" class="form-label fw-semibold">Электронная почта</label>
+          <input
+            type="email"
+            class="form-control"
+            id="email"
+            name="email"
+            required
+            placeholder="example@mail.com"
+            autofocus
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="mb-2">
+          <label for="password" class="form-label fw-semibold">Пароль</label>
+          <div class="input-group">
+            <input
+              type="password"
+              class="form-control"
+              id="password"
+              name="password"
+              required
+              placeholder="Введите пароль"
+              autocomplete="current-password"
+            />
+            <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="text-end mb-4">
+          <a href="#" class="small text-muted">Забыли пароль?</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+          Войти
+        </button>
+      </form>
+
+      <p class="text-center mt-3 mb-0 text-muted small">
+        Нет аккаунта? <a href="/auth/register" class="text-primary fw-semibold">Зарегистрироваться</a>
+      </p>
+
     </div>
-
-    <div class="form-group">
-      <label for="password">Пароль</label>
-      <input
-        type="password"
-        id="password"
-        name="password"
-        required
-        placeholder="••••••"
-      />
-    </div>
-
-    <button type="submit" class="btn btn-primary btn-full">Войти</button>
-  </form>
-
-  <p class="auth-link">Нет аккаунта? <a href="/auth/register">Зарегистрироваться</a></p>
+  </div>
 </div>
+
+<script>
+document.getElementById('togglePassword').addEventListener('click', () => {
+  const inp = document.getElementById('password');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+</script>
 
 <%- include('../partials/footer') %>
