@@ -1,10 +1,9 @@
-<%
-const body = `
-  <div class="hero">
-    <h1>Запись к врачу в поликлинике</h1>
-    <p>Удобная онлайн-запись к специалистам вашей поликлиники</p>
-    <a href="/doctors" class="btn btn-primary">Найти врача</a>
-  </div>
-`;
-%>
-<%- include('layout', { body, title: 'Главная — Поликлиника' }) %>
+<%- include('partials/header', { title: 'Главная — Поликлиника' }) %>
+
+<div class="hero">
+  <h1>Запись к врачу в поликлинике</h1>
+  <p>Удобная онлайн-запись к специалистам вашей поликлиники</p>
+  <a href="/doctors" class="btn btn-primary">Найти врача</a>
+</div>
+
+<%- include('partials/footer') %>

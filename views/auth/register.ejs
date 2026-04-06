@@ -1,0 +1,90 @@
+<%- include('../partials/header', { title: 'Регистрация — Поликлиника' }) %>
+
+<div class="auth-card">
+  <h2 class="auth-title">Регистрация</h2>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <form method="POST" action="/auth/register" class="auth-form" novalidate>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="last_name">Фамилия</label>
+        <input
+          type="text"
+          id="last_name"
+          name="last_name"
+          value="<%= typeof formData !== 'undefined' ? formData.last_name || '' : '' %>"
+          required
+          placeholder="Иванов"
+        />
+      </div>
+      <div class="form-group">
+        <label for="first_name">Имя</label>
+        <input
+          type="text"
+          id="first_name"
+          name="first_name"
+          value="<%= typeof formData !== 'undefined' ? formData.first_name || '' : '' %>"
+          required
+          placeholder="Иван"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="middle_name">Отчество</label>
+      <input
+        type="text"
+        id="middle_name"
+        name="middle_name"
+        value="<%= typeof formData !== 'undefined' ? formData.middle_name || '' : '' %>"
+        required
+        placeholder="Иванович"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        value="<%= typeof formData !== 'undefined' ? formData.email || '' : '' %>"
+        required
+        placeholder="example@mail.ru"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="phone">Телефон</label>
+      <input
+        type="tel"
+        id="phone"
+        name="phone"
+        value="<%= typeof formData !== 'undefined' ? formData.phone || '' : '' %>"
+        required
+        placeholder="+7 (999) 123-45-67"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="password">Пароль <span class="hint">(минимум 6 символов)</span></label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        minlength="6"
+        placeholder="••••••"
+      />
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-full">Зарегистрироваться</button>
+  </form>
+
+  <p class="auth-link">Уже есть аккаунт? <a href="/auth/login">Войти</a></p>
+</div>
+
+<%- include('../partials/footer') %>

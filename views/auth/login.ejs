@@ -1,0 +1,44 @@
+<%- include('../partials/header', { title: 'Вход — Поликлиника' }) %>
+
+<div class="auth-card">
+  <h2 class="auth-title">Вход в систему</h2>
+
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+
+  <% if (typeof success !== 'undefined' && success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+
+  <form method="POST" action="/auth/login" class="auth-form" novalidate>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        required
+        placeholder="example@mail.ru"
+        autofocus
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="password">Пароль</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        required
+        placeholder="••••••"
+      />
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-full">Войти</button>
+  </form>
+
+  <p class="auth-link">Нет аккаунта? <a href="/auth/register">Зарегистрироваться</a></p>
+</div>
+
+<%- include('../partials/footer') %>

@@ -173,3 +173,78 @@ body {
   color: #276749;
   border: 1px solid #68d391;
 }
+
+/* ── Auth forms ── */
+.auth-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  max-width: 480px;
+  margin: 2rem auto;
+  box-shadow: 0 4px 16px rgba(26, 107, 191, 0.1);
+}
+
+.auth-title {
+  font-size: 1.6rem;
+  color: #1a6bbf;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+.hint {
+  font-size: 0.78rem;
+  color: #718096;
+  font-weight: 400;
+}
+
+.btn-full {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  font-size: 1rem;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 1.2rem;
+  color: #4a5568;
+  font-size: 0.9rem;
+}
+
+.auth-link a {
+  color: #1a6bbf;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-link a:hover {
+  text-decoration: underline;
+}
+
+/* ── Logout button in navbar ── */
+.nav-btn-logout {
+  background: none;
+  border: none;
+  color: #cce0f5;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: color 0.2s;
+}
+
+.nav-btn-logout:hover {
+  color: #ffffff;
+}

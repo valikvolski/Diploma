@@ -4,6 +4,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const { testConnection } = require('./db/db');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,8 @@ app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   next();
 });
+
+app.use('/auth', authRoutes);
 
 app.get('/', (req, res) => {
   res.render('index');
