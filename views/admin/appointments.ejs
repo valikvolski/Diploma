@@ -20,11 +20,11 @@ function statusBadge(s){
     <form method="GET" action="/admin/appointments" class="row g-3 align-items-end">
       <div class="col-md-2">
         <label class="form-label small fw-semibold">Дата от</label>
-        <input type="date" class="form-control form-control-sm" name="date_from" value="<%= filters.date_from %>">
+        <input type="date" class="form-control form-control-sm" name="date_from" value="<%= filters.date_from %>" data-unified-calendar="1">
       </div>
       <div class="col-md-2">
         <label class="form-label small fw-semibold">Дата до</label>
-        <input type="date" class="form-control form-control-sm" name="date_to" value="<%= filters.date_to %>">
+        <input type="date" class="form-control form-control-sm" name="date_to" value="<%= filters.date_to %>" data-unified-calendar="1">
       </div>
       <div class="col-md-3">
         <label class="form-label small fw-semibold">Врач</label>

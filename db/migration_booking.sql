@@ -19,10 +19,17 @@ CREATE TABLE IF NOT EXISTS schedules (
 CREATE TABLE IF NOT EXISTS schedule_exceptions (
   id             SERIAL PRIMARY KEY,
   doctor_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  exception_date DATE NOT NULL,
+  exception_date DATE NOT NULL, -- legacy single-date compatibility
+  date_from      DATE NOT NULL,
+  date_to        DATE NOT NULL,
+  is_day_off     BOOLEAN NOT NULL DEFAULT TRUE,
+  start_time     TIME,
+  end_time       TIME,
   reason         VARCHAR(100),
-  UNIQUE(doctor_id, exception_date)
+  CONSTRAINT schedule_exceptions_date_range_check CHECK (date_to >= date_from)
 );
+CREATE INDEX IF NOT EXISTS idx_schedule_exceptions_doctor_period
+  ON schedule_exceptions (doctor_id, date_from, date_to);
 
 -- ══════════════════════════════════════════════════════════════
 -- Записи на приём

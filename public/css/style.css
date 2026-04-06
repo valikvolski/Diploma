@@ -511,6 +511,96 @@ a:hover { text-decoration: underline; }
   box-shadow: var(--shadow) !important;
 }
 
+/* ── Единый календарь для date-полей ─────────────────────────── */
+.uc-field { position: relative; }
+.uc-display { cursor: pointer; background-color: #fff; }
+.uc-display:focus { cursor: pointer; }
+
+.uc-popup {
+  position: absolute;
+  z-index: 1200;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 300px;
+  background: #fff;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: .65rem;
+}
+
+.uc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}
+
+.uc-nav {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.uc-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  font-size: .72rem;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: .4rem;
+}
+
+.uc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.uc-day {
+  border: 1px solid #e5ebf4;
+  background: #fff;
+  border-radius: 8px;
+  min-height: 34px;
+  font-size: .86rem;
+  transition: .12s ease;
+}
+
+.uc-day:hover:not(:disabled):not(.uc-empty) {
+  background: #eff5ff;
+  border-color: #b9d3ff;
+  transform: translateY(-1px);
+}
+
+.uc-day.selected {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.uc-day.today:not(.selected) {
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.uc-day.disabled {
+  background: #f8f9fa;
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+
+.uc-day.uc-empty {
+  visibility: hidden;
+  border: none;
+  background: transparent;
+}
+
 /* ── Календарь записи (страница врача) ─────────────────────── */
 .booking-cal {
   border-radius: var(--radius) !important;

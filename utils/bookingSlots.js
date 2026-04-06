@@ -62,16 +62,39 @@ async function getFreeSlotsForDate(pool, doctorId, dateStr, todayYmd = null) {
      WHERE doctor_id = $1 AND weekday = EXTRACT(DOW FROM $2::date)`,
     [doctorId, dateStr]
   );
-  if (scheduleRes.rows.length === 0) return [];
 
-  const exceptionRes = await pool.query(
-    'SELECT 1 FROM schedule_exceptions WHERE doctor_id = $1 AND exception_date = $2',
+  const timeOffRes = await pool.query(
+    `SELECT is_day_off, start_time, end_time
+     FROM schedule_exceptions
+     WHERE doctor_id = $1
+       AND $2::date BETWEEN COALESCE(date_from, exception_date) AND COALESCE(date_to, exception_date)
+     ORDER BY id DESC
+     LIMIT 1`,
     [doctorId, dateStr]
   );
-  if (exceptionRes.rows.length > 0) return [];
+  if (timeOffRes.rows.length > 0) {
+    const t = timeOffRes.rows[0];
+    if (t.is_day_off) return [];
+  }
 
-  const { start_time, end_time, slot_duration } = scheduleRes.rows[0];
-  const allSlots = generateSlots(start_time, end_time, slot_duration);
+  // Базовые часы/длительность из расписания (если есть).
+  let baseStart = null;
+  let baseEnd = null;
+  let slotDuration = 30;
+  if (scheduleRes.rows.length > 0) {
+    baseStart = scheduleRes.rows[0].start_time;
+    baseEnd = scheduleRes.rows[0].end_time;
+    slotDuration = Number(scheduleRes.rows[0].slot_duration) || 30;
+  }
+
+  // Если в периоде задано "изменённое время" — используем его.
+  if (timeOffRes.rows.length > 0 && !timeOffRes.rows[0].is_day_off) {
+    baseStart = timeOffRes.rows[0].start_time || baseStart;
+    baseEnd = timeOffRes.rows[0].end_time || baseEnd;
+  }
+
+  if (!baseStart || !baseEnd) return [];
+  const allSlots = generateSlots(baseStart, baseEnd, slotDuration);
 
   const bookedRes = await pool.query(
     `SELECT appointment_time FROM appointments
@@ -123,9 +146,15 @@ async function getMonthAvailabilityMap(pool, doctorId, yearMonth, { bypassCache 
       [doctorId]
     ),
     pool.query(
-      `SELECT TO_CHAR(exception_date, 'YYYY-MM-DD') AS d
+      `SELECT id,
+              TO_CHAR(COALESCE(date_from, exception_date), 'YYYY-MM-DD') AS date_from,
+              TO_CHAR(COALESCE(date_to,   exception_date), 'YYYY-MM-DD') AS date_to,
+              is_day_off, start_time, end_time
        FROM schedule_exceptions
-       WHERE doctor_id = $1 AND exception_date >= $2::date AND exception_date <= $3::date`,
+       WHERE doctor_id = $1
+         AND COALESCE(date_from, exception_date) <= $3::date
+         AND COALESCE(date_to, exception_date) >= $2::date
+       ORDER BY id ASC`,
       [doctorId, rangeStart, rangeEnd]
     ),
     pool.query(
@@ -143,7 +172,19 @@ async function getMonthAvailabilityMap(pool, doctorId, yearMonth, { bypassCache 
     if (!Number.isNaN(wd)) scheduleByWd[wd] = r;
   });
 
-  const exceptionSet = new Set(exceptionsRes.rows.map(r => r.d));
+  // Для каждого дня месяца храним активную запись нерабочего периода.
+  const exceptionByDate = new Map();
+  exceptionsRes.rows.forEach(r => {
+    const start = r.date_from < rangeStart ? rangeStart : r.date_from;
+    const end = r.date_to > rangeEnd ? rangeEnd : r.date_to;
+    let cur = new Date(start + 'T12:00:00Z');
+    const lim = new Date(end + 'T12:00:00Z');
+    while (cur <= lim) {
+      const ds = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, '0')}-${String(cur.getUTCDate()).padStart(2, '0')}`;
+      exceptionByDate.set(ds, r); // более поздняя запись (по id ASC циклом) перезапишет
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+  });
   const bookedByDate = new Map();
   bookedRes.rows.forEach(r => {
     const d = r.d;
@@ -158,17 +199,27 @@ async function getMonthAvailabilityMap(pool, doctorId, yearMonth, { bypassCache 
       out[ds] = 0;
       continue;
     }
-    if (exceptionSet.has(ds)) {
-      out[ds] = 0;
-      continue;
-    }
+    const e = exceptionByDate.get(ds);
     const wd = weekdayFromDateStr(ds);
     const sch = scheduleByWd[Number(wd)];
-    if (!sch || sch.start_time == null || sch.end_time == null || sch.slot_duration == null) {
+    let startTime = sch && sch.start_time != null ? sch.start_time : null;
+    let endTime = sch && sch.end_time != null ? sch.end_time : null;
+    let slotDuration = sch && sch.slot_duration != null ? Number(sch.slot_duration) : 30;
+
+    if (e) {
+      if (e.is_day_off) {
+        out[ds] = 0;
+        continue;
+      }
+      startTime = e.start_time || startTime;
+      endTime = e.end_time || endTime;
+    }
+
+    if (!startTime || !endTime) {
       out[ds] = 0;
       continue;
     }
-    const allSlots = generateSlots(sch.start_time, sch.end_time, sch.slot_duration);
+    const allSlots = generateSlots(startTime, endTime, slotDuration);
     const taken = bookedByDate.get(ds) || new Set();
     const free = allSlots.filter(s => !taken.has(s)).length;
     out[ds] = free;

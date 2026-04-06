@@ -1,14 +1,30 @@
 <%
 const MONTHS = ['января','февраля','марта','апреля','мая','июня',
                 'июля','августа','сентября','октября','ноября','декабря'];
-function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1]+' '+p[0]; }
+function fmtDate(str) {
+  if(!str)return '—';
+  const p=String(str).split('-');
+  return parseInt(p[2],10)+' '+MONTHS[parseInt(p[1],10)-1]+' '+p[0];
+}
+function fmtPeriod(r){
+  if(!r.date_from) return '—';
+  if(r.date_from === r.date_to) return fmtDate(r.date_from);
+  return fmtDate(r.date_from) + ' – ' + fmtDate(r.date_to);
+}
+function fmtTime(r){
+  if(r.is_day_off) return 'Выходной';
+  return (r.start_time || '—') + '–' + (r.end_time || '—');
+}
+function fmtType(r){
+  return r.is_day_off ? 'Нерабочий период' : 'Изменённый режим';
+}
 %>
 <%- include('../partials/header', { title: title }) %>
 
 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-  <h3 class="fw-bold mb-0"><i class="bi bi-calendar-x text-primary me-2"></i>Исключения из расписания</h3>
+  <h3 class="fw-bold mb-0"><i class="bi bi-calendar-x text-primary me-2"></i>Нерабочие дни и изменения в графике</h3>
   <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExcModal">
-    <i class="bi bi-plus-circle me-1"></i>Добавить исключение
+    <i class="bi bi-plus-circle me-1"></i>Добавить изменение
   </button>
 </div>
 
@@ -20,19 +36,29 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
 <% } %>
 
 <% if (upcoming.length) { %>
-  <h5 class="fw-semibold mb-3">Предстоящие</h5>
+  <h5 class="fw-semibold mb-3">Предстоящие изменения</h5>
   <div class="card border-0 shadow-sm mb-4">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
-        <thead class="table-light"><tr><th>Дата</th><th>Причина</th><th class="text-end">Действие</th></tr></thead>
+        <thead class="table-light">
+          <tr>
+            <th>Период</th>
+            <th>Тип</th>
+            <th>Причина</th>
+            <th>Время</th>
+            <th class="text-end">Действия</th>
+          </tr>
+        </thead>
         <tbody>
           <% upcoming.forEach(function(e) { %>
             <tr>
-              <td class="fw-semibold"><%= fmtDate(e.exception_date) %></td>
+              <td class="fw-semibold"><%= fmtPeriod(e) %></td>
+              <td><span class="badge bg-light text-dark"><%= fmtType(e) %></span></td>
               <td><%= e.reason || '—' %></td>
+              <td><%= fmtTime(e) %></td>
               <td class="text-end">
-                <form method="POST" action="/doctor/exceptions/<%= e.id %>/delete" class="d-inline"
-                  onsubmit="return confirm('Удалить исключение?')">
+                <form method="POST" action="/doctor/time-off/<%= e.id %>/delete" class="d-inline"
+                  onsubmit="return confirm('Удалить изменение графика?')">
                   <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                 </form>
               </td>
@@ -45,14 +71,19 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
 <% } %>
 
 <% if (past.length) { %>
-  <h5 class="fw-semibold mb-3 text-muted">Прошедшие</h5>
+  <h5 class="fw-semibold mb-3 text-muted">Прошедшие изменения</h5>
   <div class="card border-0 shadow-sm mb-4 opacity-65">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
-        <thead class="table-light"><tr><th>Дата</th><th>Причина</th></tr></thead>
+        <thead class="table-light"><tr><th>Период</th><th>Тип</th><th>Причина</th><th>Время</th></tr></thead>
         <tbody>
           <% past.forEach(function(e) { %>
-            <tr><td><%= fmtDate(e.exception_date) %></td><td><%= e.reason || '—' %></td></tr>
+            <tr>
+              <td><%= fmtPeriod(e) %></td>
+              <td><%= fmtType(e) %></td>
+              <td><%= e.reason || '—' %></td>
+              <td><%= fmtTime(e) %></td>
+            </tr>
           <% }) %>
         </tbody>
       </table>
@@ -61,17 +92,16 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
 <% } %>
 
 <% if (!upcoming.length && !past.length) { %>
-  <div class="text-center py-5"><i class="bi bi-calendar-check text-muted" style="font-size:3rem;opacity:.35"></i><p class="text-muted mt-2">Исключений нет</p></div>
+  <div class="text-center py-5"><i class="bi bi-calendar-check text-muted" style="font-size:3rem;opacity:.35"></i><p class="text-muted mt-2">Изменений графика нет</p></div>
 <% } %>
 
 <!-- Модальное окно добавления -->
 <div class="modal fade" id="addExcModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form method="POST" action="/doctor/exceptions" id="excForm">
-        <div class="modal-header"><h5 class="modal-title fw-bold">Добавить исключение</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST" action="/doctor/time-off" id="excForm">
+        <div class="modal-header"><h5 class="modal-title fw-bold">Изменение графика</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
-          <!-- Режим: один день / период -->
           <div class="mb-3">
             <div class="form-check form-check-inline">
               <input class="form-check-input" type="radio" name="mode" id="modeSingle" value="single" checked>
@@ -86,11 +116,27 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
           <div class="row g-3 mb-3">
             <div class="col" id="dateFromGroup">
               <label class="form-label fw-semibold" id="dateFromLabel">Дата</label>
-              <input type="date" class="form-control" name="exception_date" id="excDateFrom" min="<%= todayStr %>" required>
+              <input type="date" class="form-control" name="exception_date" id="excDateFrom" min="<%= todayStr %>" required data-unified-calendar="1">
             </div>
             <div class="col" id="dateToGroup" style="display:none">
               <label class="form-label fw-semibold">Дата окончания</label>
-              <input type="date" class="form-control" name="date_to" id="excDateTo" min="<%= todayStr %>">
+              <input type="date" class="form-control" name="date_to" id="excDateTo" min="<%= todayStr %>" data-unified-calendar="1">
+            </div>
+          </div>
+
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="isDayOff" name="is_day_off" checked>
+            <label class="form-check-label fw-semibold" for="isDayOff">Полный выходной</label>
+          </div>
+
+          <div class="row g-3 mb-3 d-none" id="timeRow">
+            <div class="col">
+              <label class="form-label fw-semibold">Начало приёма</label>
+              <input type="time" class="form-control" name="start_time" id="startTime">
+            </div>
+            <div class="col">
+              <label class="form-label fw-semibold">Окончание приёма</label>
+              <input type="time" class="form-control" name="end_time" id="endTime">
             </div>
           </div>
 
@@ -101,7 +147,7 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
 
           <div class="alert alert-warning small py-2 mb-0">
             <i class="bi bi-exclamation-triangle me-1"></i>
-            Все существующие записи на выбранные даты будут автоматически отменены, а пациенты получат уведомления.
+            Записи, которые попадают в нерабочий период (или вне указанного времени), будут отменены автоматически, пациенты получат уведомления.
           </div>
         </div>
         <div class="modal-footer">
@@ -121,6 +167,10 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
   const dateFromLabel = document.getElementById('dateFromLabel');
   const excDateTo = document.getElementById('excDateTo');
   const excDateFrom = document.getElementById('excDateFrom');
+  const isDayOff = document.getElementById('isDayOff');
+  const timeRow = document.getElementById('timeRow');
+  const startTime = document.getElementById('startTime');
+  const endTime = document.getElementById('endTime');
 
   function toggle() {
     const isPeriod = modePeriod.checked;
@@ -128,14 +178,23 @@ function fmtDate(str) { if(!str)return '—'; const p=String(str).split('-'); re
     dateFromLabel.textContent = isPeriod ? 'Дата начала' : 'Дата';
     excDateTo.required = isPeriod;
   }
+  function toggleTime() {
+    const off = isDayOff.checked;
+    timeRow.classList.toggle('d-none', off);
+    startTime.required = !off;
+    endTime.required = !off;
+  }
 
   modeSingle.addEventListener('change', toggle);
   modePeriod.addEventListener('change', toggle);
+  isDayOff.addEventListener('change', toggleTime);
 
   excDateFrom.addEventListener('change', function() {
     excDateTo.min = this.value;
     if (excDateTo.value && excDateTo.value < this.value) excDateTo.value = this.value;
   });
+  toggle();
+  toggleTime();
 })();
 </script>
 
