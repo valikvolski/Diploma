@@ -142,7 +142,6 @@ router.get('/edit', ...patientOnly, async (req, res) => {
         birth_date: profile.birth_date ? new Date(profile.birth_date).toISOString().split('T')[0] : '',
         gender: profile.gender || '',
         address: profile.address || '',
-        policy_number: profile.policy_number || '',
       },
     });
   } catch (err) {
@@ -154,7 +153,7 @@ router.get('/edit', ...patientOnly, async (req, res) => {
 // ─── POST /profile/edit ──────────────────────────────────────────────────────
 
 router.post('/edit', ...patientOnly, async (req, res) => {
-  const { first_name, last_name, middle_name, phone, birth_date, gender, address, policy_number } = req.body;
+  const { first_name, last_name, middle_name, phone, birth_date, gender, address } = req.body;
   const formData = { ...req.body, email: req.session.user.email };
 
   if (!first_name || !last_name || !middle_name || !phone) {
@@ -181,16 +180,15 @@ router.post('/edit', ...patientOnly, async (req, res) => {
 
     // Upsert patient_profiles
     await pool.query(
-      `INSERT INTO patient_profiles (user_id, birth_date, gender, address, policy_number)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO patient_profiles (user_id, birth_date, gender, address)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (user_id)
-       DO UPDATE SET birth_date=$2, gender=$3, address=$4, policy_number=$5`,
+       DO UPDATE SET birth_date = EXCLUDED.birth_date, gender = EXCLUDED.gender, address = EXCLUDED.address`,
       [
         req.session.user.id,
         birth_date || null,
         gender || null,
         address ? address.trim() : null,
-        policy_number ? policy_number.trim() : null,
       ]
     );
 

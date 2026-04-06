@@ -100,21 +100,43 @@ function experienceLabel(n) {
 
       <% if (typeof user !== 'undefined' && user && user.role === 'patient') { %>
 
-        <!-- Выбор даты -->
+        <!-- Календарь с доступностью -->
         <div class="mb-3">
-          <label for="bookingDate" class="form-label fw-semibold">
+          <label class="form-label fw-semibold d-block">
             <i class="bi bi-calendar3 me-1 text-primary"></i>Выберите дату
           </label>
-          <input
-            type="date"
-            class="form-control"
-            id="bookingDate"
-            min="<%= new Date().toISOString().split('T')[0] %>"
-            style="max-width:220px"
-          />
+          <div class="booking-cal card border-0 shadow-sm">
+            <div class="card-body p-3 p-md-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" id="bcalPrev" aria-label="Предыдущий месяц">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <span class="fw-bold text-center px-2" id="bcalTitle"></span>
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" id="bcalNext" aria-label="Следующий месяц">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </div>
+              <div id="bcalLoading" class="text-center py-4 d-none">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted small mt-2 mb-0">Загрузка доступности…</p>
+              </div>
+              <div id="bcalGridWrap" class="d-none">
+                <div class="booking-cal-weekdays">
+                  <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                </div>
+                <div class="booking-cal-grid" id="bcalGrid"></div>
+              </div>
+              <p class="booking-cal-selected small fw-semibold text-primary mt-3 mb-0 d-none" id="bcalSelectedLabel"></p>
+              <div class="booking-cal-legend small text-muted mt-3 pt-2 border-top">
+                <span class="me-3"><span class="booking-cal-legend-dot bg-cal-high"></span> много мест (5+)</span>
+                <span class="me-3"><span class="booking-cal-legend-dot bg-cal-low"></span> мало мест (1–4)</span>
+                <span><span class="booking-cal-legend-dot bg-cal-none"></span> нет мест</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Спиннер -->
+        <!-- Спиннер слотов -->
         <div id="slotsSpinner" class="text-center py-3 d-none">
           <div class="spinner-border spinner-border-sm text-primary me-2"></div>
           <span class="text-muted">Загрузка расписания...</span>
@@ -169,8 +191,15 @@ function experienceLabel(n) {
 <% if (typeof user !== 'undefined' && user && user.role === 'patient') { %>
 <script>
 (function () {
-  const DOCTOR_ID = <%= doctor.id %>;
-  const dateInput    = document.getElementById('bookingDate');
+  const DOCTOR_ID = parseInt('<%= doctor.id %>', 10);
+  /** Только из .env APP_BASE_PATH (например /clinic). Не вычислять из pathname — ломает URL вида /X/doctors/11 → 404 */
+  var API_PREFIX = <%- JSON.stringify(typeof appMountPath !== 'undefined' ? appMountPath : '') %>;
+  function apiUrl(path) {
+    return API_PREFIX + path;
+  }
+  const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const MONTHS_NOM = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
   const spinner      = document.getElementById('slotsSpinner');
   const noSlotsMsg   = document.getElementById('noSlotsMsg');
   const slotsSection = document.getElementById('slotsSection');
@@ -179,19 +208,152 @@ function experienceLabel(n) {
   const hiddenTime   = document.getElementById('hiddenTime');
   const submitBtn    = document.getElementById('submitBooking');
 
-  dateInput.addEventListener('change', async function () {
-    const date = this.value;
-    if (!date) return;
+  const bcalPrev = document.getElementById('bcalPrev');
+  const bcalNext = document.getElementById('bcalNext');
+  const bcalTitle = document.getElementById('bcalTitle');
+  const bcalLoading = document.getElementById('bcalLoading');
+  const bcalGridWrap = document.getElementById('bcalGridWrap');
+  const bcalGrid = document.getElementById('bcalGrid');
+  const bcalSelectedLabel = document.getElementById('bcalSelectedLabel');
 
-    // Сброс
+  let calYear, calMonth;
+  let availabilityCache = {};
+  let selectedDateStr = null;
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function toYmd(y, m1, d) { return y + '-' + pad2(m1) + '-' + pad2(d); }
+
+  function clientTodayYmd() {
+    const n = new Date();
+    return toYmd(n.getFullYear(), n.getMonth() + 1, n.getDate());
+  }
+
+  function monthKey(y, m1) { return y + '-' + pad2(m1); }
+
+  function mondayOffset(jsDowSun0) {
+    return jsDowSun0 === 0 ? 6 : jsDowSun0 - 1;
+  }
+
+  async function fetchAvailability(y, m1) {
+    const key = monthKey(y, m1);
+    if (availabilityCache[key]) return availabilityCache[key];
+    const url = apiUrl('/api/doctors/' + DOCTOR_ID + '/availability?month=' + encodeURIComponent(key));
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || typeof data !== 'object') throw new Error('bad payload');
+    availabilityCache[key] = data;
+    return data;
+  }
+
+  function placesWordRU(n) {
+    const n10 = n % 10;
+    const n100 = n % 100;
+    if (n100 >= 11 && n100 <= 19) return 'мест';
+    if (n10 === 1) return 'место';
+    if (n10 >= 2 && n10 <= 4) return 'места';
+    return 'мест';
+  }
+
+  function cellClass(count, isPast) {
+    if (isPast) return 'booking-cal-cell past';
+    if (count >= 5) return 'booking-cal-cell high';
+    if (count >= 1) return 'booking-cal-cell low';
+    return 'booking-cal-cell none';
+  }
+
+  function renderCalendar(avail) {
+    const today = clientTodayYmd();
+    const first = new Date(calYear, calMonth - 1, 1);
+    const dim = new Date(calYear, calMonth, 0).getDate();
+    const startPad = mondayOffset(first.getDay());
+    const totalCells = Math.ceil((startPad + dim) / 7) * 7;
+
+    bcalTitle.textContent = MONTHS_NOM[calMonth - 1] + ' ' + calYear;
+    bcalGrid.innerHTML = '';
+
+    for (let i = 0; i < totalCells; i++) {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+
+      if (i < startPad || i >= startPad + dim) {
+        cell.className = 'booking-cal-cell booking-cal-empty';
+        cell.disabled = true;
+        bcalGrid.appendChild(cell);
+        continue;
+      }
+
+      const dayNum = i - startPad + 1;
+      const ds = toYmd(calYear, calMonth, dayNum);
+      const isPast = ds < today;
+      const count = Object.prototype.hasOwnProperty.call(avail, ds) ? avail[ds] : 0;
+      const clickable = !isPast && count > 0;
+
+      cell.className = cellClass(count, isPast);
+      cell.disabled = !clickable;
+      cell.setAttribute('data-date', ds);
+      if (ds === today) cell.classList.add('today');
+      if (selectedDateStr === ds) cell.classList.add('selected');
+
+      const mon = MONTHS_GEN[calMonth - 1];
+      const placesStr = isPast ? '—' : (count + ' ' + placesWordRU(count));
+      cell.innerHTML =
+        '<span class="booking-cal-daynum">' + dayNum + '</span>' +
+        '<span class="booking-cal-sub">' + mon + '</span>' +
+        '<span class="booking-cal-badge">' + placesStr + '</span>';
+      if (!isPast) {
+        cell.setAttribute('title', dayNum + ' ' + mon + ' (' + count + ' ' + placesWordRU(count) + ')');
+      }
+
+      if (clickable) {
+        (function (dateStr, cnt, dNum, monName) {
+          cell.addEventListener('click', function () {
+            onPickDate(dateStr, cnt, dNum + ' ' + monName);
+          });
+        })(ds, count, dayNum, mon);
+      }
+
+      bcalGrid.appendChild(cell);
+    }
+  }
+
+  async function showMonth(y, m1) {
+    calYear = y;
+    calMonth = m1;
+    bcalGridWrap.classList.add('d-none');
+    bcalLoading.classList.remove('d-none');
+    try {
+      const avail = await fetchAvailability(y, m1);
+      bcalLoading.classList.add('d-none');
+      bcalGridWrap.classList.remove('d-none');
+      renderCalendar(avail);
+    } catch (e) {
+      bcalLoading.classList.add('d-none');
+      bcalTitle.textContent = 'Ошибка загрузки';
+      console.error('Календарь: не удалось загрузить доступность', e);
+    }
+  }
+
+  function onPickDate(ds, count, dayHuman) {
+    selectedDateStr = ds;
+    hiddenDate.value = ds;
+    hiddenTime.value = '';
+    submitBtn.disabled = true;
+    bcalSelectedLabel.textContent = 'Выбрано: ' + dayHuman + ' (' + count + ' ' + placesWordRU(count) + ')';
+    bcalSelectedLabel.classList.remove('d-none');
+    document.querySelectorAll('.booking-cal-cell[data-date]').forEach(function (el) {
+      el.classList.toggle('selected', el.getAttribute('data-date') === selectedDateStr);
+    });
+    loadSlotsForDate(ds);
+  }
+
+  async function loadSlotsForDate(date) {
     slotsSection.classList.add('d-none');
     noSlotsMsg.classList.add('d-none');
     spinner.classList.remove('d-none');
-    hiddenTime.value = '';
-    submitBtn.disabled = true;
 
     try {
-      const res = await fetch(`/api/doctors/${DOCTOR_ID}/slots?date=${date}`);
+      const res = await fetch(apiUrl('/api/doctors/' + DOCTOR_ID + '/slots?date=' + encodeURIComponent(date)));
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
       renderSlots(data.slots, date);
@@ -201,7 +363,7 @@ function experienceLabel(n) {
     } finally {
       spinner.classList.add('d-none');
     }
-  });
+  }
 
   function renderSlots(slots, date) {
     if (!slots || slots.length === 0) {
@@ -231,6 +393,33 @@ function experienceLabel(n) {
 
     slotsSection.classList.remove('d-none');
   }
+
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth() + 1;
+
+  bcalPrev.addEventListener('click', function () {
+    calMonth--;
+    if (calMonth < 1) { calMonth = 12; calYear--; }
+    selectedDateStr = null;
+    bcalSelectedLabel.classList.add('d-none');
+    slotsSection.classList.add('d-none');
+    showMonth(calYear, calMonth);
+  });
+  bcalNext.addEventListener('click', function () {
+    calMonth++;
+    if (calMonth > 12) { calMonth = 1; calYear++; }
+    selectedDateStr = null;
+    bcalSelectedLabel.classList.add('d-none');
+    slotsSection.classList.add('d-none');
+    showMonth(calYear, calMonth);
+  });
+
+  showMonth(calYear, calMonth);
+
+  document.getElementById('bookingForm').addEventListener('submit', function () {
+    availabilityCache = {};
+  });
 })();
 </script>
 <% } %>

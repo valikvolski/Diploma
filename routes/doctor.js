@@ -160,7 +160,7 @@ router.post('/exceptions', ...docOnly, async (req, res) => {
           totalCancelled += affected.rows.length;
 
           for (const apt of affected.rows) {
-            await notifyAppointmentCancelled(apt.id, 'Врач не работает в этот день: ' + reasonText);
+            await notifyAppointmentCancelled(apt.id, { mode: 'day_off' });
           }
         }
 
@@ -263,7 +263,10 @@ router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
     await pool.query('UPDATE appointments SET status = $1 WHERE id = $2', [status, apptId]);
 
     if (status === 'cancelled') {
-      await notifyAppointmentCancelled(apptId, 'Запись отменена врачом');
+      await notifyAppointmentCancelled(apptId, {
+        mode: 'manual',
+        reason: 'Запись отменена врачом',
+      });
     }
 
     const dateParam = redirect_date || new Date().toISOString().split('T')[0];

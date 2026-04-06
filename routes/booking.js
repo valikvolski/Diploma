@@ -2,32 +2,13 @@ const express = require('express');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { notifyAppointmentCreated } = require('../utils/notifications');
+const {
+  getFreeSlotsForDate,
+  getMonthAvailabilityMap,
+  invalidateDoctorAvailabilityCache,
+} = require('../utils/bookingSlots');
 
 const router = express.Router();
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function timeToMinutes(t) {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function generateSlots(startTime, endTime, slotDuration) {
-  const slots = [];
-  let current = timeToMinutes(startTime);
-  const end = timeToMinutes(endTime);
-  while (current + slotDuration <= end) {
-    slots.push(minutesToTime(current));
-    current += slotDuration;
-  }
-  return slots;
-}
 
 function generateTicketNumber() {
   const ts = Date.now();
@@ -35,12 +16,6 @@ function generateTicketNumber() {
   return `T-${ts}-${rand}`;
 }
 
-// Нормализует время "09:30:00" → "09:30"
-function normalizeTime(t) {
-  return t ? t.substring(0, 5) : t;
-}
-
-// Проверка формата YYYY-MM-DD
 function isValidDate(str) {
   return /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(Date.parse(str));
 }
@@ -55,7 +30,6 @@ router.get('/api/doctors/:id/slots', async (req, res) => {
     return res.status(400).json({ error: 'Неверные параметры запроса' });
   }
 
-  // Запрещаем выбор прошедших дат
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const selected = new Date(date + 'T00:00:00');
@@ -64,43 +38,30 @@ router.get('/api/doctors/:id/slots', async (req, res) => {
   }
 
   try {
-    // Получаем расписание на день недели (PostgreSQL DOW: 0=Sun … 6=Sat)
-    const scheduleRes = await pool.query(
-      `SELECT start_time, end_time, slot_duration
-       FROM schedules
-       WHERE doctor_id = $1
-         AND weekday = EXTRACT(DOW FROM $2::date)`,
-      [doctorId, date]
-    );
-
-    if (scheduleRes.rows.length === 0) {
-      return res.json({ slots: [] });
-    }
-
-    // Проверяем исключения (отпуск/больничный)
-    const exceptionRes = await pool.query(
-      'SELECT id FROM schedule_exceptions WHERE doctor_id = $1 AND exception_date = $2',
-      [doctorId, date]
-    );
-    if (exceptionRes.rows.length > 0) {
-      return res.json({ slots: [] });
-    }
-
-    const { start_time, end_time, slot_duration } = scheduleRes.rows[0];
-    const allSlots = generateSlots(start_time, end_time, slot_duration);
-
-    // Получаем уже занятые слоты
-    const bookedRes = await pool.query(
-      `SELECT appointment_time FROM appointments
-       WHERE doctor_id = $1 AND appointment_date = $2 AND status IN ('booked','completed')`,
-      [doctorId, date]
-    );
-    const bookedSet = new Set(bookedRes.rows.map(r => normalizeTime(r.appointment_time)));
-
-    const freeSlots = allSlots.filter(s => !bookedSet.has(s));
-    res.json({ slots: freeSlots });
+    const slots = await getFreeSlotsForDate(pool, doctorId, date);
+    res.json({ slots });
   } catch (err) {
     console.error('Slots error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ─── GET /api/doctors/:id/availability?month=YYYY-MM ─────────────────────────
+
+router.get('/api/doctors/:id/availability', async (req, res) => {
+  const doctorId = parseInt(req.params.id, 10);
+  const { month } = req.query;
+
+  if (isNaN(doctorId) || !month || !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'Укажите month=YYYY-MM' });
+  }
+
+  try {
+    // Не делаем 404: страница врача уже проверена; здесь только расчёт (как у /slots)
+    const availability = await getMonthAvailabilityMap(pool, doctorId, month);
+    res.json(availability);
+  } catch (err) {
+    console.error('Availability error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -115,7 +76,6 @@ router.post(
     const { doctor_id, date, time } = req.body;
     const patientId = req.session.user.id;
 
-    // Базовая валидация
     if (!doctor_id || !isValidDate(date) || !time || !/^\d{2}:\d{2}$/.test(time)) {
       return res.status(400).render('error', { message: 'Некорректные данные для записи' });
     }
@@ -128,7 +88,6 @@ router.post(
     }
 
     try {
-      // Проверяем что врач существует и активен
       const doctorRes = await pool.query(
         "SELECT id FROM users WHERE id = $1 AND role = 'doctor' AND is_blocked = false",
         [doctor_id]
@@ -137,7 +96,6 @@ router.post(
         return res.status(404).render('error', { message: 'Врач не найден' });
       }
 
-      // Проверяем что пациент ещё не записан к этому врачу на эту дату
       const dupRes = await pool.query(
         `SELECT id FROM appointments
          WHERE patient_id = $1 AND doctor_id = $2 AND appointment_date = $3 AND status = 'booked'`,
@@ -149,7 +107,25 @@ router.post(
         });
       }
 
-      // Создаём запись (UNIQUE constraint предотвращает двойное бронирование)
+      const conflictRes = await pool.query(
+        `SELECT id FROM appointments
+         WHERE doctor_id = $1 AND appointment_date = $2 AND appointment_time = $3::time
+           AND status IN ('booked', 'completed')`,
+        [doctor_id, date, time]
+      );
+      if (conflictRes.rows.length > 0) {
+        return res.status(409).render('error', {
+          message: 'Выбранное время уже занято. Пожалуйста, выберите другое.',
+        });
+      }
+
+      const freeList = await getFreeSlotsForDate(pool, doctor_id, date);
+      if (!freeList.includes(time)) {
+        return res.status(409).render('error', {
+          message: 'Выбранное время недоступно. Обновите страницу и выберите другое.',
+        });
+      }
+
       const apptRes = await pool.query(
         `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status)
          VALUES ($1, $2, $3, $4, 'booked')
@@ -158,18 +134,17 @@ router.post(
       );
       const appointmentId = apptRes.rows[0].id;
 
-      // Создаём талон
       const ticketNumber = generateTicketNumber();
       const ticketRes = await pool.query(
         'INSERT INTO tickets (appointment_id, ticket_number) VALUES ($1, $2) RETURNING id',
         [appointmentId, ticketNumber]
       );
 
+      invalidateDoctorAvailabilityCache(Number(doctor_id), date);
       notifyAppointmentCreated(appointmentId).catch(e => console.error('Notify error:', e));
 
       res.redirect(`/tickets/${ticketRes.rows[0].id}`);
     } catch (err) {
-      // Код 23505 = нарушение UNIQUE — слот уже занят
       if (err.code === '23505') {
         return res.status(409).render('error', {
           message: 'Выбранное время уже занято. Пожалуйста, выберите другое.',

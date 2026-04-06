@@ -34,6 +34,7 @@ const { getUnreadCount } = require('./utils/notifications');
 app.use(async (req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.unreadNotifCount = 0;
+  res.locals.appMountPath = (process.env.APP_BASE_PATH || '').replace(/\/$/, '');
   if (req.session && req.session.user) {
     try { res.locals.unreadNotifCount = await getUnreadCount(req.session.user.id); } catch (_) {}
   }

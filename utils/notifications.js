@@ -7,7 +7,16 @@ async function createNotification(userId, title, message, type = 'info') {
   );
 }
 
-async function notifyAppointmentCancelled(appointmentId, reason) {
+/**
+ * @param {number} appointmentId
+ * @param {object} [options]
+ * @param {'day_off'|'manual'} [options.mode] — day_off: «Врач не работает в этот день»; manual: с причиной
+ * @param {string} [options.reason] — для mode=manual
+ */
+async function notifyAppointmentCancelled(appointmentId, options = {}) {
+  const mode = typeof options === 'string' ? 'manual' : (options.mode || 'manual');
+  const reason = typeof options === 'string' ? options : (options.reason || 'Запись отменена');
+
   const { rows } = await pool.query(
     `SELECT a.patient_id,
             TO_CHAR(a.appointment_date, 'DD.MM.YYYY') AS appt_date,
@@ -25,9 +34,15 @@ async function notifyAppointmentCancelled(appointmentId, reason) {
 
   const a = rows[0];
   const title = 'Запись отменена';
-  const message = `Ваша запись к врачу ${a.d_last} ${a.d_first}` +
-    (a.specialization ? ` (${a.specialization})` : '') +
-    ` на ${a.appt_date} в ${a.appt_time} отменена. Причина: ${reason}`;
+  const specPart = a.specialization ? ` (${a.specialization})` : '';
+  const base = `Ваша запись к врачу ${a.d_last} ${a.d_first}${specPart} на ${a.appt_date} в ${a.appt_time} отменена.`;
+
+  let message;
+  if (mode === 'day_off') {
+    message = `${base} Врач не работает в этот день.`;
+  } else {
+    message = `${base} Причина: ${reason}.`;
+  }
 
   await createNotification(a.patient_id, title, message, 'warning');
 }

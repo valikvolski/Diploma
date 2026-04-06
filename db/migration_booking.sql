@@ -35,9 +35,12 @@ CREATE TABLE IF NOT EXISTS appointments (
   appointment_time TIME NOT NULL,
   status           VARCHAR(20) NOT NULL DEFAULT 'booked'
                    CHECK (status IN ('booked','cancelled','completed')),
-  created_at       TIMESTAMP DEFAULT NOW(),
-  UNIQUE(doctor_id, appointment_date, appointment_time)
+  created_at       TIMESTAMP DEFAULT NOW()
 );
+-- Уникальность слота только для активных записей (повторная запись после отмены):
+CREATE UNIQUE INDEX IF NOT EXISTS appointments_doctor_datetime_active_unique
+  ON appointments (doctor_id, appointment_date, appointment_time)
+  WHERE status IN ('booked', 'completed');
 
 -- ══════════════════════════════════════════════════════════════
 -- Талоны
