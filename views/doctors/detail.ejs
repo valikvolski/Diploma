@@ -1,0 +1,118 @@
+<%
+function experienceLabel(n) {
+  if (n % 100 >= 11 && n % 100 <= 19) return 'лет';
+  switch (n % 10) {
+    case 1: return 'год';
+    case 2: case 3: case 4: return 'года';
+    default: return 'лет';
+  }
+}
+%>
+<%- include('../partials/header', { title: title }) %>
+
+<!-- Кнопка «Назад» -->
+<div class="mb-4">
+  <a href="/doctors" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Назад к списку врачей
+  </a>
+</div>
+
+<div class="row g-4">
+
+  <!-- Левая колонка: аватар + мета -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm text-center p-4">
+
+      <div class="doctor-avatar-lg mx-auto mb-3">
+        <i class="bi bi-person-fill"></i>
+      </div>
+
+      <h4 class="fw-bold mb-1">
+        <%= doctor.last_name %> <%= doctor.first_name %>
+      </h4>
+      <p class="text-muted mb-3"><%= doctor.middle_name %></p>
+
+      <% if (doctor.specialization) { %>
+        <span class="badge spec-badge fs-6 mb-3"><%= doctor.specialization %></span>
+      <% } %>
+
+      <ul class="list-unstyled doctor-detail-meta text-start mt-3">
+        <% if (doctor.cabinet) { %>
+          <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+            <i class="bi bi-door-open text-primary fs-5"></i>
+            <div>
+              <div class="small text-muted">Кабинет</div>
+              <div class="fw-semibold">№ <%= doctor.cabinet %></div>
+            </div>
+          </li>
+        <% } %>
+        <% if (doctor.experience_years > 0) { %>
+          <li class="d-flex align-items-center gap-2 py-2 border-bottom">
+            <i class="bi bi-award text-primary fs-5"></i>
+            <div>
+              <div class="small text-muted">Стаж работы</div>
+              <div class="fw-semibold"><%= doctor.experience_years %> <%= experienceLabel(doctor.experience_years) %></div>
+            </div>
+          </li>
+        <% } %>
+        <% if (doctor.phone) { %>
+          <li class="d-flex align-items-center gap-2 py-2">
+            <i class="bi bi-telephone text-primary fs-5"></i>
+            <div>
+              <div class="small text-muted">Телефон</div>
+              <div class="fw-semibold"><%= doctor.phone %></div>
+            </div>
+          </li>
+        <% } %>
+      </ul>
+
+    </div>
+  </div>
+
+  <!-- Правая колонка: детали -->
+  <div class="col-lg-8 d-flex flex-column gap-4">
+
+    <!-- Описание -->
+    <% if (doctor.description) { %>
+      <div class="card border-0 shadow-sm p-4">
+        <h5 class="fw-bold mb-3">
+          <i class="bi bi-info-circle text-primary me-2"></i>О враче
+        </h5>
+        <p class="text-secondary mb-0 lh-lg"><%= doctor.description %></p>
+      </div>
+    <% } %>
+
+    <!-- Образование -->
+    <% if (doctor.education) { %>
+      <div class="card border-0 shadow-sm p-4">
+        <h5 class="fw-bold mb-3">
+          <i class="bi bi-mortarboard text-primary me-2"></i>Образование
+        </h5>
+        <p class="text-secondary mb-0 lh-lg"><%= doctor.education %></p>
+      </div>
+    <% } %>
+
+    <!-- Запись на приём -->
+    <div class="card border-0 shadow-sm p-4 appointment-placeholder">
+      <h5 class="fw-bold mb-2">
+        <i class="bi bi-calendar2-plus text-primary me-2"></i>Запись на приём
+      </h5>
+      <p class="text-muted small mb-3">
+        Онлайн-запись к этому специалисту будет доступна на следующем этапе.
+        Сейчас вы можете позвонить в регистратуру или прийти лично.
+      </p>
+
+      <div class="d-flex gap-3 flex-wrap">
+        <button class="btn btn-primary px-4" disabled>
+          <i class="bi bi-calendar-plus me-2"></i>Записаться онлайн
+        </button>
+        <a href="tel:<%= doctor.phone %>" class="btn btn-outline-primary px-4">
+          <i class="bi bi-telephone me-2"></i>Позвонить в регистратуру
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

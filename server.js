@@ -5,6 +5,7 @@ const session = require('express-session');
 const path = require('path');
 const { testConnection } = require('./db/db');
 const authRoutes = require('./routes/auth');
+const doctorsRoutes = require('./routes/doctors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +29,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/auth', authRoutes);
+app.use('/doctors', doctorsRoutes);
 
 app.get('/', (req, res) => {
   res.render('index');
