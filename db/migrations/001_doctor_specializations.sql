@@ -1,0 +1,63 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 001: doctor ↔ specialization (many-to-many) + compat_group on specializations
+-- Apply: psql -U postgres -d YOUR_DB -f db/migrations/001_doctor_specializations.sql
+-- ═══════════════════════════════════════════════════════════════════════════
+
+ALTER TABLE specializations
+  ADD COLUMN IF NOT EXISTS compat_group VARCHAR(32) NOT NULL DEFAULT 'therapy';
+
+UPDATE specializations SET compat_group = 'therapy'
+  WHERE name IN ('Терапевт', 'Кардиолог', 'Невролог', 'Педиатр', 'Дерматолог', 'Эндокринолог');
+UPDATE specializations SET compat_group = 'surgery' WHERE name = 'Хирург';
+UPDATE specializations SET compat_group = 'ophthalmology' WHERE name = 'Офтальмолог';
+
+CREATE TABLE IF NOT EXISTS doctor_specializations (
+  doctor_user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  specialization_id INTEGER NOT NULL REFERENCES specializations(id) ON DELETE CASCADE,
+  is_primary        BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (doctor_user_id, specialization_id)
+);
+
+ALTER TABLE doctor_specializations
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();
+
+CREATE UNIQUE INDEX IF NOT EXISTS doctor_specializations_one_primary
+  ON doctor_specializations (doctor_user_id)
+  WHERE is_primary = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_doctor_specializations_spec
+  ON doctor_specializations (specialization_id);
+
+-- Backfill from legacy doctor_profiles.specialization_id
+INSERT INTO doctor_specializations (doctor_user_id, specialization_id, is_primary)
+SELECT dp.user_id, dp.specialization_id, TRUE
+FROM doctor_profiles dp
+WHERE dp.specialization_id IS NOT NULL
+ON CONFLICT (doctor_user_id, specialization_id) DO NOTHING;
+
+-- Exactly one primary per doctor: prefer MIN(specialization_id) among current primaries, else among all rows
+UPDATE doctor_specializations ds
+SET is_primary = FALSE;
+
+UPDATE doctor_specializations ds
+SET is_primary = TRUE
+FROM (
+  SELECT
+    doctor_user_id,
+    MIN(specialization_id) AS sid
+  FROM doctor_specializations
+  GROUP BY doctor_user_id
+) x
+WHERE ds.doctor_user_id = x.doctor_user_id
+  AND ds.specialization_id = x.sid;
+
+-- Keep denormalized doctor_profiles.specialization_id in sync with primary
+UPDATE doctor_profiles dp
+SET specialization_id = sub.sid
+FROM (
+  SELECT doctor_user_id, specialization_id AS sid
+  FROM doctor_specializations
+  WHERE is_primary
+) sub
+WHERE dp.user_id = sub.doctor_user_id;

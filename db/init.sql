@@ -107,3 +107,58 @@ SELECT u.id, s.id, '401', 25,
 FROM users u, specializations s
 WHERE u.email='volkov.doctor@clinic.ru' AND s.name='Хирург'
 ON CONFLICT (user_id) DO NOTHING;
+
+-- ══════════════════════════════════════════════════════
+-- Связь врач ↔ специализации (см. db/migrations/001_doctor_specializations.sql)
+-- ══════════════════════════════════════════════════════
+ALTER TABLE specializations
+  ADD COLUMN IF NOT EXISTS compat_group VARCHAR(32) NOT NULL DEFAULT 'therapy';
+
+UPDATE specializations SET compat_group = 'therapy'
+  WHERE name IN ('Терапевт', 'Кардиолог', 'Невролог', 'Педиатр', 'Дерматолог', 'Эндокринолог');
+UPDATE specializations SET compat_group = 'surgery' WHERE name = 'Хирург';
+UPDATE specializations SET compat_group = 'ophthalmology' WHERE name = 'Офтальмолог';
+
+CREATE TABLE IF NOT EXISTS doctor_specializations (
+  doctor_user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  specialization_id INTEGER NOT NULL REFERENCES specializations(id) ON DELETE CASCADE,
+  is_primary        BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (doctor_user_id, specialization_id)
+);
+
+ALTER TABLE doctor_specializations
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();
+
+CREATE UNIQUE INDEX IF NOT EXISTS doctor_specializations_one_primary
+  ON doctor_specializations (doctor_user_id)
+  WHERE is_primary = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_doctor_specializations_spec
+  ON doctor_specializations (specialization_id);
+
+INSERT INTO doctor_specializations (doctor_user_id, specialization_id, is_primary)
+SELECT dp.user_id, dp.specialization_id, TRUE
+FROM doctor_profiles dp
+WHERE dp.specialization_id IS NOT NULL
+ON CONFLICT (doctor_user_id, specialization_id) DO NOTHING;
+
+UPDATE doctor_specializations ds SET is_primary = FALSE;
+
+UPDATE doctor_specializations ds
+SET is_primary = TRUE
+FROM (
+  SELECT doctor_user_id, MIN(specialization_id) AS sid
+  FROM doctor_specializations
+  GROUP BY doctor_user_id
+) x
+WHERE ds.doctor_user_id = x.doctor_user_id AND ds.specialization_id = x.sid;
+
+UPDATE doctor_profiles dp
+SET specialization_id = sub.sid
+FROM (
+  SELECT doctor_user_id, specialization_id AS sid
+  FROM doctor_specializations
+  WHERE is_primary
+) sub
+WHERE dp.user_id = sub.doctor_user_id;

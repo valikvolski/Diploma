@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
-const { testConnection } = require('./db/db');
+const { pool, testConnection, ensureDoctorSpecializationsOrWarn } = require('./db/db');
 const authRoutes = require('./routes/auth');
 const doctorsRoutes = require('./routes/doctors');
 const bookingRoutes = require('./routes/booking');
@@ -34,6 +34,7 @@ const { getUnreadCount } = require('./utils/notifications');
 app.use(async (req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.unreadNotifCount = 0;
+  res.locals.currentPath = req.path || '';
   res.locals.appMountPath = (process.env.APP_BASE_PATH || '').replace(/\/$/, '');
   if (req.session && req.session.user) {
     try { res.locals.unreadNotifCount = await getUnreadCount(req.session.user.id); } catch (_) {}
@@ -50,8 +51,219 @@ app.use('/doctor', doctorRoutes);
 app.use('/admin', adminRoutes);
 app.use('/notifications', notificationsRoutes);
 
-app.get('/', (req, res) => {
-  res.render('index');
+function buildDoctorTimeline(rows) {
+  const defaultStart = 9 * 60;
+  const defaultEnd = 18 * 60;
+  if (!rows || !rows.length) {
+    return { startMin: defaultStart, endMin: defaultEnd, items: [] };
+  }
+  const toMin = (t) => {
+    const s = String(t || '0:0');
+    const [h, m] = s.split(':').map((x) => parseInt(x, 10) || 0);
+    return h * 60 + m;
+  };
+  const mins = rows.map((r) => toMin(r.appointment_time));
+  const pad = 45;
+  let startMin = Math.min(...mins) - pad;
+  let endMin = Math.max(...mins) + pad;
+  startMin = Math.max(6 * 60, startMin);
+  endMin = Math.min(22 * 60, endMin);
+  if (endMin <= startMin) endMin = startMin + 120;
+  const span = endMin - startMin;
+  const slotMin = 30;
+  const items = rows.map((r) => {
+    const mm = toMin(r.appointment_time);
+    const leftPct = span ? ((mm - startMin) / span) * 100 : 0;
+    const widthPct = span ? Math.min(40, (slotMin / span) * 100) : 12;
+    return { ...r, leftPct, widthPct };
+  });
+  return { startMin, endMin, items };
+}
+
+app.get('/', async (req, res) => {
+  const user = req.session.user || null;
+  const role = user ? user.role : 'guest';
+  const viewData = {
+    title: 'МедЗапись — онлайн-запись к врачу',
+    fullWidth: true,
+    loadHomeAnimations: true,
+    role,
+    guest: null,
+    patient: null,
+    doctor: null,
+    admin: null,
+  };
+
+  try {
+    if (!user) {
+      const specsRes = await pool.query(
+        'SELECT id, name FROM specializations ORDER BY name LIMIT 24'
+      );
+      viewData.guest = {
+        specializations: specsRes.rows,
+      };
+    } else if (user.role === 'patient') {
+      const [upcomingRes, notifRes] = await Promise.all([
+        pool.query(
+          `SELECT a.id AS appointment_id,
+                  a.appointment_date,
+                  TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
+                  d.last_name AS doctor_last_name,
+                  d.first_name AS doctor_first_name,
+                  d.middle_name AS doctor_middle_name,
+                  dp.cabinet,
+                  s.name AS specialization,
+                  t.id AS ticket_id
+           FROM appointments a
+           JOIN users d ON d.id = a.doctor_id
+           LEFT JOIN doctor_profiles dp ON dp.user_id = d.id
+           LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+           LEFT JOIN specializations s ON s.id = dsp.specialization_id
+           LEFT JOIN tickets t ON t.appointment_id = a.id
+           WHERE a.patient_id = $1
+             AND a.status = 'booked'
+             AND (a.appointment_date > CURRENT_DATE
+               OR (a.appointment_date = CURRENT_DATE AND a.appointment_time >= CURRENT_TIME))
+           ORDER BY a.appointment_date, a.appointment_time
+           LIMIT 3`,
+          [user.id]
+        ),
+        pool.query(
+          `SELECT id, title, message, created_at
+           FROM notifications
+           WHERE user_id = $1 AND is_read = false
+           ORDER BY created_at DESC
+           LIMIT 5`,
+          [user.id]
+        ),
+      ]);
+
+      viewData.patient = {
+        upcomingAppointments: upcomingRes.rows,
+        unreadNotifications: notifRes.rows,
+      };
+    } else if (user.role === 'doctor') {
+      const [todayRes, nextRes] = await Promise.all([
+        pool.query(
+          `SELECT a.id,
+                  TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
+                  p.last_name,
+                  p.first_name,
+                  p.middle_name,
+                  a.status
+           FROM appointments a
+           JOIN users p ON p.id = a.patient_id
+           WHERE a.doctor_id = $1
+             AND a.appointment_date = CURRENT_DATE
+           ORDER BY a.appointment_time`,
+          [user.id]
+        ),
+        pool.query(
+          `SELECT a.id,
+                  TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
+                  p.last_name,
+                  p.first_name,
+                  p.middle_name
+           FROM appointments a
+           JOIN users p ON p.id = a.patient_id
+           WHERE a.doctor_id = $1
+             AND a.status = 'booked'
+             AND (a.appointment_date > CURRENT_DATE
+               OR (a.appointment_date = CURRENT_DATE AND a.appointment_time >= CURRENT_TIME))
+           ORDER BY a.appointment_date, a.appointment_time
+           LIMIT 1`,
+          [user.id]
+        ),
+      ]);
+
+      viewData.doctor = {
+        todayAppointments: todayRes.rows,
+        todayCount: todayRes.rows.length,
+        nextPatient: nextRes.rows[0] || null,
+        timeline: buildDoctorTimeline(todayRes.rows),
+      };
+    } else if (user.role === 'admin') {
+      const [doctorsRes, patientsRes, todayApptsRes, specsRes, recentApptRes, recentUsersRes] =
+        await Promise.all([
+          pool.query("SELECT COUNT(*) FROM users WHERE role = 'doctor'"),
+          pool.query("SELECT COUNT(*) FROM users WHERE role = 'patient'"),
+          pool.query(
+            `SELECT COUNT(*) FROM appointments
+           WHERE appointment_date = CURRENT_DATE AND status = 'booked'`
+          ),
+          pool.query('SELECT COUNT(*) FROM specializations'),
+          pool.query(
+            `SELECT a.id,
+                  a.created_at,
+                  a.appointment_date,
+                  TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
+                  a.status,
+                  p.last_name AS p_last_name,
+                  p.first_name AS p_first_name,
+                  d.last_name AS d_last_name,
+                  d.first_name AS d_first_name,
+                  s.name AS specialization
+           FROM appointments a
+           JOIN users p ON p.id = a.patient_id
+           JOIN users d ON d.id = a.doctor_id
+           LEFT JOIN doctor_profiles dp ON dp.user_id = d.id
+           LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+           LEFT JOIN specializations s ON s.id = dsp.specialization_id
+           ORDER BY a.created_at DESC NULLS LAST, a.id DESC
+           LIMIT 8`
+          ),
+          pool.query(
+            `SELECT id, created_at, role, email, last_name, first_name
+             FROM users
+             ORDER BY created_at DESC NULLS LAST, id DESC
+             LIMIT 8`
+          ),
+        ]);
+
+      const activity = [];
+      recentApptRes.rows.forEach((r) => {
+        const t = r.created_at
+          ? new Date(r.created_at).getTime()
+          : new Date(`${String(r.appointment_date).slice(0, 10)}T12:00:00`).getTime();
+        activity.push({
+          kind: 'appointment',
+          at: t,
+          title: 'Запись',
+          meta: `${r.p_last_name} ${r.p_first_name} → ${r.d_last_name} ${r.d_first_name} · ${String(r.appointment_date).slice(0, 10)} ${r.appointment_time}`,
+        });
+      });
+      recentUsersRes.rows.forEach((r) => {
+        const roleRu =
+          r.role === 'doctor' ? 'врач' : r.role === 'admin' ? 'админ' : 'пациент';
+        const t = r.created_at
+          ? new Date(r.created_at).getTime()
+          : 0;
+        activity.push({
+          kind: 'registration',
+          at: t,
+          title: 'Регистрация',
+          meta: `${r.last_name} ${r.first_name} · ${r.email} (${roleRu})`,
+        });
+      });
+      activity.sort((a, b) => b.at - a.at);
+      const recentActivity = activity.slice(0, 10);
+
+      viewData.admin = {
+        stats: {
+          doctors: parseInt(doctorsRes.rows[0].count, 10) || 0,
+          patients: parseInt(patientsRes.rows[0].count, 10) || 0,
+          todayAppointments: parseInt(todayApptsRes.rows[0].count, 10) || 0,
+          specializations: parseInt(specsRes.rows[0].count, 10) || 0,
+        },
+        recentAppointments: recentApptRes.rows,
+        recentActivity,
+      };
+    }
+  } catch (err) {
+    console.error('Home page data error:', err);
+  }
+
+  res.render('index', viewData);
 });
 
 app.get('/test-db', async (req, res) => {
@@ -63,7 +275,15 @@ app.get('/test-db', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  testConnection();
+async function startServer() {
+  await testConnection();
+  await ensureDoctorSpecializationsOrWarn(pool);
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error('Server startup error:', err);
+  process.exit(1);
 });

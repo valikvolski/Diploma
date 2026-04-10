@@ -1,0 +1,8 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- This file is superseded by: db/migrations/001_doctor_specializations.sql
+--
+-- Apply migration (example):
+--   psql -U postgres -d clinic_db -f db/migrations/001_doctor_specializations.sql
+--
+-- Use your real DB user/database from .env (DB_USER, DB_NAME).
+-- ═══════════════════════════════════════════════════════════════════════════
