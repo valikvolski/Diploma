@@ -26,15 +26,6 @@ function apptStatusLabel(status) {
   if (status === 'completed') return 'Завершено';
   return 'Отменено';
 }
-function experienceLabelGuest(n) {
-  const x = parseInt(n, 10) || 0;
-  if (x % 100 >= 11 && x % 100 <= 19) return 'лет';
-  switch (x % 10) {
-    case 1: return 'год';
-    case 2: case 3: case 4: return 'года';
-    default: return 'лет';
-  }
-}
 const roleSafe = typeof role !== 'undefined'
   ? role
   : ((typeof user !== 'undefined' && user && user.role) ? user.role : 'guest');
@@ -45,228 +36,134 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
 <%- include('partials/header', { title: typeof title !== 'undefined' ? title : 'МедЗапись' }) %>
 
 <% if (roleSafe === 'guest') { %>
-<div class="home-root home-root--guest" data-home-role="guest">
-  <!-- Hero -->
-  <section class="landing-hero-v2 position-relative overflow-hidden">
-    <div class="landing-hero-v2__gradient" aria-hidden="true"></div>
-    <div class="landing-hero-v2__blobs" aria-hidden="true">
-      <span class="landing-blob landing-blob--1"></span>
-      <span class="landing-blob landing-blob--2"></span>
-      <span class="landing-blob landing-blob--3"></span>
-    </div>
-    <div class="landing-hero-v2__icons" aria-hidden="true">
-      <i class="landing-float-icon bi bi-heart-pulse"></i>
-      <i class="landing-float-icon bi bi-capsule"></i>
-      <i class="landing-float-icon bi bi-clipboard2-pulse"></i>
-    </div>
-    <div class="container app-container position-relative py-5 py-lg-6">
-      <div class="row align-items-center g-5">
-        <div class="col-lg-6 text-center text-lg-start">
-          <p class="landing-hero-v2__eyebrow js-home-hero-item animate-fadeIn">
-            <i class="bi bi-shield-check me-1"></i> Запись без звонков в регистратуру
-          </p>
-          <h1 class="landing-hero-v2__title display-3 fw-bold text-white mb-3 js-home-hero-item animate-slideUp animate-delay-1">
-            Запись к врачу <span class="landing-hero-v2__accent">онлайн</span>
-          </h1>
-          <p class="landing-hero-v2__lead text-white-50 lead mb-4 mb-lg-5 js-home-hero-item animate-slideUp animate-delay-2">
-            Запишитесь к специалисту в пару кликов — спокойно, в удобное время, с подтверждением в личном кабинете.
-          </p>
-          <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start js-home-hero-item animate-slideUp animate-delay-3">
-            <a href="/doctors" class="btn btn-light btn-lg rounded-pill px-4 fw-semibold landing-btn-primary landing-anim-hover">
-              <i class="bi bi-search me-2"></i>Найти врача
-            </a>
-            <a href="/auth/register" class="btn btn-outline-light btn-lg rounded-pill px-4 fw-semibold border-2 landing-anim-hover">
-              <i class="bi bi-person-plus me-2"></i>Зарегистрироваться
-            </a>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="landing-hero-v2__art js-home-hero-item animate-scaleIn animate-delay-2" aria-hidden="true">
-            <div class="landing-hero-v2__ring"></div>
-            <div class="landing-hero-v2__cross">
-              <span></span><span></span>
-            </div>
-            <div class="landing-hero-v2__pulse"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+<div class="home-root home-root--guest py-4 py-lg-5 bg-app" data-home-role="guest">
+  <div class="container app-container">
+    <nav aria-label="Навигация" class="mb-3">
+      <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item active" aria-current="page">Главная</li>
+      </ol>
+    </nav>
 
-  <!-- How it works -->
-  <section class="py-5 py-lg-6 bg-app border-bottom landing-section">
-    <div class="container app-container">
-      <div class="text-center mx-auto mb-5 section-intro js-home-reveal">
-        <h2 class="section-title">Как это работает</h2>
-        <p class="section-subtitle text-muted mb-0">Три простых шага до готового талона</p>
-      </div>
-      <div class="landing-steps-v2 position-relative" data-reveal-stagger="1">
-        <div class="landing-steps-v2__line d-none d-md-block" aria-hidden="true"></div>
-        <div class="row g-4 justify-content-center">
-          <div class="col-md-4">
-            <article class="landing-step-card js-home-stagger h-100" data-stagger-order="0">
-              <div class="landing-step-card__icon landing-icon-pulse"><i class="bi bi-person-badge"></i></div>
-              <h3 class="h5 fw-bold mb-2">Выберите специалиста</h3>
-              <p class="text-muted small mb-0">Найдите врача по специализации или по имени в каталоге.</p>
-            </article>
-          </div>
-          <div class="col-md-4">
-            <article class="landing-step-card js-home-stagger h-100" data-stagger-order="1">
-              <div class="landing-step-card__icon landing-icon-pulse"><i class="bi bi-calendar3"></i></div>
-              <h3 class="h5 fw-bold mb-2">Выберите удобное время</h3>
-              <p class="text-muted small mb-0">Календарь показывает свободные слоты на выбранный день.</p>
-            </article>
-          </div>
-          <div class="col-md-4">
-            <article class="landing-step-card js-home-stagger h-100" data-stagger-order="2">
-              <div class="landing-step-card__icon landing-icon-pulse"><i class="bi bi-ticket-perforated"></i></div>
-              <h3 class="h5 fw-bold mb-2">Получите электронный талон</h3>
-              <p class="text-muted small mb-0">Подтверждение хранится в профиле — можно открыть перед визитом.</p>
-            </article>
+    <header class="home-patient-hero guest-home-hero app-card border-0 shadow-sm p-4 p-lg-5 mb-4 mb-lg-5 js-home-hero-item">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+          <h1 class="h2 fw-bold mb-2">Запись к врачу</h1>
+          <p class="text-muted mb-0 guest-home-hero__lead">Сервис онлайн-записи в поликлинику. Выберите врача и время — без очереди в регистратуру.</p>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+          <div class="guest-home-hero__mark d-none d-md-inline-flex align-items-center justify-content-center rounded-4 ms-lg-auto" aria-hidden="true">
+            <i class="bi bi-heart-pulse-fill"></i>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </header>
 
-  <!-- Specializations (names only; guest → login for privacy / funnel) -->
-  <section class="py-5 py-lg-6 bg-white border-bottom landing-section">
-    <div class="container app-container">
-      <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4 js-home-reveal">
-        <div>
-          <h2 class="section-title mb-1">Специализации</h2>
-          <p class="section-subtitle text-muted mb-0">Направления, доступные для записи после входа</p>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-          <a href="/doctors" class="btn btn-primary rounded-pill btn-sm fw-semibold">Каталог врачей</a>
-          <a href="/auth/login" class="btn btn-outline-primary rounded-pill btn-sm fw-semibold">Войти</a>
-        </div>
-      </div>
+    <section class="mb-4 mb-lg-5" aria-labelledby="guest-cta-heading">
+      <h2 id="guest-cta-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Действия</h2>
       <div class="row g-3" data-reveal-stagger="1">
-        <% if (guest && guest.specializations && guest.specializations.length) { %>
-          <% guest.specializations.forEach(function(s, idx) { %>
-            <div class="col-6 col-md-4 col-xl-3">
-              <a href="/doctors" class="landing-spec-tile js-home-stagger h-100 d-block text-center" data-stagger-order="<%= idx % 8 %>">
-                <span class="fw-semibold"><%= s.name %></span>
-              </a>
-            </div>
-          <% }) %>
-        <% } else { %>
-          <div class="col-12"><div class="empty-state app-card text-center py-4"><p class="text-muted mb-0">Специализации скоро появятся.</p></div></div>
-        <% } %>
+        <div class="col-12 col-md-4">
+          <a href="/doctors" class="home-patient-tile home-patient-tile--accent guest-home-tile js-home-stagger h-100" data-stagger-order="0">
+            <span class="home-patient-tile__icon"><i class="bi bi-search"></i></span>
+            <span class="home-patient-tile__label">Найти врача</span>
+          </a>
+        </div>
+        <div class="col-12 col-md-4">
+          <a href="/auth/login" class="home-patient-tile guest-home-tile js-home-stagger h-100" data-stagger-order="1">
+            <span class="home-patient-tile__icon"><i class="bi bi-box-arrow-in-right"></i></span>
+            <span class="home-patient-tile__label">Войти</span>
+          </a>
+        </div>
+        <div class="col-12 col-md-4">
+          <a href="/auth/register" class="home-patient-tile guest-home-tile js-home-stagger h-100" data-stagger-order="2">
+            <span class="home-patient-tile__icon"><i class="bi bi-person-plus"></i></span>
+            <span class="home-patient-tile__label">Регистрация</span>
+          </a>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <% if (guest && guest.previewDoctors && guest.previewDoctors.length) { %>
-  <section class="py-5 py-lg-6 bg-app border-bottom landing-section">
-    <div class="container app-container">
-      <div class="text-center mx-auto mb-5 section-intro js-home-reveal" style="max-width: 38rem;">
-        <h2 class="section-title">Специалисты</h2>
-        <p class="section-subtitle text-muted mb-0">Несколько врачей из каталога — полный список и запись доступны после регистрации</p>
+    <section class="mb-4 mb-lg-5" aria-labelledby="guest-steps-heading">
+      <h2 id="guest-steps-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Как это работает</h2>
+      <div class="row g-3" data-reveal-stagger="1">
+        <div class="col-md-4">
+          <article class="guest-home-step app-card border-0 shadow-sm p-4 h-100 js-home-stagger" data-stagger-order="0">
+            <div class="guest-home-step__num mb-3" aria-hidden="true">1</div>
+            <h3 class="h6 fw-bold mb-2">Выберите врача</h3>
+            <p class="text-muted small mb-0">Каталог и фильтр по специализации — без лишних данных.</p>
+          </article>
+        </div>
+        <div class="col-md-4">
+          <article class="guest-home-step app-card border-0 shadow-sm p-4 h-100 js-home-stagger" data-stagger-order="1">
+            <div class="guest-home-step__num mb-3" aria-hidden="true">2</div>
+            <h3 class="h6 fw-bold mb-2">Выберите время</h3>
+            <p class="text-muted small mb-0">Свободные слоты по расписанию врача на выбранный день.</p>
+          </article>
+        </div>
+        <div class="col-md-4">
+          <article class="guest-home-step app-card border-0 shadow-sm p-4 h-100 js-home-stagger" data-stagger-order="2">
+            <div class="guest-home-step__num mb-3" aria-hidden="true">3</div>
+            <h3 class="h6 fw-bold mb-2">Получите талон</h3>
+            <p class="text-muted small mb-0">После входа запись и электронный талон — в личном кабинете.</p>
+          </article>
+        </div>
       </div>
-      <div class="row g-4 justify-content-center" data-reveal-stagger="1">
+    </section>
+
+    <section class="mb-4 mb-lg-5" aria-labelledby="guest-spec-heading">
+      <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+        <h2 id="guest-spec-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-0 js-home-reveal">Специализации</h2>
+        <a href="/doctors" class="btn btn-sm btn-outline-primary rounded-pill js-home-reveal">В каталог</a>
+      </div>
+      <div class="app-card border-0 shadow-sm p-3 p-md-4">
+        <div class="row g-2 g-md-3" data-reveal-stagger="1">
+          <% if (guest && guest.specializations && guest.specializations.length) { %>
+            <% guest.specializations.forEach(function(s, idx) { %>
+              <div class="col-6 col-md-4 col-xl-3">
+                <a href="/doctors" class="guest-spec-chip js-home-stagger d-block text-center text-decoration-none" data-stagger-order="<%= idx % 12 %>">
+                  <span class="fw-semibold small"><%= s.name %></span>
+                </a>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="col-12"><p class="text-muted small mb-0 text-center py-3">Список специализаций загружается из базы данных.</p></div>
+          <% } %>
+        </div>
+      </div>
+    </section>
+
+    <% if (guest && guest.previewDoctors && guest.previewDoctors.length) { %>
+    <section class="mb-2" aria-labelledby="guest-docs-heading">
+      <h2 id="guest-docs-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Врачи из каталога</h2>
+      <p class="small text-muted mb-3 js-home-reveal">Примеры специалистов. Полный список и запись — после регистрации.</p>
+      <div class="row g-3" data-reveal-stagger="1">
         <% guest.previewDoctors.forEach(function(d, idx) { %>
           <% var pspecs = [];
              try {
                if (Array.isArray(d.specializations)) pspecs = d.specializations;
                else if (typeof d.specializations === 'string' && d.specializations) pspecs = JSON.parse(d.specializations);
-             } catch (e) { pspecs = []; } %>
+             } catch (e) { pspecs = []; }
+             var primSpec = pspecs.filter(function(x){ return x.is_primary; })[0] || pspecs[0];
+          %>
           <div class="col-md-6 col-lg-4">
-            <article class="guest-doctor-card js-home-stagger h-100 d-flex flex-column" data-stagger-order="<%= idx %>">
-              <div class="guest-doctor-card__avatar mx-auto">
+            <article class="guest-home-doctor app-card border-0 shadow-sm p-4 h-100 d-flex flex-column align-items-center text-center js-home-stagger" data-stagger-order="<%= idx %>">
+              <div class="guest-doctor-card__avatar mx-auto mb-3">
                 <%- include('partials/user-avatar', { person: d, size: 'card' }) %>
               </div>
-              <h3 class="h6 fw-bold text-center mb-2 mt-2">
+              <h3 class="h6 fw-bold mb-1">
                 <%= d.last_name %> <%= d.first_name %><% if (d.middle_name) { %> <%= d.middle_name %><% } %>
               </h3>
-              <% if (pspecs.length) { %>
-                <div class="d-flex flex-wrap justify-content-center gap-1 mb-3 px-1">
-                  <% pspecs.slice(0, 3).forEach(function(sp) { %>
-                    <span class="badge spec-badge<%= sp.is_primary ? '' : ' bg-light text-dark border' %>"><%= sp.name %></span>
-                  <% }); %>
-                </div>
-              <% } %>
-              <ul class="list-unstyled small text-muted mb-0 flex-grow-1 text-center">
-                <% if (d.cabinet) { %>
-                  <li><i class="bi bi-door-open text-primary me-1"></i>Каб. <%= d.cabinet %></li>
-                <% } %>
-                <% if (d.experience_years > 0) { %>
-                  <li><i class="bi bi-award text-primary me-1"></i>Стаж <%= d.experience_years %> <%= experienceLabelGuest(d.experience_years) %></li>
-                <% } %>
-              </ul>
-              <a href="/doctors/<%= d.id %>" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-3">Карточка врача</a>
+              <p class="small text-muted mb-3 flex-grow-1"><%= primSpec ? primSpec.name : 'Врач' %></p>
+              <a href="/doctors/<%= d.id %>" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-auto">Подробнее</a>
             </article>
           </div>
         <% }); %>
       </div>
-      <div class="text-center mt-5">
-        <a href="/doctors" class="btn btn-primary btn-lg rounded-pill px-4 landing-anim-hover">
-          <i class="bi bi-grid-3x3-gap me-2"></i>Все врачи
-        </a>
+      <div class="text-center mt-4">
+        <a href="/doctors" class="btn btn-primary rounded-pill px-4"><i class="bi bi-grid-3x3-gap me-2"></i>Все врачи</a>
       </div>
-    </div>
-  </section>
-  <% } %>
-
-  <!-- Why us -->
-  <section class="py-5 py-lg-6 bg-white landing-section">
-    <div class="container app-container">
-      <div class="text-center mx-auto mb-5 section-intro js-home-reveal">
-        <h2 class="section-title">Почему удобно с нами</h2>
-        <p class="section-subtitle text-muted mb-0">Конкретные возможности сервиса</p>
-      </div>
-      <div class="row g-4" data-reveal-stagger="1">
-        <div class="col-md-6 col-xl-3">
-          <div class="landing-why-card js-home-stagger h-100" data-stagger-order="0">
-            <div class="landing-why-card__icon landing-icon-pulse"><i class="bi bi-telephone-x"></i></div>
-            <h3 class="h6 fw-bold mb-2">Запись без звонков и очередей</h3>
-            <p class="text-muted small mb-0">Не нужно дозваниваться — выбираете время онлайн.</p>
-          </div>
-        </div>
-        <div class="col-md-6 col-xl-3">
-          <div class="landing-why-card js-home-stagger h-100" data-stagger-order="1">
-            <div class="landing-why-card__icon landing-icon-pulse"><i class="bi bi-phone"></i></div>
-            <h3 class="h6 fw-bold mb-2">Электронный талон на телефоне</h3>
-            <p class="text-muted small mb-0">Всё подтверждение — в личном кабинете, всегда под рукой.</p>
-          </div>
-        </div>
-        <div class="col-md-6 col-xl-3">
-          <div class="landing-why-card js-home-stagger h-100" data-stagger-order="2">
-            <div class="landing-why-card__icon landing-icon-pulse"><i class="bi bi-calendar2-week"></i></div>
-            <h3 class="h6 fw-bold mb-2">Актуальное расписание врачей</h3>
-            <p class="text-muted small mb-0">Отображаются только доступные для бронирования интервалы.</p>
-          </div>
-        </div>
-        <div class="col-md-6 col-xl-3">
-          <div class="landing-why-card js-home-stagger h-100" data-stagger-order="3">
-            <div class="landing-why-card__icon landing-icon-pulse"><i class="bi bi-check2-circle"></i></div>
-            <h3 class="h6 fw-bold mb-2">Мгновенное подтверждение записи</h3>
-            <p class="text-muted small mb-0">Статус записи и талон обновляются сразу после выбора слота.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Minimal landing footer strip -->
-  <section class="landing-footer-min py-4 bg-white border-top">
-    <div class="container app-container">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 small text-muted">
-        <div>
-          <span class="fw-semibold text-body">МедЗапись</span>
-          <span class="mx-2">·</span>
-          <span>Учебное заведение / дипломный проект</span>
-        </div>
-        <div class="d-flex flex-wrap gap-3">
-          <a href="/doctors">Врачи</a>
-          <a href="/auth/login">Вход</a>
-          <a href="/auth/register">Регистрация</a>
-        </div>
-        <div>&copy; <%= new Date().getFullYear() %></div>
-      </div>
-    </div>
-  </section>
+    </section>
+    <% } %>
+  </div>
 </div>
 <% } %>
 
@@ -501,39 +398,64 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
     </header>
 
     <p class="small text-muted mb-3 js-home-reveal d-none d-md-block">
-      <i class="bi bi-info-circle me-1"></i>Сводные показатели видны только администраторам.
+      <i class="bi bi-info-circle me-1"></i>Сводка и аналитика видны только администраторам. Детальный обзор — <a href="/admin" class="text-decoration-none">страница «Админ-панель»</a>.
     </p>
 
     <div class="row g-3 mb-4" data-reveal-stagger="1">
       <div class="col-sm-6 col-xl-3">
         <div class="home-admin-stat app-card p-4 js-home-stagger" data-stagger-order="0">
           <i class="bi bi-person-badge text-primary fs-4 mb-2 d-block"></i>
-          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin ? admin.stats.doctors : 0 %>">0</div>
+          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin && admin.stats ? admin.stats.doctors : 0 %>">0</div>
           <div class="small text-muted">Врачей</div>
         </div>
       </div>
       <div class="col-sm-6 col-xl-3">
         <div class="home-admin-stat app-card p-4 js-home-stagger" data-stagger-order="1">
           <i class="bi bi-people text-primary fs-4 mb-2 d-block"></i>
-          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin ? admin.stats.patients : 0 %>">0</div>
+          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin && admin.stats ? admin.stats.patients : 0 %>">0</div>
           <div class="small text-muted">Пациентов</div>
         </div>
       </div>
       <div class="col-sm-6 col-xl-3">
         <div class="home-admin-stat app-card p-4 js-home-stagger" data-stagger-order="2">
           <i class="bi bi-calendar-check text-primary fs-4 mb-2 d-block"></i>
-          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin ? admin.stats.todayAppointments : 0 %>">0</div>
-          <div class="small text-muted">Записей сегодня</div>
+          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin && admin.stats ? admin.stats.todayAppointments : 0 %>">0</div>
+          <div class="small text-muted">Записей на сегодня</div>
         </div>
       </div>
       <div class="col-sm-6 col-xl-3">
         <div class="home-admin-stat app-card p-4 js-home-stagger" data-stagger-order="3">
           <i class="bi bi-tags text-primary fs-4 mb-2 d-block"></i>
-          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin ? admin.stats.specializations : 0 %>">0</div>
+          <div class="home-admin-stat__num text-primary" data-count-up="<%= admin && admin.stats ? admin.stats.specializations : 0 %>">0</div>
           <div class="small text-muted">Специализаций</div>
         </div>
       </div>
     </div>
+
+    <% if (admin && admin.chartPayload) { %>
+    <h2 class="h6 text-uppercase text-muted fw-bold mb-3 js-home-reveal">Аналитика</h2>
+    <div class="row g-4 mb-4">
+      <div class="col-lg-7">
+        <div class="app-card border-0 shadow-sm p-4 h-100 admin-chart-card">
+          <h3 class="h6 fw-bold mb-1">Записи по дням</h3>
+          <p class="small text-muted mb-3">Количество записей с датой приёма за последние 14 дней (включая сегодня).</p>
+          <div class="admin-chart-canvas-wrap">
+            <canvas id="admin-chart-appts-by-day" aria-label="График записей по дням"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="app-card border-0 shadow-sm p-4 h-100 admin-chart-card">
+          <h3 class="h6 fw-bold mb-1">Статусы записей</h3>
+          <p class="small text-muted mb-3">Распределение всех записей в системе по статусу.</p>
+          <div class="admin-chart-canvas-wrap admin-chart-canvas-wrap--doughnut">
+            <canvas id="admin-chart-status" aria-label="Диаграмма статусов записей"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="application/json" id="admin-home-chart-json"><%- JSON.stringify(admin.chartPayload).replace(/</g, '\\u003c') %></script>
+    <% } %>
 
     <h2 class="h6 text-uppercase text-muted fw-bold mb-3 js-home-reveal">Быстрые действия</h2>
     <div class="row g-3 mb-4" data-reveal-stagger="1">
@@ -553,13 +475,13 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
       <% if (admin && admin.recentActivity && admin.recentActivity.length) { %>
         <ul class="list-unstyled mb-0 home-activity-list">
           <% admin.recentActivity.forEach(function(ev) { %>
-            <li class="home-activity-item d-flex gap-3 py-2 border-bottom border-light">
+            <li class="home-activity-item d-flex gap-3 py-2 border-bottom admin-activity-border">
               <span class="home-activity-item__dot <%= ev.kind === 'appointment' ? 'bg-primary' : 'bg-success' %>"></span>
-              <div class="flex-grow-1">
+              <div class="flex-grow-1 min-w-0">
                 <div class="fw-semibold small"><%= ev.title %></div>
-                <div class="small text-muted"><%= ev.meta %></div>
+                <div class="small text-muted text-break"><%= ev.meta %></div>
               </div>
-              <div class="small text-muted text-nowrap"><%= ev.at ? fmtDateTimeShort(ev.at) : '—' %></div>
+              <div class="small text-muted text-nowrap flex-shrink-0"><%= ev.at ? fmtDateTimeShort(ev.at) : '—' %></div>
             </li>
           <% }) %>
         </ul>
@@ -569,6 +491,10 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
     </div>
   </div>
 </div>
+<% if (roleSafe === 'admin' && admin && admin.chartPayload) { %>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/js/admin-home-charts.js"></script>
+<% } %>
 <% } %>
 
 <%- include('partials/footer') %>

@@ -800,39 +800,98 @@ a:hover { color: var(--app-primary-dark); }
 
 /* ── Футер ──────────────────────────────────────────────────── */
 .footer-site {
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  color: rgba(255, 255, 255, 0.88);
+  --footer-fg: var(--text, var(--app-text));
+  --footer-fg-soft: var(--muted, var(--app-muted));
+  --footer-border: var(--border, var(--app-gray-200));
+  background: linear-gradient(180deg, var(--surface-2, var(--app-gray-100)) 0%, var(--surface, var(--app-white)) 55%);
+  color: var(--footer-fg);
+  border-top: 1px solid var(--footer-border);
 }
 
-.footer-site__inner { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.footer-site__topbar {
+  height: 3px;
+  background: linear-gradient(90deg, var(--app-primary) 0%, #0ea5e9 50%, var(--app-accent, #0d9488) 100%);
+  opacity: 0.9;
+}
+
+.footer-site__inner {
+  border-top: 1px solid transparent;
+}
+
+.footer-site__brand {
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  color: var(--footer-fg);
+}
 
 .footer-site__title {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--footer-fg-soft);
   margin-bottom: 0.85rem;
 }
 
 .footer-site__links a {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--footer-fg);
+  opacity: 0.88;
   display: inline-block;
-  padding: 0.2rem 0;
+  padding: 0.25rem 0;
   font-size: 0.9rem;
+  font-weight: 500;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
-.footer-site__links a:hover { color: #fff; }
+
+.footer-site__links a:hover {
+  opacity: 1;
+  color: var(--app-primary);
+}
 
 .footer-site__lead {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--footer-fg-soft);
   font-size: 0.9rem;
-  line-height: 1.55;
+  line-height: 1.6;
+  max-width: 28rem;
 }
 
-.footer-site__muted { color: rgba(255, 255, 255, 0.5); }
+.footer-site__meta {
+  font-size: 0.9rem;
+  color: var(--footer-fg);
+  line-height: 1.5;
+}
+
+.footer-site__meta-icon {
+  color: var(--app-primary);
+}
+
+.footer-site__dash {
+  opacity: 0.45;
+  margin: 0 0.2rem;
+}
+
+.footer-site__muted {
+  color: var(--footer-fg-soft);
+}
 
 .footer-site__bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--footer-border);
+}
+
+.footer-site__copy,
+.footer-site__tag {
+  color: var(--footer-fg-soft);
+}
+
+.footer-site__tag {
+  font-weight: 600;
+  color: var(--app-primary);
+  opacity: 0.85;
+}
+
+.footer-site__grid {
+  min-height: 10rem;
 }
 
 /* ── Авторизация (SaaS / медпортал) ─────────────────────────── */
@@ -2268,6 +2327,71 @@ a:hover { color: var(--app-primary-dark); }
   padding: 0.35em 0.5em;
 }
 
+/* Главная для гостя (в стиле кабинета пациента) */
+.guest-home-hero__lead {
+  max-width: 38rem;
+}
+
+.guest-home-hero__mark {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--app-primary) 0%, #0ea5e9 100%);
+  color: #fff;
+  font-size: 1.75rem;
+  box-shadow: var(--shadow-primary);
+}
+
+.guest-home-tile {
+  min-height: 5.75rem;
+}
+
+.guest-home-step {
+  min-height: 11.75rem;
+}
+
+.guest-home-step__num {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.guest-spec-chip {
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--app-gray-200);
+  background: var(--app-gray-50);
+  color: var(--app-text);
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.guest-spec-chip:hover {
+  border-color: rgba(26, 110, 230, 0.4);
+  background: var(--app-primary-soft);
+  color: var(--app-text);
+  transform: translateY(-2px);
+}
+
+[data-app-theme="dark"] .guest-spec-chip {
+  background: #0f172a;
+  border-color: var(--app-gray-200);
+}
+
+[data-app-theme="dark"] .guest-spec-chip:hover {
+  background: rgba(26, 110, 230, 0.15);
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.guest-home-doctor {
+  min-height: 15rem;
+}
+
 .home-patient-appt {
   padding: 1rem 1.1rem;
   border: 1px solid var(--app-gray-200);
@@ -2361,6 +2485,27 @@ a:hover { color: var(--app-primary-dark); }
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1.1;
+}
+
+.admin-chart-canvas-wrap {
+  position: relative;
+  height: 260px;
+  width: 100%;
+}
+
+.admin-chart-canvas-wrap--doughnut {
+  height: 280px;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.admin-activity-border {
+  border-color: var(--app-gray-200) !important;
+}
+
+[data-app-theme="dark"] .admin-activity-border {
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 .home-activity-item__dot {
@@ -2516,7 +2661,19 @@ html[data-theme="dark"] {
 }
 
 [data-app-theme="dark"] .footer-site {
-  background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  border-top-color: rgba(255, 255, 255, 0.08);
+  --footer-fg: #f1f5f9;
+  --footer-fg-soft: #94a3b8;
+  --footer-border: rgba(255, 255, 255, 0.1);
+}
+
+[data-app-theme="dark"] .footer-site__bottom {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-app-theme="dark"] .footer-site__links a:hover {
+  color: #93c5fd;
 }
 
 [data-app-theme="dark"] .landing-footer-min {

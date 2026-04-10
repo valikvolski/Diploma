@@ -4,21 +4,22 @@
 </main>
 
 <footer class="footer-site mt-auto">
+  <div class="footer-site__topbar" aria-hidden="true"></div>
   <div class="footer-site__inner">
     <div class="container app-container">
-      <div class="row g-4 py-5">
-        <div class="col-md-4">
+      <div class="row g-4 g-lg-5 py-5 footer-site__grid">
+        <div class="col-12 col-lg-5">
           <div class="d-flex align-items-center gap-2 mb-3">
-            <span class="app-brand-mark app-brand-mark--sm d-inline-flex align-items-center justify-content-center">
+            <span class="app-brand-mark app-brand-mark--sm d-inline-flex align-items-center justify-content-center flex-shrink-0">
               <i class="bi bi-heart-pulse-fill"></i>
             </span>
-            <span class="fw-bold fs-5 text-white">МедЗапись</span>
+            <span class="footer-site__brand">Запись к врачу</span>
           </div>
           <p class="footer-site__lead mb-0">
-            Онлайн-сервис записи к врачам: удобный каталог специалистов, прозрачное расписание и электронный талон.
+            Сервис онлайн-записи в поликлинику: каталог врачей, выбор времени и электронный талон.
           </p>
         </div>
-        <div class="col-6 col-md-4 col-lg-2">
+        <div class="col-12 col-sm-6 col-lg-3">
           <div class="footer-site__title">Навигация</div>
           <ul class="list-unstyled footer-site__links mb-0">
             <li><a href="/">Главная</a></li>
@@ -26,33 +27,29 @@
             <% if (typeof user !== 'undefined' && user && user.role === 'patient') { %>
               <li><a href="/profile/appointments">Мои записи</a></li>
             <% } %>
+            <% if (typeof user !== 'undefined' && user) { %>
+              <li><a href="/notifications">Уведомления</a></li>
+            <% } %>
             <% if (typeof user === 'undefined' || !user) { %>
               <li><a href="/auth/login">Вход</a></li>
               <li><a href="/auth/register">Регистрация</a></li>
             <% } %>
           </ul>
         </div>
-        <div class="col-6 col-md-4 col-lg-3">
-          <div class="footer-site__title">Сервис</div>
-          <ul class="list-unstyled footer-site__links mb-0">
-            <li><a href="/doctors">Запись на приём</a></li>
-            <li><span class="footer-site__muted">Уведомления о изменениях</span></li>
-            <li><span class="footer-site__muted">Личный кабинет пациента</span></li>
-          </ul>
-        </div>
-        <div class="col-md-12 col-lg-3">
-          <div class="footer-site__title">Контакты</div>
-          <p class="footer-site__muted small mb-2">
-            Демонстрационный проект (диплом). Данные вымышлены.
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="footer-site__title">О проекте</div>
+          <p class="footer-site__meta mb-2">
+            <i class="bi bi-mortarboard me-1 footer-site__meta-icon" aria-hidden="true"></i>
+            БГТУ, кафедра ИСиТ <span class="footer-site__dash">·</span> дипломный проект
           </p>
-          <p class="small text-white-50 mb-0">
-            <i class="bi bi-building me-1"></i>Учебное заведение / поликлиника
+          <p class="footer-site__muted small mb-0">
+            Учебная демонстрация. Персональные и медицинские данные вымышлены.
           </p>
         </div>
       </div>
-      <div class="footer-site__bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <span class="small text-white-50">&copy; <%= new Date().getFullYear() %> МедЗапись</span>
-        <span class="small text-white-50">Сделано для защиты дипломного проекта</span>
+      <div class="footer-site__bottom py-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <span class="footer-site__copy small mb-0">&copy; 2026 Запись к врачу</span>
+        <span class="footer-site__tag small mb-0">МедЗапись</span>
       </div>
     </div>
   </div>

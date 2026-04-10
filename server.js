@@ -218,17 +218,25 @@ app.get('/', async (req, res) => {
         timeline: buildDoctorTimeline(todayRes.rows),
       };
     } else if (user.role === 'admin') {
-      const [doctorsRes, patientsRes, todayApptsRes, specsRes, recentApptRes, recentUsersRes] =
-        await Promise.all([
-          pool.query("SELECT COUNT(*) FROM users WHERE role = 'doctor'"),
-          pool.query("SELECT COUNT(*) FROM users WHERE role = 'patient'"),
-          pool.query(
-            `SELECT COUNT(*) FROM appointments
+      const [
+        doctorsRes,
+        patientsRes,
+        todayApptsRes,
+        specsRes,
+        recentApptRes,
+        recentUsersRes,
+        apptsByDayRes,
+        apptsByStatusRes,
+      ] = await Promise.all([
+        pool.query("SELECT COUNT(*) FROM users WHERE role = 'doctor'"),
+        pool.query("SELECT COUNT(*) FROM users WHERE role = 'patient'"),
+        pool.query(
+          `SELECT COUNT(*) FROM appointments
            WHERE appointment_date = CURRENT_DATE AND status = 'booked'`
-          ),
-          pool.query('SELECT COUNT(*) FROM specializations'),
-          pool.query(
-            `SELECT a.id,
+        ),
+        pool.query('SELECT COUNT(*) FROM specializations'),
+        pool.query(
+          `SELECT a.id,
                   a.created_at,
                   a.appointment_date,
                   TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
@@ -246,14 +254,30 @@ app.get('/', async (req, res) => {
            LEFT JOIN specializations s ON s.id = dsp.specialization_id
            ORDER BY a.created_at DESC NULLS LAST, a.id DESC
            LIMIT 8`
-          ),
-          pool.query(
-            `SELECT id, created_at, role, email, last_name, first_name
-             FROM users
-             ORDER BY created_at DESC NULLS LAST, id DESC
-             LIMIT 8`
-          ),
-        ]);
+        ),
+        pool.query(
+          `SELECT id, created_at, role, email, last_name, first_name
+           FROM users
+           ORDER BY created_at DESC NULLS LAST, id DESC
+           LIMIT 8`
+        ),
+        pool.query(
+          `SELECT gs::date AS d, COUNT(a.id)::int AS cnt
+           FROM generate_series(
+             (CURRENT_DATE - INTERVAL '13 days')::date,
+             CURRENT_DATE::date,
+             '1 day'::interval
+           ) AS gs
+           LEFT JOIN appointments a ON a.appointment_date = gs::date
+           GROUP BY gs
+           ORDER BY gs`
+        ),
+        pool.query(
+          `SELECT status, COUNT(*)::int AS cnt
+           FROM appointments
+           GROUP BY status`
+        ),
+      ]);
 
       const activity = [];
       recentApptRes.rows.forEach((r) => {
@@ -270,9 +294,7 @@ app.get('/', async (req, res) => {
       recentUsersRes.rows.forEach((r) => {
         const roleRu =
           r.role === 'doctor' ? 'врач' : r.role === 'admin' ? 'админ' : 'пациент';
-        const t = r.created_at
-          ? new Date(r.created_at).getTime()
-          : 0;
+        const t = r.created_at ? new Date(r.created_at).getTime() : 0;
         activity.push({
           kind: 'registration',
           at: t,
@@ -283,6 +305,30 @@ app.get('/', async (req, res) => {
       activity.sort((a, b) => b.at - a.at);
       const recentActivity = activity.slice(0, 10);
 
+      const statusCounts = { booked: 0, cancelled: 0, completed: 0, other: 0 };
+      apptsByStatusRes.rows.forEach((row) => {
+        const k = row.status;
+        if (k === 'booked') statusCounts.booked += row.cnt;
+        else if (k === 'cancelled') statusCounts.cancelled += row.cnt;
+        else if (k === 'completed') statusCounts.completed += row.cnt;
+        else statusCounts.other += row.cnt;
+      });
+
+      const chartPayload = {
+        daysLabels: apptsByDayRes.rows.map((row) => {
+          const d = new Date(row.d);
+          return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+        }),
+        daysCounts: apptsByDayRes.rows.map((row) => row.cnt),
+        statusLabels: ['Забронировано', 'Отменено', 'Завершено', 'Прочее'],
+        statusCounts: [
+          statusCounts.booked,
+          statusCounts.cancelled,
+          statusCounts.completed,
+          statusCounts.other,
+        ],
+      };
+
       viewData.admin = {
         stats: {
           doctors: parseInt(doctorsRes.rows[0].count, 10) || 0,
@@ -292,6 +338,7 @@ app.get('/', async (req, res) => {
         },
         recentAppointments: recentApptRes.rows,
         recentActivity,
+        chartPayload,
       };
     }
   } catch (err) {
