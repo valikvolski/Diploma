@@ -1,0 +1,40 @@
+<%#
+  person: { first_name, last_name, avatar_path, id?, email? }
+  size: 'sm' | 'md' | 'card' | 'detail' | 'profile'
+-%>
+<%
+  var p = typeof person !== 'undefined' && person ? person : {};
+  var sz = typeof size !== 'undefined' && size ? size : 'md';
+  var L = String(p.last_name || '').trim();
+  var F = String(p.first_name || '').trim();
+  var initials = '';
+  if (L.length) initials += L.charAt(0).toUpperCase();
+  if (F.length) initials += F.charAt(0).toUpperCase();
+  if (!initials) initials = '?';
+  var seed = String(p.id != null ? p.id : '') + String(p.email || '');
+  var hue = 210;
+  for (var i = 0; i < seed.length; i++) {
+    hue = (hue + seed.charCodeAt(i) * (i + 1)) % 360;
+  }
+  var hue2 = (hue + 32) % 360;
+  var src = null;
+  if (p.avatar_path) {
+    var ap = String(p.avatar_path).replace(/^\/+/, '');
+    src = '/' + ap;
+  }
+  var grad = 'linear-gradient(135deg, hsl(' + hue + ', 58%, 48%) 0%, hsl(' + hue2 + ', 55%, 36%) 100%)';
+  var label = (L + ' ' + F).trim() || 'Пользователь';
+%>
+<span
+  class="user-avatar user-avatar--<%= sz %><%= src ? ' user-avatar--has-img' : '' %>"
+  style="<%= src ? '' : 'background: ' + grad + ';' %>"
+  title="<%= label %>"
+  role="img"
+  aria-label="Аватар: <%= label %>"
+>
+  <% if (src) { %>
+    <img class="user-avatar__img" src="<%= src %>" alt="" width="256" height="256" loading="lazy" decoding="async" />
+  <% } else { %>
+    <span class="user-avatar__initials" aria-hidden="true"><%= initials %></span>
+  <% } %>
+</span>

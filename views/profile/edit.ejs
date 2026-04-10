@@ -13,6 +13,41 @@
             <span><%= error %></span>
           </div>
         <% } %>
+        <% if (typeof flashSuccess !== 'undefined' && flashSuccess) { %>
+          <div class="alert alert-success d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-check-circle-fill flex-shrink-0 mt-1"></i>
+            <span><%= flashSuccess %></span>
+          </div>
+        <% } %>
+        <% if (typeof flashError !== 'undefined' && flashError) { %>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+            <span><%= flashError %></span>
+          </div>
+        <% } %>
+
+        <% if (typeof avatarUser !== 'undefined' && avatarUser) { %>
+        <div class="profile-avatar-panel app-card border-0 shadow-sm p-3 p-md-4 mb-4">
+          <h2 class="h6 fw-bold mb-3">Фото профиля</h2>
+          <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-3">
+            <%- include('../partials/user-avatar', { person: avatarUser, size: 'profile' }) %>
+            <div class="flex-grow-1 w-100" style="min-width: 0;">
+              <p class="small text-muted mb-2">JPG, PNG или WebP, до 2 МБ. Изображение будет обрезано до квадрата.</p>
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <form method="POST" action="/profile/avatar" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
+                  <input type="file" name="avatar" class="form-control form-control-sm" style="max-width: 220px;" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required />
+                  <button type="submit" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-upload me-1"></i>Загрузить</button>
+                </form>
+                <% if (avatarUser.avatar_path) { %>
+                <form method="POST" action="/profile/avatar/remove" class="d-inline" onsubmit="return confirm('Удалить фото профиля?');">
+                  <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-trash me-1"></i>Удалить</button>
+                </form>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+        <% } %>
 
         <form method="POST" action="/profile/edit" novalidate>
 

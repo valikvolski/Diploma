@@ -1,15 +1,24 @@
 <!DOCTYPE html>
-<html lang="ru" data-bs-theme="light" data-app-theme="light">
+<html lang="ru" data-bs-theme="light" data-app-theme="light" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script>
     (function () {
+      var KEY = 'medzap-theme';
+      var saved = null;
       try {
-        var t = localStorage.getItem('medzap-theme') || 'light';
-        document.documentElement.setAttribute('data-app-theme', t);
-        document.documentElement.setAttribute('data-bs-theme', t);
+        saved = localStorage.getItem(KEY);
       } catch (e) {}
+      var mode = 'light';
+      if (saved === 'dark' || saved === 'light') {
+        mode = saved;
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        mode = 'dark';
+      }
+      document.documentElement.setAttribute('data-app-theme', mode);
+      document.documentElement.setAttribute('data-bs-theme', mode);
+      document.documentElement.setAttribute('data-theme', mode);
     })();
   </script>
   <title><%= typeof title !== 'undefined' ? title : 'МедЗапись' %></title>
@@ -85,8 +94,8 @@
 
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-lg-1">
         <li class="nav-item d-flex align-items-center">
-          <button type="button" class="btn btn-link nav-link app-theme-toggle py-2 rounded-3 text-body" title="Тема оформления" aria-label="Переключить тёмную тему">
-            <i class="bi bi-moon-stars-fill"></i>
+          <button type="button" class="btn btn-link nav-link app-theme-toggle py-2 rounded-3" title="Тема: светлая / тёмная" aria-label="Переключить тему оформления">
+            <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
           </button>
         </li>
         <% if (typeof user !== 'undefined' && user) { %>
@@ -103,7 +112,9 @@
           </li>
           <li class="nav-item dropdown">
             <a class="nav-link app-nav-link dropdown-toggle d-flex align-items-center gap-2 py-2 rounded-3" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              <span class="app-user-avatar d-inline-flex align-items-center justify-content-center"><i class="bi bi-person-fill"></i></span>
+              <span class="app-nav-avatar-wrap d-inline-flex align-items-center justify-content-center flex-shrink-0">
+                <%- include('user-avatar', { person: user, size: 'sm' }) %>
+              </span>
               <span class="d-none d-md-inline text-truncate app-nav-user-name"><%= user.last_name %> <%= user.first_name %></span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end app-dropdown shadow border-0">

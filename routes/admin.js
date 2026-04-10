@@ -1,7 +1,10 @@
 const express = require('express');
+const fs = require('fs').promises;
 const bcrypt = require('bcrypt');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
+const { redirectMulterAvatarError } = require('../utils/avatarErrors');
 const {
   validateSpecializationSet,
   resolvePrimarySpecializationId,
@@ -99,7 +102,7 @@ router.get('/', ...adminOnly, async (req, res) => {
 router.get('/doctors', ...adminOnly, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked,
+      `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked, u.avatar_path,
               dp.cabinet, dp.experience_years,
               specs.spec_list AS specializations
        FROM users u
@@ -248,6 +251,7 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
       primarySpecId,
       specializations: specs,
       error: req.query.error || null,
+      success: req.query.success || null,
       loadChoicesCss: true,
       loadChoicesJs: true,
       loadAdminSpecChoices: true,
@@ -357,6 +361,68 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
     const rid = await resolveDoctorUserId(req.params.id, pool);
     const editId = rid != null ? rid : req.params.id;
     res.redirect(`/admin/doctors/${editId}/edit?error=` + encodeURIComponent('Ошибка сохранения'));
+  }
+});
+
+// ─── POST /admin/doctors/:id/avatar ────────────────────────────────────────────
+
+router.post('/doctors/:id/avatar', ...adminOnly, (req, res, next) => {
+  uploadAvatar(req, res, async (err) => {
+    const resolvedDoctorId = await resolveDoctorUserId(req.params.id, pool);
+    const editPath = resolvedDoctorId
+      ? `/admin/doctors/${resolvedDoctorId}/edit`
+      : '/admin/doctors';
+    if (redirectMulterAvatarError(err, res, editPath)) return;
+    if (err) return next(err);
+    if (!resolvedDoctorId) {
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      return res.redirect('/admin/doctors?error=' + encodeURIComponent('Врач не найден'));
+    }
+    if (!req.file) {
+      return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
+    }
+    try {
+      const rel = await finalizeTempToWebp(req.file.path, resolvedDoctorId);
+      const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [resolvedDoctorId]);
+      const oldPath = prev.rows[0]?.avatar_path;
+      await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2 AND role = $3', [
+        rel,
+        resolvedDoctorId,
+        'doctor',
+      ]);
+      await unlinkDbPath(oldPath);
+      res.redirect(`${editPath}?success=` + encodeURIComponent('Фото врача обновлено'));
+    } catch (e) {
+      console.error('Admin doctor avatar error:', e);
+      res.redirect(`${editPath}?error=` + encodeURIComponent('Не удалось обработать изображение'));
+    }
+  });
+});
+
+// ─── POST /admin/doctors/:id/avatar/remove ───────────────────────────────────
+
+router.post('/doctors/:id/avatar/remove', ...adminOnly, async (req, res) => {
+  try {
+    const resolvedDoctorId = await resolveDoctorUserId(req.params.id, pool);
+    if (!resolvedDoctorId) {
+      return res.redirect('/admin/doctors?error=' + encodeURIComponent('Врач не найден'));
+    }
+    const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [resolvedDoctorId]);
+    const oldPath = prev.rows[0]?.avatar_path;
+    await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [resolvedDoctorId]);
+    await unlinkDbPath(oldPath);
+    res.redirect(
+      `/admin/doctors/${resolvedDoctorId}/edit?success=` + encodeURIComponent('Фото врача удалено')
+    );
+  } catch (e) {
+    console.error('Admin doctor avatar remove error:', e);
+    const rid = await resolveDoctorUserId(req.params.id, pool);
+    const p = rid != null ? `/admin/doctors/${rid}/edit` : '/admin/doctors';
+    res.redirect(`${p}?error=` + encodeURIComponent('Не удалось удалить фото'));
   }
 });
 

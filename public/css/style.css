@@ -23,6 +23,22 @@
   --app-text: #0f172a;
   --app-muted: #64748b;
 
+  /* Семантические токены темы (светлая) */
+  --bg: var(--app-gray-50);
+  --surface: var(--app-white);
+  --surface-2: var(--app-gray-100);
+  --text: var(--app-text);
+  --muted: var(--app-muted);
+  --border: var(--app-gray-200);
+  --primary: var(--app-primary);
+  --primary-hover: var(--app-primary-dark);
+  --primary-soft: var(--app-primary-soft);
+  --success: var(--app-success);
+  --warning: var(--app-warning);
+  --danger: var(--app-danger);
+  --shadow-elev: rgba(15, 23, 42, 0.12);
+  --focus-ring: rgba(26, 110, 230, 0.28);
+
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -52,16 +68,20 @@
 /* ── Сброс и база ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  transition: background-color 0.22s ease, color 0.22s ease;
+}
 
 .app-body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   font-family: var(--font-sans);
-  color: var(--app-text);
-  background-color: var(--app-gray-50);
+  color: var(--text, var(--app-text));
+  background-color: var(--bg, var(--app-gray-50));
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.22s ease, color 0.22s ease;
 }
 
 .app-main { flex: 1; }
@@ -155,13 +175,12 @@ a:hover { color: var(--app-primary-dark); }
 
 .app-nav-user-name { max-width: 10rem; }
 
-.app-user-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-pill);
-  background: var(--app-primary-soft);
-  color: var(--app-primary);
-  font-size: 1rem;
+.app-nav-avatar-wrap {
+  line-height: 0;
+}
+
+.app-nav-avatar-wrap .user-avatar {
+  vertical-align: middle;
 }
 
 .app-dropdown {
@@ -952,6 +971,93 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 .tracking-wide { letter-spacing: 0.06em; }
+
+/* ── Аватары пользователей ─────────────────────────────────── */
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px var(--shadow-elev, rgba(15, 23, 42, 0.1));
+  border: 2px solid var(--surface, var(--app-white));
+  vertical-align: middle;
+}
+
+.user-avatar--has-img {
+  background: var(--surface-2, var(--app-gray-100));
+}
+
+.user-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.user-avatar__initials {
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.user-avatar--sm {
+  width: 36px;
+  height: 36px;
+}
+
+.user-avatar--sm .user-avatar__initials {
+  font-size: 0.8rem;
+}
+
+.user-avatar--md {
+  width: 52px;
+  height: 52px;
+}
+
+.user-avatar--md .user-avatar__initials {
+  font-size: 1rem;
+}
+
+.user-avatar--card {
+  width: 56px;
+  height: 56px;
+}
+
+.user-avatar--card .user-avatar__initials {
+  font-size: 1.05rem;
+}
+
+.user-avatar--detail {
+  width: 112px;
+  height: 112px;
+}
+
+.user-avatar--detail .user-avatar__initials {
+  font-size: 1.65rem;
+}
+
+.user-avatar--profile {
+  width: 120px;
+  height: 120px;
+}
+
+.user-avatar--profile .user-avatar__initials {
+  font-size: 1.75rem;
+}
+
+.doctor-card-avatar-wrap,
+.doctor-detail-avatar-wrap {
+  line-height: 0;
+}
+
+.admin-doctor-avatar-panel {
+  background: var(--app-gray-50);
+  border: 1px solid var(--app-gray-200) !important;
+}
 
 /* ── Карточка врача ─────────────────────────────────────────── */
 .doctor-card {
@@ -1927,15 +2033,10 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 .guest-doctor-card__avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--app-primary-soft);
-  color: var(--app-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
+  min-height: 56px;
 }
 
 .landing-why-card {
@@ -2276,15 +2377,33 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 /* ── Тёмная тема (медицинская, не чистый чёрный) ─────────────── */
-[data-app-theme="dark"] {
+html[data-app-theme="dark"],
+html[data-theme="dark"] {
   color-scheme: dark;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #0f172a;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #334155;
+  --primary: #4f8ef7;
+  --primary-hover: #7eb8ff;
+  --primary-soft: rgba(79, 142, 247, 0.2);
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --shadow-elev: rgba(0, 0, 0, 0.42);
+  --focus-ring: rgba(129, 180, 255, 0.38);
   --app-gray-50: #0f172a;
   --app-gray-100: #1e293b;
   --app-gray-200: #334155;
   --app-text: #f1f5f9;
   --app-muted: #94a3b8;
   --app-white: #1e293b;
-  --app-primary-soft: rgba(26, 110, 230, 0.2);
+  --app-primary-soft: rgba(26, 110, 230, 0.22);
+  --bs-body-bg: #0f172a;
+  --bs-body-color: #f1f5f9;
+  --bs-border-color: #334155;
 }
 
 [data-app-theme="dark"] .app-body {
@@ -2515,6 +2634,164 @@ a:hover { color: var(--app-primary-dark); }
   color: #e8f1fc;
 }
 
+[data-app-theme="dark"] .user-avatar {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+}
+
+[data-app-theme="dark"] .app-theme-toggle {
+  color: #e2e8f0 !important;
+}
+
+[data-app-theme="dark"] .dropdown-menu,
+[data-app-theme="dark"] .app-dropdown {
+  background-color: var(--app-white);
+  border: 1px solid var(--app-gray-200);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.5);
+}
+
+[data-app-theme="dark"] .dropdown-item {
+  color: var(--app-text);
+}
+
+[data-app-theme="dark"] .dropdown-item:hover,
+[data-app-theme="dark"] .dropdown-item:focus {
+  background: var(--app-primary-soft);
+  color: #f8fafc;
+}
+
+[data-app-theme="dark"] .dropdown-divider {
+  border-color: var(--app-gray-200);
+}
+
+[data-app-theme="dark"] .modal-content {
+  background: var(--app-white);
+  border-color: var(--app-gray-200);
+  color: var(--app-text);
+}
+
+[data-app-theme="dark"] .modal-header,
+[data-app-theme="dark"] .modal-footer {
+  border-color: var(--app-gray-200);
+}
+
+[data-app-theme="dark"] .btn-close {
+  filter: invert(1);
+}
+
+[data-app-theme="dark"] .alert-danger {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+}
+
+[data-app-theme="dark"] .alert-success {
+  background: rgba(52, 211, 153, 0.12);
+  color: #a7f3d0;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+}
+
+[data-app-theme="dark"] .alert-primary,
+[data-app-theme="dark"] .alert-info {
+  background: rgba(59, 130, 246, 0.12);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+[data-app-theme="dark"] .filter-panel {
+  background: var(--app-white);
+  border-color: var(--app-gray-200) !important;
+}
+
+[data-app-theme="dark"] .empty-state {
+  background: var(--app-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--app-gray-200);
+}
+
+[data-app-theme="dark"] .table.app-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-app-theme="dark"] .spec-badge.bg-light {
+  background: var(--app-gray-100) !important;
+  color: var(--app-text) !important;
+  border-color: var(--app-gray-200) !important;
+}
+
+[data-app-theme="dark"] .doctor-card-header {
+  background: linear-gradient(165deg, #1e3a5f 0%, #1e293b 100%);
+  border-bottom-color: var(--app-gray-200);
+}
+
+[data-app-theme="dark"] .booking-cal {
+  border-color: var(--app-gray-200) !important;
+}
+
+[data-app-theme="dark"] .booking-cal-cell {
+  background: var(--app-white);
+  border-color: var(--app-gray-200);
+  color: var(--app-text);
+}
+
+[data-app-theme="dark"] .booking-cal-cell.high {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #d1fae5;
+}
+
+[data-app-theme="dark"] .booking-cal-cell.low {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fef3c7;
+}
+
+[data-app-theme="dark"] .booking-cal-cell.none {
+  background: var(--app-gray-100);
+  color: var(--app-muted);
+}
+
+[data-app-theme="dark"] .booking-cal-cell.past {
+  background: var(--app-gray-50);
+  color: #64748b;
+}
+
+[data-app-theme="dark"] .booking-cal-badge {
+  color: #cbd5e1;
+}
+
+[data-app-theme="dark"] .booking-cal-cell.vac-cal-selectable:not(.past) {
+  background: var(--app-white);
+  border-color: var(--app-gray-200);
+}
+
+[data-app-theme="dark"] .bg-cal-high {
+  background: rgba(16, 185, 129, 0.2) !important;
+}
+
+[data-app-theme="dark"] .bg-cal-low {
+  background: rgba(251, 191, 36, 0.15) !important;
+}
+
+[data-app-theme="dark"] .bg-cal-none {
+  background: var(--app-gray-100) !important;
+}
+
+[data-app-theme="dark"] .guest-doctor-card__avatar {
+  background: transparent;
+}
+
+[data-app-theme="dark"] .admin-doctor-avatar-panel {
+  background: var(--app-gray-100) !important;
+  border-color: var(--app-gray-200) !important;
+}
+
+[data-app-theme="dark"] .input-group-text {
+  background: var(--app-gray-100);
+  border-color: var(--app-gray-200);
+  color: var(--app-muted);
+}
+
 /* ── Печать ─────────────────────────────────────────────────── */
 @media print {
   .no-print,
@@ -2523,19 +2800,51 @@ a:hover { color: var(--app-primary-dark); }
   .navbar,
   .footer-bar { display: none !important; }
 
-  body { background: #fff !important; }
+  html {
+    color-scheme: light !important;
+  }
+
+  html[data-app-theme="dark"],
+  html[data-theme="dark"] {
+    --app-gray-50: #ffffff;
+    --app-gray-100: #f1f5f9;
+    --app-gray-200: #e2e8f0;
+    --app-text: #0f172a;
+    --app-muted: #64748b;
+    --app-white: #ffffff;
+    --app-primary-soft: #e8f1fc;
+    --bs-body-bg: #ffffff;
+    --bs-body-color: #0f172a;
+    --bs-border-color: #e2e8f0;
+  }
+
+  body,
+  body.app-body,
+  .app-main {
+    background: #fff !important;
+    color: #0f172a !important;
+  }
 
   .ticket-wrapper { max-width: 100%; }
 
   .ticket-card {
     box-shadow: none !important;
-    border: 1px solid var(--app-gray-200) !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #fff !important;
+    color: #0f172a !important;
   }
 
   .ticket-header {
-    background: var(--app-primary) !important;
+    background: #1a6ee6 !important;
+    color: #fff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .ticket-body,
+  .ticket-wrapper {
+    background: #fff !important;
+    color: #0f172a !important;
   }
 
   .app-main { padding: 0 !important; }

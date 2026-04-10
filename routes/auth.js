@@ -151,6 +151,7 @@ router.post('/login', async (req, res) => {
       middle_name: user.middle_name,
       role: user.role,
       is_blocked: user.is_blocked,
+      avatar_path: user.avatar_path || null,
     };
 
     res.redirect('/');

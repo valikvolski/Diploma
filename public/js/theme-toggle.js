@@ -7,6 +7,7 @@
     const m = mode === 'dark' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-app-theme', m);
     document.documentElement.setAttribute('data-bs-theme', m);
+    document.documentElement.setAttribute('data-theme', m);
     try {
       localStorage.setItem(KEY, m);
     } catch (_) {}

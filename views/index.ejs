@@ -175,7 +175,7 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
           <div class="col-md-6 col-lg-4">
             <article class="guest-doctor-card js-home-stagger h-100 d-flex flex-column" data-stagger-order="<%= idx %>">
               <div class="guest-doctor-card__avatar mx-auto">
-                <i class="bi bi-person-fill"></i>
+                <%- include('partials/user-avatar', { person: d, size: 'card' }) %>
               </div>
               <h3 class="h6 fw-bold text-center mb-2 mt-2">
                 <%= d.last_name %> <%= d.first_name %><% if (d.middle_name) { %> <%= d.middle_name %><% } %>

@@ -9,11 +9,14 @@
   <div class="table-responsive app-table-responsive">
     <table class="table app-table table-hover mb-0">
       <thead>
-        <tr><th>#</th><th>ФИО</th><th>Специализация</th><th>Кабинет</th><th>Стаж</th><th>Статус</th><th class="text-end">Действия</th></tr>
+        <tr><th class="text-center" style="width:52px"></th><th>#</th><th>ФИО</th><th>Специализация</th><th>Кабинет</th><th>Стаж</th><th>Статус</th><th class="text-end">Действия</th></tr>
       </thead>
       <tbody>
         <% doctors.forEach(function(d) { %>
           <tr class="<%= d.is_blocked ? 'table-secondary' : '' %>">
+            <td class="text-center align-middle py-2">
+              <%- include('../partials/user-avatar', { person: d, size: 'md' }) %>
+            </td>
             <td><%= d.id %></td>
             <td class="fw-semibold"><%= d.last_name %> <%= d.first_name %> <%= d.middle_name || '' %></td>
             <td>

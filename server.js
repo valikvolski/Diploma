@@ -37,7 +37,14 @@ app.use(async (req, res, next) => {
   res.locals.currentPath = req.path || '';
   res.locals.appMountPath = (process.env.APP_BASE_PATH || '').replace(/\/$/, '');
   if (req.session && req.session.user) {
-    try { res.locals.unreadNotifCount = await getUnreadCount(req.session.user.id); } catch (_) {}
+    try {
+      const uRes = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.session.user.id]);
+      if (uRes.rows.length) req.session.user.avatar_path = uRes.rows[0].avatar_path;
+      res.locals.user = req.session.user;
+    } catch (_) {}
+    try {
+      res.locals.unreadNotifCount = await getUnreadCount(req.session.user.id);
+    } catch (_) {}
   }
   next();
 });
@@ -103,6 +110,7 @@ app.get('/', async (req, res) => {
                   u.last_name,
                   u.first_name,
                   u.middle_name,
+                  u.avatar_path,
                   dp.cabinet,
                   dp.experience_years,
                   specs.spec_list AS specializations

@@ -1,9 +1,22 @@
 const express = require('express');
+const fs = require('fs').promises;
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
+const { redirectMulterAvatarError } = require('../utils/avatarErrors');
 
 const router = express.Router();
 const patientOnly = [requireAuth, requireRole(['patient'])];
+
+function avatarUserForEdit(sessionUser, formData) {
+  return {
+    id: sessionUser.id,
+    email: formData.email,
+    first_name: formData.first_name,
+    last_name: formData.last_name,
+    avatar_path: sessionUser.avatar_path,
+  };
+}
 
 // ─── GET /profile → редирект ─────────────────────────────────────────────────
 
@@ -144,6 +157,15 @@ router.get('/edit', ...patientOnly, async (req, res) => {
         gender: profile.gender || '',
         address: profile.address || '',
       },
+      avatarUser: {
+        id: userData.id,
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        avatar_path: userData.avatar_path,
+      },
+      flashSuccess: req.query.success || null,
+      flashError: req.query.error || null,
     });
   } catch (err) {
     console.error('Profile edit load error:', err);
@@ -161,6 +183,7 @@ router.post('/edit', ...patientOnly, async (req, res) => {
     return res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
+      avatarUser: avatarUserForEdit(req.session.user, formData),
       error: 'ФИО и телефон обязательны для заполнения',
     });
   }
@@ -169,6 +192,7 @@ router.post('/edit', ...patientOnly, async (req, res) => {
     return res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
+      avatarUser: avatarUserForEdit(req.session.user, formData),
       error: 'Неверный формат телефона. Пример: +375291234567',
     });
   }
@@ -204,8 +228,53 @@ router.post('/edit', ...patientOnly, async (req, res) => {
     res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
+      avatarUser: avatarUserForEdit(req.session.user, formData),
       error: 'Ошибка сохранения профиля',
     });
+  }
+});
+
+// ─── POST /profile/avatar ────────────────────────────────────────────────────
+
+router.post('/avatar', ...patientOnly, (req, res, next) => {
+  uploadAvatar(req, res, async (err) => {
+    const editPath = '/profile/edit';
+    if (redirectMulterAvatarError(err, res, editPath)) return;
+    if (err) return next(err);
+    if (!req.file) {
+      return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
+    }
+    try {
+      const rel = await finalizeTempToWebp(req.file.path, req.session.user.id);
+      const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.session.user.id]);
+      const oldPath = prev.rows[0]?.avatar_path;
+      await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, req.session.user.id]);
+      await unlinkDbPath(oldPath);
+      req.session.user.avatar_path = rel;
+      res.redirect(`${editPath}?success=${encodeURIComponent('Фото профиля обновлено')}`);
+    } catch (e) {
+      console.error('Profile avatar error:', e);
+      try {
+        await fs.unlink(req.file.path);
+      } catch (_) {}
+      res.redirect(`${editPath}?error=${encodeURIComponent('Не удалось обработать изображение')}`);
+    }
+  });
+});
+
+// ─── POST /profile/avatar/remove ─────────────────────────────────────────────
+
+router.post('/avatar/remove', ...patientOnly, async (req, res) => {
+  try {
+    const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.session.user.id]);
+    const oldPath = prev.rows[0]?.avatar_path;
+    await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [req.session.user.id]);
+    await unlinkDbPath(oldPath);
+    req.session.user.avatar_path = null;
+    res.redirect('/profile/edit?success=' + encodeURIComponent('Фото профиля удалено'));
+  } catch (e) {
+    console.error('Profile avatar remove error:', e);
+    res.redirect('/profile/edit?error=' + encodeURIComponent('Не удалось удалить фото'));
   }
 });
 

@@ -78,8 +78,8 @@ function experienceLabel(n) {
 
           <!-- Аватар и специализация -->
           <div class="doctor-card-header text-center pt-4 pb-2">
-            <div class="doctor-avatar mx-auto mb-3">
-              <i class="bi bi-person-fill"></i>
+            <div class="doctor-card-avatar-wrap mx-auto mb-3">
+              <%- include('../partials/user-avatar', { person: doctor, size: 'card' }) %>
             </div>
             <% const specs = Array.isArray(doctor.specializations) ? doctor.specializations : []; %>
             <% if (specs.length) { %>

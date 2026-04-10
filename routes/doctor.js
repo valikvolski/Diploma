@@ -1,6 +1,9 @@
 const express = require('express');
+const fs = require('fs').promises;
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
+const { redirectMulterAvatarError } = require('../utils/avatarErrors');
 const { notifyAppointmentCancelled } = require('../utils/notifications');
 const { invalidateDoctorAvailabilityCache } = require('../utils/bookingSlots');
 
@@ -389,6 +392,52 @@ router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
   } catch (err) {
     console.error('Status update error:', err);
     res.redirect('/doctor/patients?error=' + encodeURIComponent('Ошибка обновления'));
+  }
+});
+
+// ─── POST /doctor/avatar ───────────────────────────────────────────────────────
+
+router.post('/avatar', ...docOnly, (req, res, next) => {
+  uploadAvatar(req, res, async (err) => {
+    const editPath = '/doctor/schedule';
+    if (redirectMulterAvatarError(err, res, editPath)) return;
+    if (err) return next(err);
+    if (!req.file) {
+      return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
+    }
+    try {
+      const uid = req.session.user.id;
+      const rel = await finalizeTempToWebp(req.file.path, uid);
+      const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [uid]);
+      const oldPath = prev.rows[0]?.avatar_path;
+      await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, uid]);
+      await unlinkDbPath(oldPath);
+      req.session.user.avatar_path = rel;
+      res.redirect(`${editPath}?success=${encodeURIComponent('Фото профиля обновлено')}`);
+    } catch (e) {
+      console.error('Doctor avatar error:', e);
+      try {
+        await fs.unlink(req.file.path);
+      } catch (_) {}
+      res.redirect(`${editPath}?error=${encodeURIComponent('Не удалось обработать изображение')}`);
+    }
+  });
+});
+
+// ─── POST /doctor/avatar/remove ────────────────────────────────────────────────
+
+router.post('/avatar/remove', ...docOnly, async (req, res) => {
+  try {
+    const uid = req.session.user.id;
+    const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [uid]);
+    const oldPath = prev.rows[0]?.avatar_path;
+    await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [uid]);
+    await unlinkDbPath(oldPath);
+    req.session.user.avatar_path = null;
+    res.redirect('/doctor/schedule?success=' + encodeURIComponent('Фото профиля удалено'));
+  } catch (e) {
+    console.error('Doctor avatar remove error:', e);
+    res.redirect('/doctor/schedule?error=' + encodeURIComponent('Не удалось удалить фото'));
   }
 });
 

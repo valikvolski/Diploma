@@ -1,15 +1,24 @@
 <!DOCTYPE html>
-<html lang="ru" data-bs-theme="light" data-app-theme="light">
+<html lang="ru" data-bs-theme="light" data-app-theme="light" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script>
     (function () {
+      var KEY = 'medzap-theme';
+      var saved = null;
       try {
-        var t = localStorage.getItem('medzap-theme') || 'light';
-        document.documentElement.setAttribute('data-app-theme', t);
-        document.documentElement.setAttribute('data-bs-theme', t);
+        saved = localStorage.getItem(KEY);
       } catch (e) {}
+      var mode = 'light';
+      if (saved === 'dark' || saved === 'light') {
+        mode = saved;
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        mode = 'dark';
+      }
+      document.documentElement.setAttribute('data-app-theme', mode);
+      document.documentElement.setAttribute('data-bs-theme', mode);
+      document.documentElement.setAttribute('data-theme', mode);
     })();
   </script>
   <title><%= typeof title !== 'undefined' ? title : 'МедЗапись' %></title>
