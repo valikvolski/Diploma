@@ -97,7 +97,7 @@ app.get('/', async (req, res) => {
   try {
     if (!user) {
       const specsRes = await pool.query(
-        'SELECT id, name FROM specializations ORDER BY name LIMIT 24'
+        'SELECT id, name FROM specializations ORDER BY name'
       );
       viewData.guest = {
         specializations: specsRes.rows,

@@ -8,7 +8,7 @@ function experienceLabel(n) {
   }
 }
 %>
-<%- include('../partials/header', { title: title }) %>
+<%- include('../partials/header', { title: title, loadChoicesCss: typeof loadChoicesCss !== 'undefined' && loadChoicesCss }) %>
 
 <div class="page-header">
   <h1 class="page-header__title"><i class="bi bi-person-badge text-primary me-2"></i>Наши врачи</h1>
@@ -38,7 +38,7 @@ function experienceLabel(n) {
         <label for="specialization_id" class="form-label fw-semibold small text-muted text-uppercase tracking-wide">
           <i class="bi bi-funnel me-1"></i>Специализация
         </label>
-        <select class="form-select" id="specialization_id" name="specialization_id">
+        <select class="form-select choices-catalog-spec" id="specialization_id" name="specialization_id">
           <option value="">— Все специальности —</option>
           <% specializations.forEach(s => { %>
             <option value="<%= s.id %>" <%= filters.specialization_id == s.id ? 'selected' : '' %>>

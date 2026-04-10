@@ -36,6 +36,7 @@ function printDoctorSpecializationsMigrationHint() {
   console.error('[db] Missing table: public.doctor_specializations (PostgreSQL 42P01).');
   console.error('[db] Apply migration with psql, for example:');
   console.error(`[db]   psql -U postgres -d clinic_db -f ${file}`);
+  console.error('[db] Or: npm run migrate   (применяет все db/migrations/*.sql по порядку)');
   console.error('[db] Adjust -U and -d to match your DB_USER / DB_NAME (.env).');
   console.error(
     '[db] Dev only: set AUTO_RUN_DB_MIGRATIONS=1 (and NODE_ENV not production) to run all db/migrations/*.sql on startup.'

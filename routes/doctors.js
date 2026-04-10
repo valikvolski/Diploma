@@ -9,17 +9,23 @@ router.get('/', async (req, res) => {
   const { specialization_id, search } = req.query;
 
   try {
-    // Все специализации для выпадающего списка
+    // Все специализации для выпадающего списка (только из БД)
     const specsResult = await pool.query(
       'SELECT id, name FROM specializations ORDER BY name'
     );
+    const knownSpecIds = new Set(specsResult.rows.map((r) => r.id));
+    let filterSpecId = '';
+    if (specialization_id !== undefined && specialization_id !== null && String(specialization_id).trim() !== '') {
+      const n = parseInt(specialization_id, 10);
+      if (!isNaN(n) && knownSpecIds.has(n)) filterSpecId = String(n);
+    }
 
     // Строим фильтрованный запрос
     const conditions = ["u.role = 'doctor'", 'u.is_blocked = false'];
     const params = [];
 
-    if (specialization_id && specialization_id !== '') {
-      params.push(Number(specialization_id));
+    if (filterSpecId !== '') {
+      params.push(Number(filterSpecId));
       conditions.push(
         `EXISTS (SELECT 1 FROM doctor_specializations dsf WHERE dsf.doctor_user_id = u.id AND dsf.specialization_id = $${params.length})`
       );
@@ -69,9 +75,12 @@ router.get('/', async (req, res) => {
       doctors: doctorsResult.rows,
       specializations: specsResult.rows,
       filters: {
-        specialization_id: specialization_id || '',
+        specialization_id: filterSpecId,
         search: search || '',
       },
+      loadChoicesCss: true,
+      loadChoicesJs: true,
+      loadCatalogSpecFilter: true,
     });
   } catch (err) {
     console.error('Doctors list error:', err);

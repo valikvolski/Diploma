@@ -8,7 +8,10 @@ const {
 } = require('../utils/specializationCompat');
 
 function parseSpecializationIds(body) {
-  const raw = body.specialization_ids;
+  const raw =
+    body.specialization_ids != null
+      ? body.specialization_ids
+      : body['specialization_ids[]'];
   if (raw == null) return [];
   const arr = Array.isArray(raw) ? raw : [raw];
   return arr
@@ -139,6 +142,9 @@ router.get('/doctors/new', ...adminOnly, async (req, res) => {
       doctorSpecIds: [],
       primarySpecId: null,
       specializations: specs,
+      loadChoicesCss: true,
+      loadChoicesJs: true,
+      loadAdminSpecChoices: true,
     });
   } catch (err) {
     console.error(err);
@@ -242,6 +248,9 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
       primarySpecId,
       specializations: specs,
       error: req.query.error || null,
+      loadChoicesCss: true,
+      loadChoicesJs: true,
+      loadAdminSpecChoices: true,
     });
   } catch (err) {
     console.error(err);
@@ -408,7 +417,10 @@ router.post('/specializations', ...adminOnly, async (req, res) => {
     return res.redirect('/admin/specializations?error=' + encodeURIComponent('Введите название'));
   }
   try {
-    await pool.query('INSERT INTO specializations (name) VALUES ($1)', [name.trim()]);
+    await pool.query(
+      'INSERT INTO specializations (name, compat_group) VALUES ($1, $2)',
+      [name.trim(), 'therapy']
+    );
     res.redirect('/admin/specializations?success=' + encodeURIComponent('Специализация добавлена'));
   } catch (err) {
     if (err.code === '23505') {
@@ -493,6 +505,9 @@ router.get('/users/:id/change-role', ...adminOnly, async (req, res) => {
       targetUser: u,
       specializations: specs,
       error: req.query.error || null,
+      loadChoicesCss: true,
+      loadChoicesJs: true,
+      loadAdminSpecChoices: true,
     });
   } catch (err) {
     console.error(err);

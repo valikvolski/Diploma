@@ -10,10 +10,7 @@
 ALTER TABLE specializations
   ADD COLUMN IF NOT EXISTS compat_group VARCHAR(32) NOT NULL DEFAULT 'therapy';
 
-UPDATE specializations SET compat_group = 'therapy'
-  WHERE name IN ('Терапевт', 'Кардиолог', 'Невролог', 'Педиатр', 'Дерматолог', 'Эндокринолог');
-UPDATE specializations SET compat_group = 'surgery' WHERE name = 'Хирург';
-UPDATE specializations SET compat_group = 'ophthalmology' WHERE name = 'Офтальмолог';
+-- Группы совместимости задаются в db/migrations/002_specializations_seed.sql (поле compat_group при вставке)
 
 CREATE TABLE IF NOT EXISTS doctor_specializations (
   doctor_user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

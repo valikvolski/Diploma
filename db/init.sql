@@ -13,18 +13,40 @@ CREATE TABLE IF NOT EXISTS doctor_profiles (
 );
 
 -- ══════════════════════════════════════════════════════
--- Специализации
+-- Специализации (полный список = db/migrations/002_specializations_seed.sql)
 -- ══════════════════════════════════════════════════════
-INSERT INTO specializations (name) VALUES
-  ('Терапевт'),
-  ('Кардиолог'),
-  ('Невролог'),
-  ('Хирург'),
-  ('Офтальмолог'),
-  ('Педиатр'),
-  ('Дерматолог'),
-  ('Эндокринолог')
-ON CONFLICT DO NOTHING;
+ALTER TABLE specializations
+  ADD COLUMN IF NOT EXISTS compat_group VARCHAR(32) NOT NULL DEFAULT 'therapy';
+
+CREATE UNIQUE INDEX IF NOT EXISTS specializations_name_unique ON specializations (name);
+
+INSERT INTO specializations (name, compat_group) VALUES
+  ('Аллерголог-иммунолог', 'therapy'),
+  ('Анестезиолог-реаниматолог', 'surgery'),
+  ('Врач УЗИ', 'imaging'),
+  ('Гастроэнтеролог', 'therapy'),
+  ('Гинеколог', 'gynecology'),
+  ('Дерматолог', 'therapy'),
+  ('Инфекционист', 'therapy'),
+  ('Кардиолог', 'therapy'),
+  ('ЛОР (оториноларинголог)', 'ent'),
+  ('Невролог', 'therapy'),
+  ('Нефролог', 'therapy'),
+  ('Онколог', 'therapy'),
+  ('Офтальмолог', 'ophthalmology'),
+  ('Педиатр', 'therapy'),
+  ('Проктолог', 'surgery'),
+  ('Психиатр', 'therapy'),
+  ('Пульмонолог', 'therapy'),
+  ('Ревматолог', 'therapy'),
+  ('Рентгенолог', 'imaging'),
+  ('Стоматолог', 'dental'),
+  ('Терапевт', 'therapy'),
+  ('Травматолог-ортопед', 'surgery'),
+  ('Уролог', 'surgery'),
+  ('Хирург', 'surgery'),
+  ('Эндокринолог', 'therapy')
+ON CONFLICT (name) DO NOTHING;
 
 -- ══════════════════════════════════════════════════════
 -- Тестовые врачи (users + doctor_profiles)
@@ -111,14 +133,6 @@ ON CONFLICT (user_id) DO NOTHING;
 -- ══════════════════════════════════════════════════════
 -- Связь врач ↔ специализации (см. db/migrations/001_doctor_specializations.sql)
 -- ══════════════════════════════════════════════════════
-ALTER TABLE specializations
-  ADD COLUMN IF NOT EXISTS compat_group VARCHAR(32) NOT NULL DEFAULT 'therapy';
-
-UPDATE specializations SET compat_group = 'therapy'
-  WHERE name IN ('Терапевт', 'Кардиолог', 'Невролог', 'Педиатр', 'Дерматолог', 'Эндокринолог');
-UPDATE specializations SET compat_group = 'surgery' WHERE name = 'Хирург';
-UPDATE specializations SET compat_group = 'ophthalmology' WHERE name = 'Офтальмолог';
-
 CREATE TABLE IF NOT EXISTS doctor_specializations (
   doctor_user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   specialization_id INTEGER NOT NULL REFERENCES specializations(id),
