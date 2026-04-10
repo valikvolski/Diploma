@@ -1189,10 +1189,99 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 /* ── Календарь записи (врач) ───────────────────────────────── */
+.booking-cal-shell {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .booking-cal-shell {
+    max-width: min(100%, 680px);
+  }
+}
+
+@media (min-width: 1200px) {
+  .booking-cal-shell {
+    max-width: min(100%, 820px);
+  }
+}
+
 .booking-cal {
   border-radius: var(--radius-lg) !important;
-  max-width: 520px;
+  max-width: none;
+  width: 100%;
   border: 1px solid var(--app-gray-200) !important;
+}
+
+.booking-cal-viewport {
+  min-height: 22rem;
+}
+
+@media (min-width: 768px) {
+  .booking-cal-viewport {
+    min-height: 26rem;
+  }
+}
+
+.booking-cal-viewport.is-loading .booking-cal-viewport__content {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.booking-cal-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--radius-md);
+}
+
+[data-app-theme="dark"] .booking-cal-loading-overlay {
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.booking-cal-loading-overlay__inner {
+  padding: 1rem;
+}
+
+.booking-cal-skeleton-cell {
+  min-height: 76px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    110deg,
+    var(--app-gray-100) 0%,
+    var(--app-gray-200) 45%,
+    var(--app-gray-100) 90%
+  );
+  background-size: 200% 100%;
+  animation: booking-cal-shimmer 1.15s ease-in-out infinite;
+}
+
+.booking-cal-skeleton-cell--empty {
+  visibility: hidden;
+  min-height: 76px;
+  animation: none;
+  background: transparent;
+}
+
+@keyframes booking-cal-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-cal-skeleton-cell {
+    animation: none;
+    background: var(--app-gray-100);
+  }
+}
+
+.booking-slots-panel {
+  min-height: 9rem;
 }
 
 .booking-cal-nav {
@@ -1223,6 +1312,12 @@ a:hover { color: var(--app-primary-dark); }
   gap: 6px;
 }
 
+@media (min-width: 768px) {
+  .booking-cal-grid {
+    gap: 8px;
+  }
+}
+
 .booking-cal-cell {
   min-height: 76px;
   padding: 6px 4px;
@@ -1235,6 +1330,21 @@ a:hover { color: var(--app-primary-dark); }
   justify-content: flex-start;
   line-height: 1.2;
   transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+@media (min-width: 768px) {
+  .booking-cal-cell {
+    min-height: 84px;
+    padding: 8px 6px;
+  }
+
+  .booking-cal-skeleton-cell {
+    min-height: 84px;
+  }
+
+  .booking-cal-skeleton-cell--empty {
+    min-height: 84px;
+  }
 }
 
 .booking-cal-cell.high {
@@ -1800,6 +1910,125 @@ a:hover { color: var(--app-primary-dark); }
   color: #fff;
 }
 
+.letter-spacing-wide {
+  letter-spacing: 0.05em;
+}
+
+.home-patient-hero {
+  background: linear-gradient(135deg, var(--app-white) 0%, var(--app-primary-soft) 100%);
+  border: 1px solid var(--app-gray-200) !important;
+}
+
+.home-patient-hero__mark {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--app-primary) 0%, #0ea5e9 100%);
+  color: #fff;
+  font-size: 1.75rem;
+  box-shadow: var(--shadow-primary);
+}
+
+.home-patient-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 1.1rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--app-gray-200);
+  background: var(--app-white);
+  color: var(--app-text);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.2s var(--anim-ease), box-shadow 0.2s ease, border-color 0.2s ease;
+  overflow: visible;
+}
+
+.home-patient-tile:hover {
+  color: var(--app-text);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: #bfdbfe;
+}
+
+.home-patient-tile--accent {
+  background: linear-gradient(135deg, var(--app-primary) 0%, #0ea5e9 100%);
+  color: #fff !important;
+  border-color: transparent;
+  box-shadow: 0 8px 24px rgba(26, 110, 230, 0.35);
+}
+
+.home-patient-tile--accent:hover {
+  color: #fff !important;
+  box-shadow: 0 12px 28px rgba(26, 110, 230, 0.42);
+}
+
+.home-patient-tile__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.home-patient-tile--accent .home-patient-tile__icon {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.home-patient-tile__label {
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.home-patient-tile__badge {
+  font-size: 0.65rem;
+  padding: 0.35em 0.5em;
+}
+
+.home-patient-appt {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--app-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--app-gray-50);
+  transition: border-color 0.2s ease;
+}
+
+.home-patient-appt:hover {
+  border-color: #bfdbfe;
+}
+
+.home-notif-preview-item {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--app-gray-200);
+}
+
+.home-notif-preview-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.home-notif-preview-item__msg {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-patient-empty__icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.home-patient-empty__text {
+  max-width: 22rem;
+}
+
 .home-appt-compact {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -1927,6 +2156,29 @@ a:hover { color: var(--app-primary-dark); }
 
 [data-app-theme="dark"] .home-appt-compact {
   background: #0f172a;
+}
+
+[data-app-theme="dark"] .home-patient-hero {
+  background: linear-gradient(135deg, #1e293b 0%, rgba(26, 110, 230, 0.15) 100%);
+}
+
+[data-app-theme="dark"] .home-patient-tile {
+  background: #1e293b;
+  border-color: #334155;
+  color: var(--app-text);
+}
+
+[data-app-theme="dark"] .home-patient-tile:hover {
+  border-color: rgba(26, 110, 230, 0.45);
+}
+
+[data-app-theme="dark"] .home-patient-appt {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-app-theme="dark"] .home-notif-preview-item {
+  border-bottom-color: #334155;
 }
 
 [data-app-theme="dark"] .text-muted {
@@ -2124,9 +2376,13 @@ a:hover { color: var(--app-primary-dark); }
   .slots-grid { gap: 0.35rem; }
   .slot-btn { min-width: 62px; font-size: 0.8rem; }
 
+  .booking-cal-shell { max-width: 100%; }
   .booking-cal { max-width: 100%; }
+  .booking-cal-viewport { min-height: 19rem; }
   .booking-cal-grid { gap: 4px; }
   .booking-cal-cell { min-height: 68px; padding: 4px 2px; }
+  .booking-cal-skeleton-cell { min-height: 68px; }
+  .booking-cal-skeleton-cell--empty { min-height: 68px; }
   .booking-cal-daynum { font-size: 0.95rem; }
   .booking-cal-sub { font-size: 0.58rem; }
   .booking-cal-badge { font-size: 0.6rem; }

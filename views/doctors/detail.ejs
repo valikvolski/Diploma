@@ -110,51 +110,58 @@ function experienceLabel(n) {
           <label class="form-label fw-semibold d-block">
             <i class="bi bi-calendar3 me-1 text-primary"></i>Выберите дату
           </label>
-          <div class="booking-cal card border-0 shadow-sm">
-            <div class="card-body p-3 p-md-4">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" id="bcalPrev" aria-label="Предыдущий месяц">
-                  <i class="bi bi-chevron-left"></i>
-                </button>
-                <span class="fw-bold text-center px-2" id="bcalTitle"></span>
-                <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" id="bcalNext" aria-label="Следующий месяц">
-                  <i class="bi bi-chevron-right"></i>
-                </button>
-              </div>
-              <div id="bcalLoading" class="text-center py-4 d-none">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p class="text-muted small mt-2 mb-0">Загрузка доступности…</p>
-              </div>
-              <div id="bcalGridWrap" class="d-none">
-                <div class="booking-cal-weekdays">
-                  <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+          <div class="booking-cal-shell w-100">
+            <div class="booking-cal card border-0 shadow-sm">
+              <div class="card-body p-3 p-md-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" id="bcalPrev" aria-label="Предыдущий месяц">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  <span class="fw-bold text-center px-2 flex-grow-1" id="bcalTitle"></span>
+                  <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" id="bcalNext" aria-label="Следующий месяц">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
                 </div>
-                <div class="booking-cal-grid" id="bcalGrid"></div>
-              </div>
-              <p class="booking-cal-selected small fw-semibold text-primary mt-3 mb-0 d-none" id="bcalSelectedLabel"></p>
-              <div class="booking-cal-legend small text-muted mt-3 pt-2 border-top">
-                <span class="me-3"><span class="booking-cal-legend-dot bg-cal-high"></span> много мест (5+)</span>
-                <span class="me-3"><span class="booking-cal-legend-dot bg-cal-low"></span> мало мест (1–4)</span>
-                <span><span class="booking-cal-legend-dot bg-cal-none"></span> нет мест</span>
+                <div class="booking-cal-viewport position-relative" id="bcalViewport">
+                  <div id="bcalLoading" class="booking-cal-loading-overlay d-none" aria-live="polite" aria-busy="true">
+                    <div class="booking-cal-loading-overlay__inner text-center">
+                      <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка…</span></div>
+                      <p class="text-muted small mt-2 mb-0">Загрузка доступности…</p>
+                    </div>
+                  </div>
+                  <div id="bcalGridWrap" class="booking-cal-viewport__content">
+                    <div class="booking-cal-weekdays">
+                      <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                    </div>
+                    <div class="booking-cal-grid" id="bcalGrid"></div>
+                  </div>
+                </div>
+                <p class="booking-cal-selected small fw-semibold text-primary mt-3 mb-0 d-none" id="bcalSelectedLabel"></p>
+                <div class="booking-cal-legend small text-muted mt-3 pt-2 border-top">
+                  <span class="me-3"><span class="booking-cal-legend-dot bg-cal-high"></span> много мест (5+)</span>
+                  <span class="me-3"><span class="booking-cal-legend-dot bg-cal-low"></span> мало мест (1–4)</span>
+                  <span><span class="booking-cal-legend-dot bg-cal-none"></span> нет мест</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
+        <div class="booking-slots-panel">
         <!-- Спиннер слотов -->
-        <div id="slotsSpinner" class="text-center py-3 d-none">
-          <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-          <span class="text-muted">Загрузка расписания...</span>
+        <div id="slotsSpinner" class="booking-slots-panel__state text-center py-4 d-none">
+          <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+          <span class="text-muted">Загрузка расписания…</span>
         </div>
 
         <!-- Нет слотов -->
-        <div id="noSlotsMsg" class="alert alert-warning d-none" role="alert">
+        <div id="noSlotsMsg" class="alert alert-warning d-none booking-slots-panel__state" role="alert">
           <i class="bi bi-calendar-x me-2"></i>
           На выбранную дату нет свободного времени. Попробуйте другой день.
         </div>
 
         <!-- Сетка слотов -->
-        <div id="slotsSection" class="d-none">
+        <div id="slotsSection" class="d-none booking-slots-panel__state">
           <p class="form-label fw-semibold mb-2">
             <i class="bi bi-clock me-1 text-primary"></i>Выберите время
           </p>
@@ -169,6 +176,7 @@ function experienceLabel(n) {
               <i class="bi bi-check-lg me-2"></i>Подтвердить запись
             </button>
           </form>
+        </div>
         </div>
 
       <% } else if (typeof user !== 'undefined' && user && user.role !== 'patient') { %>
@@ -217,6 +225,7 @@ function experienceLabel(n) {
   const bcalNext = document.getElementById('bcalNext');
   const bcalTitle = document.getElementById('bcalTitle');
   const bcalLoading = document.getElementById('bcalLoading');
+  const bcalViewport = document.getElementById('bcalViewport');
   const bcalGridWrap = document.getElementById('bcalGridWrap');
   const bcalGrid = document.getElementById('bcalGrid');
   const bcalSelectedLabel = document.getElementById('bcalSelectedLabel');
@@ -267,12 +276,34 @@ function experienceLabel(n) {
     return 'booking-cal-cell none';
   }
 
-  function renderCalendar(avail) {
-    const today = clientTodayYmd();
+  function calendarGeometry() {
     const first = new Date(calYear, calMonth - 1, 1);
     const dim = new Date(calYear, calMonth, 0).getDate();
     const startPad = mondayOffset(first.getDay());
     const totalCells = Math.ceil((startPad + dim) / 7) * 7;
+    return { first, dim, startPad, totalCells };
+  }
+
+  function renderSkeletonCalendar() {
+    const { dim, startPad, totalCells } = calendarGeometry();
+    bcalTitle.textContent = MONTHS_NOM[calMonth - 1] + ' ' + calYear;
+    bcalGrid.innerHTML = '';
+    for (let i = 0; i < totalCells; i++) {
+      const el = document.createElement('div');
+      if (i < startPad || i >= startPad + dim) {
+        el.className = 'booking-cal-skeleton-cell booking-cal-skeleton-cell--empty';
+        el.setAttribute('aria-hidden', 'true');
+      } else {
+        el.className = 'booking-cal-skeleton-cell';
+        el.setAttribute('aria-hidden', 'true');
+      }
+      bcalGrid.appendChild(el);
+    }
+  }
+
+  function renderCalendar(avail) {
+    const today = clientTodayYmd();
+    const { dim, startPad, totalCells } = calendarGeometry();
 
     bcalTitle.textContent = MONTHS_NOM[calMonth - 1] + ' ' + calYear;
     bcalGrid.innerHTML = '';
@@ -325,17 +356,19 @@ function experienceLabel(n) {
   async function showMonth(y, m1) {
     calYear = y;
     calMonth = m1;
-    bcalGridWrap.classList.add('d-none');
+    renderSkeletonCalendar();
+    if (bcalViewport) bcalViewport.classList.add('is-loading');
     bcalLoading.classList.remove('d-none');
     try {
       const avail = await fetchAvailability(y, m1);
-      bcalLoading.classList.add('d-none');
-      bcalGridWrap.classList.remove('d-none');
       renderCalendar(avail);
     } catch (e) {
-      bcalLoading.classList.add('d-none');
       bcalTitle.textContent = 'Ошибка загрузки';
+      renderCalendar({});
       console.error('Календарь: не удалось загрузить доступность', e);
+    } finally {
+      bcalLoading.classList.add('d-none');
+      if (bcalViewport) bcalViewport.classList.remove('is-loading');
     }
   }
 
