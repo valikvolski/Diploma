@@ -1,9 +1,6 @@
 <%- include('../partials/header', { title: title }) %>
-
-<div class="page-header">
-  <h1 class="page-header__title"><i class="bi bi-tags text-primary me-2"></i>Специализации</h1>
-  <p class="page-header__meta mb-0">Справочник для каталога врачей</p>
-</div>
+<% var dsTitle = 'Специализации'; var dsSubtitle = 'Справочник для каталога врачей и форм'; var dsIcon = 'bi-tags'; %>
+<%- include('../partials/ds-page-header') %>
 
 <% if (success) { %><div class="alert alert-success alert-dismissible fade show"><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
 <% if (error) { %><div class="alert alert-danger alert-dismissible fade show"><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
@@ -35,13 +32,14 @@
     </div>
   </div>
   <div class="col-md-4">
-    <div class="app-card p-4 h-100">
-      <h2 class="h5 fw-bold mb-3"><i class="bi bi-plus-circle text-primary me-2"></i>Добавить</h2>
+    <div class="app-card app-card--static p-4 h-100">
+      <h2 class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3"><i class="bi bi-plus-circle text-primary me-2"></i>Новая запись</h2>
       <form method="POST" action="/admin/specializations">
         <div class="mb-3">
-          <input type="text" class="form-control" name="name" placeholder="Название специализации" required>
+          <label class="form-label fw-semibold small">Название</label>
+          <input type="text" class="form-control" name="name" placeholder="Например, Терапевт" required>
         </div>
-        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-circle me-1"></i>Добавить</button>
+        <button type="submit" class="btn btn-primary w-100 rounded-pill"><i class="bi bi-plus-circle me-1"></i>Добавить</button>
       </form>
     </div>
   </div>

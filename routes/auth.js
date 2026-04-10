@@ -106,16 +106,17 @@ router.get('/login', (req, res) => {
   const success = req.query.registered
     ? 'Регистрация прошла успешно! Теперь вы можете войти.'
     : null;
-  res.render('auth/login', { success });
+  res.render('auth/login', { success, formData: { email: '' } });
 });
 
 // ─── POST /auth/login ────────────────────────────────────────────────────────
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
+  const loginForm = { email: email || '' };
 
   if (!email || !password) {
-    return res.render('auth/login', { error: 'Введите email и пароль' });
+    return res.render('auth/login', { error: 'Введите email и пароль', formData: loginForm });
   }
 
   try {
@@ -125,18 +126,21 @@ router.post('/login', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.render('auth/login', { error: 'Неверный email или пароль' });
+      return res.render('auth/login', { error: 'Неверный email или пароль', formData: loginForm });
     }
 
     const user = result.rows[0];
 
     if (user.is_blocked) {
-      return res.render('auth/login', { error: 'Ваш аккаунт заблокирован. Обратитесь к администратору.' });
+      return res.render('auth/login', {
+        error: 'Ваш аккаунт заблокирован. Обратитесь к администратору.',
+        formData: loginForm,
+      });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
-      return res.render('auth/login', { error: 'Неверный email или пароль' });
+      return res.render('auth/login', { error: 'Неверный email или пароль', formData: loginForm });
     }
 
     req.session.user = {
@@ -152,7 +156,7 @@ router.post('/login', async (req, res) => {
     res.redirect('/');
   } catch (err) {
     console.error('Login error:', err);
-    res.render('auth/login', { error: 'Произошла ошибка. Попробуйте позже.' });
+    res.render('auth/login', { error: 'Произошла ошибка. Попробуйте позже.', formData: loginForm });
   }
 });
 

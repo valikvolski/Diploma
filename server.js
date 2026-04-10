@@ -96,11 +96,38 @@ app.get('/', async (req, res) => {
 
   try {
     if (!user) {
-      const specsRes = await pool.query(
-        'SELECT id, name FROM specializations ORDER BY name'
-      );
+      const [specsRes, previewDocsRes] = await Promise.all([
+        pool.query('SELECT id, name FROM specializations ORDER BY name'),
+        pool.query(
+          `SELECT u.id,
+                  u.last_name,
+                  u.first_name,
+                  u.middle_name,
+                  dp.cabinet,
+                  dp.experience_years,
+                  specs.spec_list AS specializations
+           FROM users u
+           JOIN doctor_profiles dp ON u.id = dp.user_id
+           LEFT JOIN LATERAL (
+             SELECT COALESCE(
+               json_agg(
+                 json_build_object('name', s.name, 'is_primary', ds.is_primary)
+                 ORDER BY ds.is_primary DESC, s.name
+               ),
+               '[]'::json
+             ) AS spec_list
+             FROM doctor_specializations ds
+             JOIN specializations s ON s.id = ds.specialization_id
+             WHERE ds.doctor_user_id = u.id
+           ) specs ON true
+           WHERE u.role = 'doctor' AND u.is_blocked = false
+           ORDER BY u.last_name, u.first_name
+           LIMIT 3`
+        ),
+      ]);
       viewData.guest = {
         specializations: specsRes.rows,
+        previewDoctors: previewDocsRes.rows,
       };
     } else if (user.role === 'patient') {
       const [upcomingRes, notifRes] = await Promise.all([

@@ -1,27 +1,24 @@
 <%- include('../partials/header', { title: title }) %>
-
-<div class="page-header">
-  <h1 class="page-header__title"><i class="bi bi-speedometer2 text-primary me-2"></i>Админ-панель</h1>
-  <p class="page-header__meta mb-0">Сводка и быстрые переходы к разделам</p>
-</div>
+<% var dsTitle = 'Админ-панель'; var dsSubtitle = 'Сводка по системе и быстрые переходы'; var dsIcon = 'bi-speedometer2'; %>
+<%- include('../partials/ds-page-header') %>
 
 <div class="row g-4 mb-4">
   <div class="col-md-4">
-    <div class="card border-0 shadow-sm p-4 text-center stat-card">
+    <div class="card border-0 shadow-sm p-4 text-center stat-card app-card">
       <i class="bi bi-person-badge fs-1 text-primary mb-2"></i>
       <div class="fs-2 fw-bold"><%= stats.doctors %></div>
       <div class="text-muted small">Врачей</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card border-0 shadow-sm p-4 text-center stat-card">
+    <div class="card border-0 shadow-sm p-4 text-center stat-card app-card">
       <i class="bi bi-people fs-1 text-success mb-2"></i>
       <div class="fs-2 fw-bold"><%= stats.patients %></div>
       <div class="text-muted small">Пациентов</div>
     </div>
   </div>
   <div class="col-md-4">
-    <div class="card border-0 shadow-sm p-4 text-center stat-card">
+    <div class="card border-0 shadow-sm p-4 text-center stat-card app-card">
       <i class="bi bi-calendar-check fs-1 text-warning mb-2"></i>
       <div class="fs-2 fw-bold"><%= stats.todayAppointments %></div>
       <div class="text-muted small">Записей на сегодня</div>
@@ -30,10 +27,10 @@
 </div>
 
 <div class="row g-3">
-  <div class="col-md-3"><a href="/admin/doctors" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link"><i class="bi bi-person-badge fs-3 text-primary"></i><div class="fw-semibold mt-2">Врачи</div></a></div>
-  <div class="col-md-3"><a href="/admin/specializations" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link"><i class="bi bi-tags fs-3 text-primary"></i><div class="fw-semibold mt-2">Специализации</div></a></div>
-  <div class="col-md-3"><a href="/admin/users" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link"><i class="bi bi-people fs-3 text-primary"></i><div class="fw-semibold mt-2">Пользователи</div></a></div>
-  <div class="col-md-3"><a href="/admin/appointments" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link"><i class="bi bi-journal-text fs-3 text-primary"></i><div class="fw-semibold mt-2">Записи</div></a></div>
+  <div class="col-md-3"><a href="/admin/doctors" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link app-card h-100"><i class="bi bi-person-badge fs-3 text-primary"></i><div class="fw-semibold mt-2">Врачи</div></a></div>
+  <div class="col-md-3"><a href="/admin/specializations" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link app-card h-100"><i class="bi bi-tags fs-3 text-primary"></i><div class="fw-semibold mt-2">Специализации</div></a></div>
+  <div class="col-md-3"><a href="/admin/users" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link app-card h-100"><i class="bi bi-people fs-3 text-primary"></i><div class="fw-semibold mt-2">Пользователи</div></a></div>
+  <div class="col-md-3"><a href="/admin/appointments" class="card border-0 shadow-sm p-3 text-center text-decoration-none admin-link app-card h-100"><i class="bi bi-journal-text fs-3 text-primary"></i><div class="fw-semibold mt-2">Записи</div></a></div>
 </div>
 
 <%- include('../partials/footer') %>

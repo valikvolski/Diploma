@@ -20,13 +20,10 @@ function fmtType(r){
 }
 %>
 <%- include('../partials/header', { title: title }) %>
-
-<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
-  <div>
-    <h1 class="page-header__title"><i class="bi bi-calendar-x text-primary me-2"></i>Нерабочие дни и график</h1>
-    <p class="page-header__meta mb-0">Периоды выходных и особый режим работы</p>
-  </div>
-  <button type="button" class="btn btn-primary btn-sm rounded-pill flex-shrink-0" data-bs-toggle="modal" data-bs-target="#addExcModal">
+<% var dsTitle = 'Нерабочие дни и график'; var dsSubtitle = 'Периоды выходных и особый режим работы'; var dsIcon = 'bi-calendar-x'; %>
+<%- include('../partials/ds-page-header') %>
+<div class="d-flex flex-wrap justify-content-end mb-3">
+  <button type="button" class="btn btn-primary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#addExcModal">
     <i class="bi bi-plus-circle me-1"></i>Добавить
   </button>
 </div>

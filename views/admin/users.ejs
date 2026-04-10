@@ -1,12 +1,9 @@
 <%- include('../partials/header', { title: title }) %>
-
-<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
-  <div>
-    <h1 class="page-header__title"><i class="bi bi-people text-primary me-2"></i>Пользователи</h1>
-    <p class="page-header__meta mb-0">Блокировка, роли и удаление учётных записей</p>
-  </div>
-  <form method="GET" action="/admin/users" class="d-flex gap-2 flex-shrink-0">
-    <select name="role" class="form-select form-select-sm form-select--inline" onchange="this.form.submit()">
+<% var dsTitle = 'Пользователи'; var dsSubtitle = 'Блокировка, роли и удаление учётных записей'; var dsIcon = 'bi-people'; %>
+<%- include('../partials/ds-page-header') %>
+<div class="d-flex flex-wrap justify-content-end mb-3">
+  <form method="GET" action="/admin/users" class="d-flex gap-2">
+    <select name="role" class="form-select form-select-sm" style="min-width: 11rem;" onchange="this.form.submit()">
       <option value="">Все роли</option>
       <option value="patient" <%= roleFilter==='patient'?'selected':'' %>>Пациенты</option>
       <option value="doctor" <%= roleFilter==='doctor'?'selected':'' %>>Врачи</option>

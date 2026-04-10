@@ -1,224 +1,159 @@
-<%- include('../partials/header', { title: 'Регистрация — Запись к врачу' }) %>
+<%- include('../partials/header', { title: 'Регистрация — МедЗапись' }) %>
 
-<div class="auth-wrapper">
-  <div class="auth-card card shadow-sm">
-    <div class="card-body p-4 p-md-5">
-
-      <div class="text-center mb-4">
-        <div class="auth-icon mb-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="#0d6efd" viewBox="0 0 16 16">
-            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.029 10 8 10c-2.03 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
-          </svg>
-        </div>
-        <h4 class="fw-bold text-dark">Создать аккаунт</h4>
-        <p class="text-muted small mb-0">Регистрация пациента для записи к врачам онлайн</p>
+<div class="auth-page auth-wrapper">
+  <div class="auth-shell" style="max-width: 520px;">
+    <div class="auth-card auth-card--wide ds-auth-card card border-0">
+      <div class="ds-auth-card__head text-white text-center py-4 px-4">
+        <div class="ds-auth-card__mark"><i class="bi bi-person-plus"></i></div>
+        <h1 class="h4 fw-bold mb-1">Регистрация пациента</h1>
+        <p class="small opacity-75 mb-0">Создайте аккаунт для записи к врачам</p>
       </div>
+      <div class="card-body p-4 p-md-5">
 
-      <% if (typeof error !== 'undefined' && error) { %>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-          <i class="bi bi-exclamation-triangle-fill me-2"></i><%= error %>
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      <% } %>
-
-      <form method="POST" action="/auth/register" novalidate id="registerForm">
-
-        <div class="mb-3">
-          <label for="email" class="form-label fw-semibold">Электронная почта</label>
-          <input
-            type="email"
-            class="form-control"
-            id="email"
-            name="email"
-            value="<%= typeof formData !== 'undefined' ? formData.email || '' : '' %>"
-            required
-            placeholder="example@mail.com"
-            autocomplete="email"
-          />
-        </div>
-
-        <div class="mb-3">
-          <label for="password" class="form-label fw-semibold">Пароль</label>
-          <div class="input-group">
-            <input
-              type="password"
-              class="form-control"
-              id="password"
-              name="password"
-              required
-              minlength="6"
-              placeholder="Минимум 6 символов"
-              autocomplete="new-password"
-            />
-            <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" id="eyeIcon">
-                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-              </svg>
-            </button>
+        <% if (typeof error !== 'undefined' && error) { %>
+          <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+            <span><%= error %></span>
           </div>
-          <div id="passwordStrength" class="mt-1"></div>
-        </div>
+        <% } %>
 
-        <div class="mb-3">
-          <label for="password_confirm" class="form-label fw-semibold">Подтвердите пароль</label>
-          <div class="input-group">
-            <input
-              type="password"
-              class="form-control"
-              id="password_confirm"
-              name="password_confirm"
-              required
-              minlength="6"
-              placeholder="Повторите пароль"
-              autocomplete="new-password"
-            />
-            <button class="btn btn-outline-secondary" type="button" id="toggleConfirm" tabindex="-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-              </svg>
-            </button>
+        <form method="POST" action="/auth/register" novalidate id="registerForm" class="mt-2">
+
+          <div class="mb-3">
+            <label for="email" class="form-label fw-semibold">Электронная почта</label>
+            <div class="input-group ds-input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input
+                type="email"
+                class="form-control"
+                id="email"
+                name="email"
+                value="<%= typeof formData !== 'undefined' ? formData.email || '' : '' %>"
+                required
+                placeholder="name@example.com"
+                autocomplete="email"
+              />
+            </div>
           </div>
-          <div id="confirmFeedback" class="form-text"></div>
-        </div>
 
-        <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <label for="last_name" class="form-label fw-semibold">Фамилия</label>
+          <div class="mb-3">
+            <label for="password" class="form-label fw-semibold">Пароль</label>
+            <div class="input-group ds-input-group">
+              <span class="input-group-text"><i class="bi bi-key"></i></span>
+              <input
+                type="password"
+                class="form-control"
+                id="password"
+                name="password"
+                required
+                minlength="6"
+                placeholder="Не менее 6 символов"
+                autocomplete="new-password"
+              />
+              <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-pressed="false">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+            <div id="passwordStrength" class="mt-1"></div>
+          </div>
+
+          <div class="mb-3">
+            <label for="password_confirm" class="form-label fw-semibold">Подтвердите пароль</label>
+            <div class="input-group ds-input-group">
+              <span class="input-group-text"><i class="bi bi-shield-check"></i></span>
+              <input
+                type="password"
+                class="form-control"
+                id="password_confirm"
+                name="password_confirm"
+                required
+                minlength="6"
+                placeholder="Повторите пароль"
+                autocomplete="new-password"
+              />
+              <button class="btn btn-outline-secondary" type="button" id="toggleConfirm" aria-pressed="false">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+            <div id="confirmFeedback" class="form-text"></div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="last_name" class="form-label fw-semibold">Фамилия</label>
+              <input
+                type="text"
+                class="form-control"
+                id="last_name"
+                name="last_name"
+                value="<%= typeof formData !== 'undefined' ? formData.last_name || '' : '' %>"
+                required
+                placeholder="Иванов"
+                autocomplete="family-name"
+              />
+            </div>
+            <div class="col-md-6">
+              <label for="first_name" class="form-label fw-semibold">Имя</label>
+              <input
+                type="text"
+                class="form-control"
+                id="first_name"
+                name="first_name"
+                value="<%= typeof formData !== 'undefined' ? formData.first_name || '' : '' %>"
+                required
+                placeholder="Иван"
+                autocomplete="given-name"
+              />
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="middle_name" class="form-label fw-semibold">Отчество</label>
             <input
               type="text"
               class="form-control"
-              id="last_name"
-              name="last_name"
-              value="<%= typeof formData !== 'undefined' ? formData.last_name || '' : '' %>"
+              id="middle_name"
+              name="middle_name"
+              value="<%= typeof formData !== 'undefined' ? formData.middle_name || '' : '' %>"
               required
-              placeholder="Иванов"
-              autocomplete="family-name"
+              placeholder="Иванович"
+              autocomplete="additional-name"
             />
           </div>
-          <div class="col-md-6">
-            <label for="first_name" class="form-label fw-semibold">Имя</label>
-            <input
-              type="text"
-              class="form-control"
-              id="first_name"
-              name="first_name"
-              value="<%= typeof formData !== 'undefined' ? formData.first_name || '' : '' %>"
-              required
-              placeholder="Иван"
-              autocomplete="given-name"
-            />
+
+          <div class="mb-4">
+            <label for="phone" class="form-label fw-semibold">Телефон (РБ)</label>
+            <div class="input-group ds-input-group">
+              <span class="input-group-text"><i class="bi bi-phone"></i></span>
+              <input
+                type="tel"
+                class="form-control"
+                id="phone"
+                name="phone"
+                value="<%= typeof formData !== 'undefined' ? formData.phone || '' : '' %>"
+                required
+                pattern="\+375[0-9]{9}"
+                placeholder="+375291234567"
+                autocomplete="tel"
+                maxlength="13"
+              />
+            </div>
+            <div class="form-text">Формат: <strong>+375</strong> и 9 цифр (например +375291234567)</div>
           </div>
-        </div>
 
-        <div class="mb-3">
-          <label for="middle_name" class="form-label fw-semibold">Отчество</label>
-          <input
-            type="text"
-            class="form-control"
-            id="middle_name"
-            name="middle_name"
-            value="<%= typeof formData !== 'undefined' ? formData.middle_name || '' : '' %>"
-            required
-            placeholder="Иванович"
-            autocomplete="additional-name"
-          />
-        </div>
+          <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-semibold" id="submitBtn">
+            <i class="bi bi-person-check me-2"></i>Создать аккаунт
+          </button>
+        </form>
 
-        <div class="mb-4">
-          <label for="phone" class="form-label fw-semibold">Телефон</label>
-          <input
-            type="tel"
-            class="form-control"
-            id="phone"
-            name="phone"
-            value="<%= typeof formData !== 'undefined' ? formData.phone || '' : '' %>"
-            required
-            pattern="\+375[0-9]{9}"
-            placeholder="+375291234567"
-            autocomplete="tel"
-            maxlength="13"
-          />
-          <div class="form-text text-muted">Формат: +375XXXXXXXXX (МТС, A1, Life)</div>
-        </div>
-
-        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="submitBtn">
-          Зарегистрироваться
-        </button>
-      </form>
-
-      <p class="text-center mt-3 mb-0 text-muted small">
-        Уже есть аккаунт? <a href="/auth/login" class="text-primary fw-semibold">Войти</a>
-      </p>
-
+        <p class="text-center mt-4 mb-0 text-muted small">
+          Уже есть аккаунт?
+          <a href="/auth/login" class="fw-semibold text-decoration-none">Войти</a>
+        </p>
+      </div>
     </div>
   </div>
 </div>
 
-<script>
-// ── Показать/скрыть пароль ───────────────────────────────────────────────────
-document.getElementById('togglePassword').addEventListener('click', () => {
-  const inp = document.getElementById('password');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-});
-document.getElementById('toggleConfirm').addEventListener('click', () => {
-  const inp = document.getElementById('password_confirm');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-});
-
-// ── Проверка совпадения паролей ──────────────────────────────────────────────
-const passwordInput  = document.getElementById('password');
-const confirmInput   = document.getElementById('password_confirm');
-const confirmFeedback = document.getElementById('confirmFeedback');
-
-function checkPasswords() {
-  if (!confirmInput.value) { confirmFeedback.textContent = ''; return; }
-  if (passwordInput.value === confirmInput.value) {
-    confirmInput.classList.remove('is-invalid');
-    confirmInput.classList.add('is-valid');
-    confirmFeedback.className = 'form-text text-success';
-    confirmFeedback.textContent = '✓ Пароли совпадают';
-  } else {
-    confirmInput.classList.remove('is-valid');
-    confirmInput.classList.add('is-invalid');
-    confirmFeedback.className = 'form-text text-danger';
-    confirmFeedback.textContent = '✗ Пароли не совпадают';
-  }
-}
-passwordInput.addEventListener('input', checkPasswords);
-confirmInput.addEventListener('input', checkPasswords);
-
-// ── Маска телефона +375XXXXXXXXX ─────────────────────────────────────────────
-const phoneInput = document.getElementById('phone');
-phoneInput.addEventListener('input', function () {
-  let val = this.value.replace(/[^\d+]/g, '');
-  if (!val.startsWith('+')) val = '+' + val;
-  if (!val.startsWith('+375')) {
-    if (val.length <= 1) val = '+375';
-    else val = '+375' + val.replace(/^\+/, '').replace(/^375/, '');
-  }
-  if (val.length > 13) val = val.slice(0, 13);
-  this.value = val;
-});
-phoneInput.addEventListener('focus', function () {
-  if (!this.value) this.value = '+375';
-});
-phoneInput.addEventListener('blur', function () {
-  if (this.value === '+375') this.value = '';
-});
-
-// ── Индикатор надёжности пароля ──────────────────────────────────────────────
-const strengthEl = document.getElementById('passwordStrength');
-passwordInput.addEventListener('input', function () {
-  const len = this.value.length;
-  let html = '';
-  if (len === 0) { strengthEl.innerHTML = ''; return; }
-  if (len < 6)        html = '<small class="text-danger">Слишком короткий</small>';
-  else if (len < 10)  html = '<small class="text-warning">Средний</small>';
-  else                html = '<small class="text-success">Надёжный</small>';
-  strengthEl.innerHTML = html;
-});
-</script>
-
+<script src="/js/auth-forms.js"></script>
 <%- include('../partials/footer') %>

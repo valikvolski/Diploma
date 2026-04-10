@@ -26,6 +26,15 @@ function apptStatusLabel(status) {
   if (status === 'completed') return 'Завершено';
   return 'Отменено';
 }
+function experienceLabelGuest(n) {
+  const x = parseInt(n, 10) || 0;
+  if (x % 100 >= 11 && x % 100 <= 19) return 'лет';
+  switch (x % 10) {
+    case 1: return 'год';
+    case 2: case 3: case 4: return 'года';
+    default: return 'лет';
+  }
+}
 const roleSafe = typeof role !== 'undefined'
   ? role
   : ((typeof user !== 'undefined' && user && user.role) ? user.role : 'guest');
@@ -128,13 +137,16 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
           <h2 class="section-title mb-1">Специализации</h2>
           <p class="section-subtitle text-muted mb-0">Направления, доступные для записи после входа</p>
         </div>
-        <a href="/auth/login" class="btn btn-outline-primary rounded-pill btn-sm fw-semibold">Войти</a>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/doctors" class="btn btn-primary rounded-pill btn-sm fw-semibold">Каталог врачей</a>
+          <a href="/auth/login" class="btn btn-outline-primary rounded-pill btn-sm fw-semibold">Войти</a>
+        </div>
       </div>
       <div class="row g-3" data-reveal-stagger="1">
         <% if (guest && guest.specializations && guest.specializations.length) { %>
           <% guest.specializations.forEach(function(s, idx) { %>
             <div class="col-6 col-md-4 col-xl-3">
-              <a href="/auth/login" class="landing-spec-tile js-home-stagger h-100 d-block text-center" data-stagger-order="<%= idx % 8 %>">
+              <a href="/doctors" class="landing-spec-tile js-home-stagger h-100 d-block text-center" data-stagger-order="<%= idx % 8 %>">
                 <span class="fw-semibold"><%= s.name %></span>
               </a>
             </div>
@@ -146,8 +158,59 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
     </div>
   </section>
 
+  <% if (guest && guest.previewDoctors && guest.previewDoctors.length) { %>
+  <section class="py-5 py-lg-6 bg-app border-bottom landing-section">
+    <div class="container app-container">
+      <div class="text-center mx-auto mb-5 section-intro js-home-reveal" style="max-width: 38rem;">
+        <h2 class="section-title">Специалисты</h2>
+        <p class="section-subtitle text-muted mb-0">Несколько врачей из каталога — полный список и запись доступны после регистрации</p>
+      </div>
+      <div class="row g-4 justify-content-center" data-reveal-stagger="1">
+        <% guest.previewDoctors.forEach(function(d, idx) { %>
+          <% var pspecs = [];
+             try {
+               if (Array.isArray(d.specializations)) pspecs = d.specializations;
+               else if (typeof d.specializations === 'string' && d.specializations) pspecs = JSON.parse(d.specializations);
+             } catch (e) { pspecs = []; } %>
+          <div class="col-md-6 col-lg-4">
+            <article class="guest-doctor-card js-home-stagger h-100 d-flex flex-column" data-stagger-order="<%= idx %>">
+              <div class="guest-doctor-card__avatar mx-auto">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <h3 class="h6 fw-bold text-center mb-2 mt-2">
+                <%= d.last_name %> <%= d.first_name %><% if (d.middle_name) { %> <%= d.middle_name %><% } %>
+              </h3>
+              <% if (pspecs.length) { %>
+                <div class="d-flex flex-wrap justify-content-center gap-1 mb-3 px-1">
+                  <% pspecs.slice(0, 3).forEach(function(sp) { %>
+                    <span class="badge spec-badge<%= sp.is_primary ? '' : ' bg-light text-dark border' %>"><%= sp.name %></span>
+                  <% }); %>
+                </div>
+              <% } %>
+              <ul class="list-unstyled small text-muted mb-0 flex-grow-1 text-center">
+                <% if (d.cabinet) { %>
+                  <li><i class="bi bi-door-open text-primary me-1"></i>Каб. <%= d.cabinet %></li>
+                <% } %>
+                <% if (d.experience_years > 0) { %>
+                  <li><i class="bi bi-award text-primary me-1"></i>Стаж <%= d.experience_years %> <%= experienceLabelGuest(d.experience_years) %></li>
+                <% } %>
+              </ul>
+              <a href="/doctors/<%= d.id %>" class="btn btn-outline-primary btn-sm rounded-pill w-100 mt-3">Карточка врача</a>
+            </article>
+          </div>
+        <% }); %>
+      </div>
+      <div class="text-center mt-5">
+        <a href="/doctors" class="btn btn-primary btn-lg rounded-pill px-4 landing-anim-hover">
+          <i class="bi bi-grid-3x3-gap me-2"></i>Все врачи
+        </a>
+      </div>
+    </div>
+  </section>
+  <% } %>
+
   <!-- Why us -->
-  <section class="py-5 py-lg-6 bg-app landing-section">
+  <section class="py-5 py-lg-6 bg-white landing-section">
     <div class="container app-container">
       <div class="text-center mx-auto mb-5 section-intro js-home-reveal">
         <h2 class="section-title">Почему удобно с нами</h2>

@@ -1,8 +1,10 @@
 <%- include('partials/header', { title: 'Ошибка — МедЗапись' }) %>
+<% var dsTitle = 'Ошибка'; var dsSubtitle = 'Запрос не выполнен'; var dsIcon = 'bi-exclamation-triangle'; %>
+<%- include('partials/ds-page-header') %>
 
-<div class="row justify-content-center py-5">
+<div class="row justify-content-center pb-5">
   <div class="col-md-8 col-lg-6">
-    <div class="app-card text-center p-5">
+    <div class="app-card app-card--static text-center p-5">
       <div class="empty-state__icon text-danger mb-3"><i class="bi bi-exclamation-triangle-fill"></i></div>
       <h1 class="h4 fw-bold text-secondary mb-2"><%= typeof message !== 'undefined' ? message : 'Что-то пошло не так' %></h1>
       <p class="text-muted mb-4">Попробуйте вернуться назад или перейти на главную страницу.</p>

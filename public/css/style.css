@@ -92,9 +92,10 @@ a:hover { color: var(--app-primary-dark); }
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--app-gray-200);
-  box-shadow: var(--shadow-xs);
-  padding-top: 0.65rem;
-  padding-bottom: 0.65rem;
+  box-shadow: 0 2px 16px rgba(15, 23, 42, 0.06);
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+  min-height: 58px;
 }
 
 .app-navbar .navbar-toggler:focus { box-shadow: 0 0 0 3px rgba(26, 110, 230, 0.25); }
@@ -234,20 +235,34 @@ a:hover { color: var(--app-primary-dark); }
 
 .section-intro { max-width: 36rem; margin-left: auto; margin-right: auto; }
 
+/* ── Единая шапка страницы (как личный кабинет пациента) ───── */
+.ds-page-header,
 .page-header {
-  margin-bottom: 1.75rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--app-gray-200);
+  margin-bottom: 1.5rem;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
+.ds-page-header__title,
 .page-header__title {
   font-weight: 700;
-  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
   letter-spacing: -0.02em;
-  margin-bottom: 0.25rem;
+  line-height: 1.25;
+  color: var(--app-text);
 }
 
-.page-header__meta { color: var(--app-muted); font-size: 0.9rem; }
+.ds-page-header__subtitle,
+.page-header__meta {
+  color: var(--app-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 42rem;
+}
+
+.ds-page-back:hover {
+  color: var(--app-primary) !important;
+}
 
 /* ── Карточки приложения ───────────────────────────────────── */
 .app-card {
@@ -265,6 +280,8 @@ a:hover { color: var(--app-primary-dark); }
 
 .app-card--static:hover {
   transform: none;
+  box-shadow: var(--shadow-sm);
+  border-color: var(--app-gray-200);
 }
 
 .app-card-body { padding: 1.25rem 1.5rem; }
@@ -799,12 +816,21 @@ a:hover { color: var(--app-primary-dark); }
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* ── Авторизация ───────────────────────────────────────────── */
+/* ── Авторизация (SaaS / медпортал) ─────────────────────────── */
+.auth-page {
+  padding-bottom: 2.5rem;
+}
+
 .auth-wrapper {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 1rem 0 2.5rem;
+  padding: 1rem 0 0;
+}
+
+.auth-shell {
+  width: 100%;
+  max-width: 460px;
 }
 
 .auth-card {
@@ -812,11 +838,87 @@ a:hover { color: var(--app-primary-dark); }
   max-width: 460px;
   border-radius: var(--radius-xl) !important;
   border: 1px solid var(--app-gray-200) !important;
+  box-shadow: var(--shadow-lg) !important;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.auth-card:hover {
   box-shadow: var(--shadow-md) !important;
 }
 
 .auth-card--wide {
   max-width: 520px;
+}
+
+.ds-auth-card {
+  border-radius: var(--radius-xl) !important;
+  overflow: hidden;
+}
+
+.ds-auth-card__head {
+  background: linear-gradient(135deg, var(--app-primary-dark) 0%, var(--app-primary) 45%, #0ea5e9 100%);
+  position: relative;
+}
+
+.ds-auth-card__head::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 120% 80% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 55%);
+  pointer-events: none;
+}
+
+.ds-auth-card__mark {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.75rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.ds-auth-card__head h1 {
+  position: relative;
+  z-index: 1;
+}
+
+.ds-input-group .input-group-text {
+  background: var(--app-gray-50);
+  border-color: var(--app-gray-200);
+  color: var(--app-primary);
+}
+
+.ds-input-group .form-control:focus {
+  border-color: rgba(var(--bs-primary-rgb), 0.45);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.12);
+}
+
+.ds-input-group .btn-outline-secondary {
+  border-color: var(--app-gray-200);
+  color: var(--app-gray-600);
+}
+
+.form-label.fw-semibold {
+  font-size: 0.875rem;
+  margin-bottom: 0.4rem;
+}
+
+.form-control,
+.form-select {
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.85rem;
+  border-color: var(--app-gray-200);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: rgba(var(--bs-primary-rgb), 0.45);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.12);
 }
 
 .app-narrow-card {
@@ -934,43 +1036,90 @@ a:hover { color: var(--app-primary-dark); }
 
 .slot-btn {
   min-width: 76px;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  padding: 0.45rem 0.65rem;
-  border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-pill);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  border-width: 2px;
 }
 
-.slot-btn:hover {
+.slot-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.slot-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(26, 110, 230, 0.2);
 }
 
 .slot-btn.active {
-  box-shadow: 0 4px 14px rgba(26, 110, 230, 0.35);
+  box-shadow: 0 4px 16px rgba(26, 110, 230, 0.38);
   transform: translateY(-2px);
 }
 
+.slots-grid--loading {
+  min-height: 3rem;
+  position: relative;
+}
+
+.slots-grid--loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(26, 110, 230, 0.08), transparent);
+  background-size: 200% 100%;
+  animation: booking-cal-shimmer 1s ease-in-out infinite;
+  border-radius: var(--radius-md);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slots-grid--loading::after {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
 /* ── Талон ──────────────────────────────────────────────────── */
-.ticket-wrapper { max-width: 680px; margin: 0 auto; }
+.ticket-wrapper { max-width: 640px; margin: 0 auto; }
 
 .ticket-card {
   border-radius: var(--radius-xl) !important;
   overflow: hidden;
   border: 1px solid var(--app-gray-200) !important;
+  box-shadow: var(--shadow-lg) !important;
 }
 
 .ticket-header {
-  background: linear-gradient(135deg, #0f4c9e 0%, var(--app-primary) 55%, #0ea5e9 100%);
+  background: linear-gradient(135deg, #0c3d82 0%, var(--app-primary) 50%, #0ea5e9 100%);
+  position: relative;
 }
 
-.ticket-icon { font-size: 2.8rem; opacity: 0.9; }
+.ticket-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255, 255, 255, 0.12), transparent 60%);
+  pointer-events: none;
+}
+
+.ticket-icon {
+  font-size: 2.8rem;
+  opacity: 0.95;
+  position: relative;
+  z-index: 1;
+}
 
 .ticket-number {
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
   font-family: ui-monospace, "Cascadia Code", monospace;
+  position: relative;
+  z-index: 1;
 }
 
 .ticket-label {
@@ -1762,6 +1911,33 @@ a:hover { color: var(--app-primary-dark); }
   box-shadow: var(--shadow-sm);
 }
 
+.guest-doctor-card {
+  background: var(--app-white);
+  border: 1px solid var(--app-gray-200);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.22s var(--anim-ease), box-shadow 0.22s ease, border-color 0.2s ease;
+}
+
+.guest-doctor-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: #bfdbfe;
+}
+
+.guest-doctor-card__avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+}
+
 .landing-why-card {
   background: var(--app-white);
   border: 1px solid var(--app-gray-200);
@@ -2144,6 +2320,11 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 [data-app-theme="dark"] .app-card,
+[data-app-theme="dark"] .guest-doctor-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
 [data-app-theme="dark"] .landing-step-card,
 [data-app-theme="dark"] .landing-spec-tile,
 [data-app-theme="dark"] .landing-why-card,
@@ -2179,6 +2360,16 @@ a:hover { color: var(--app-primary-dark); }
 
 [data-app-theme="dark"] .home-notif-preview-item {
   border-bottom-color: #334155;
+}
+
+[data-app-theme="dark"] .ds-auth-card .card-body {
+  background: #1e293b;
+}
+
+[data-app-theme="dark"] .ds-input-group .input-group-text {
+  background: #0f172a;
+  border-color: #334155;
+  color: #93c5fd;
 }
 
 [data-app-theme="dark"] .text-muted {

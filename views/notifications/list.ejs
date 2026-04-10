@@ -14,18 +14,8 @@ function typeBg(t, read){
 }
 %>
 <%- include('../partials/header', { title: title }) %>
-
-<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
-  <div>
-    <h1 class="page-header__title"><i class="bi bi-bell text-primary me-2"></i>Уведомления</h1>
-    <p class="page-header__meta mb-0">Сообщения о записях и изменениях</p>
-  </div>
-  <% if (notifications.some(n => !n.is_read)) { %>
-    <form method="POST" action="/notifications/read-all" class="flex-shrink-0">
-      <button class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-check-all me-1"></i>Все прочитаны</button>
-    </form>
-  <% } %>
-</div>
+<% var dsTitle = 'Уведомления'; var dsSubtitle = 'Сообщения о записях и изменениях'; var dsIcon = 'bi-bell'; var dsActions = ''; if (notifications.some(function (n) { return !n.is_read; })) { dsActions = '<form method="POST" action="/notifications/read-all" class="d-inline m-0"><button type="submit" class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-check-all me-1"></i>Все прочитаны</button></form>'; } %>
+<%- include('../partials/ds-page-header') %>
 
 <% if (notifications.length === 0) { %>
   <div class="empty-state text-center app-card p-5">

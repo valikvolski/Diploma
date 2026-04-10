@@ -1,17 +1,9 @@
 <%- include('../partials/header', { title: title, loadChoicesCss: typeof loadChoicesCss !== 'undefined' && loadChoicesCss }) %>
+<% var dsTitle = doctor ? 'Редактирование врача' : 'Добавить врача'; var dsSubtitle = doctor ? ('Пользователь #' + doctor.id + (typeof doctor.profile_id !== 'undefined' && doctor.profile_id != null ? ', профиль #' + doctor.profile_id : '')) : 'Создание учётной записи и профиля врача'; var dsIcon = 'bi-person-badge'; var dsBackHref = '/admin/doctors'; var dsBackLabel = 'К списку врачей'; %>
+<%- include('../partials/ds-page-header') %>
 
-<div class="mb-3">
-  <a href="/admin/doctors" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-arrow-left me-1"></i>К списку врачей</a>
-</div>
-
-<div class="app-card app-narrow-card">
+<div class="app-card app-narrow-card app-card--static">
   <div class="p-4 p-md-5">
-    <h4 class="fw-bold mb-2"><%= doctor ? 'Редактирование врача' : 'Добавить врача' %></h4>
-    <% if (doctor) { %>
-      <p class="text-muted small mb-4">ID пользователя: <strong><%= doctor.id %></strong><% if (typeof doctor.profile_id !== 'undefined' && doctor.profile_id != null) { %> (профиль #<%= doctor.profile_id %>)<% } %>. Изменения будут сохранены для этой записи.</p>
-    <% } else { %>
-      <p class="text-muted small mb-4">Создание нового врача</p>
-    <% } %>
 
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="alert alert-danger"><%= error %></div>

@@ -1,12 +1,6 @@
 <%- include('../partials/header', { title: title }) %>
-
-<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
-  <div>
-    <h1 class="page-header__title"><i class="bi bi-person-badge text-primary me-2"></i>Управление врачами</h1>
-    <p class="page-header__meta mb-0">Создание, редактирование и удаление врачей</p>
-  </div>
-  <a href="/admin/doctors/new" class="btn btn-primary btn-sm rounded-pill flex-shrink-0"><i class="bi bi-plus-circle me-1"></i>Добавить врача</a>
-</div>
+<% var dsTitle = 'Управление врачами'; var dsSubtitle = 'Создание, редактирование и блокировка учётных записей'; var dsIcon = 'bi-person-badge'; var dsActions = '<a href="/admin/doctors/new" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-plus-circle me-1"></i>Добавить врача</a>'; %>
+<%- include('../partials/ds-page-header') %>
 
 <% if (success) { %><div class="alert alert-success alert-dismissible fade show"><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
 <% if (error) { %><div class="alert alert-danger alert-dismissible fade show"><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>

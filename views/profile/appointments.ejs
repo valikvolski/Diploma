@@ -16,21 +16,8 @@ function statusBadge(s) {
 }
 %>
 <%- include('../partials/header', { title: title }) %>
-
-<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
-  <div>
-    <h1 class="page-header__title"><i class="bi bi-journal-text text-primary me-2"></i>Мои записи</h1>
-    <p class="page-header__meta mb-0">Предстоящие и прошедшие приёмы, талоны и отмена записи</p>
-  </div>
-  <div class="d-flex gap-2 flex-shrink-0">
-    <a href="/profile/edit" class="btn btn-outline-secondary btn-sm rounded-pill">
-      <i class="bi bi-pencil me-1"></i>Профиль
-    </a>
-    <a href="/doctors" class="btn btn-primary btn-sm rounded-pill">
-      <i class="bi bi-plus-circle me-1"></i>Новая запись
-    </a>
-  </div>
-</div>
+<% var dsTitle = 'Мои записи'; var dsSubtitle = 'Предстоящие и прошедшие приёмы, талоны и отмена записи'; var dsIcon = 'bi-journal-text'; var dsActions = '<a href="/profile/edit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-pencil me-1"></i>Профиль</a><a href="/doctors" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-plus-circle me-1"></i>Новая запись</a>'; %>
+<%- include('../partials/ds-page-header') %>
 
 <% if (typeof success !== 'undefined' && success) { %>
   <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -82,7 +69,7 @@ function statusBadge(s) {
       <div class="row row-cols-1 row-cols-md-2 g-3">
         <% upcoming.forEach(function(a) { %>
           <div class="col">
-            <div class="appointment-card card border-0 shadow-sm h-100">
+            <div class="appointment-card card border-0 shadow-sm h-100 app-card">
               <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div>
@@ -140,7 +127,7 @@ function statusBadge(s) {
       <div class="row row-cols-1 row-cols-md-2 g-3">
         <% past.forEach(function(a) { %>
           <div class="col">
-            <div class="appointment-card card border-0 shadow-sm h-100 <%= a.status === 'cancelled' ? 'opacity-65' : '' %>">
+            <div class="appointment-card card border-0 shadow-sm h-100 app-card <%= a.status === 'cancelled' ? 'opacity-65' : '' %>">
               <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div>

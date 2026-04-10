@@ -9,19 +9,14 @@ function experienceLabel(n) {
 }
 %>
 <%- include('../partials/header', { title: title }) %>
-
-<!-- Кнопка «Назад» -->
-<div class="mb-4">
-  <a href="/doctors" class="btn btn-outline-secondary btn-sm rounded-pill">
-    <i class="bi bi-arrow-left me-1"></i>Назад к списку врачей
-  </a>
-</div>
+<% var dsTitle = doctor.last_name + ' ' + doctor.first_name; var dsSubtitle = [doctor.middle_name, 'Карточка врача и запись на приём'].filter(Boolean).join(' · '); var dsIcon = 'bi-person-badge'; var dsBackHref = '/doctors'; var dsBackLabel = 'К каталогу'; %>
+<%- include('../partials/ds-page-header') %>
 
 <div class="row g-4">
 
   <!-- Левая колонка: аватар + мета -->
   <div class="col-lg-4">
-    <div class="card border-0 shadow-sm text-center p-4">
+    <div class="card border-0 shadow-sm text-center p-4 app-card">
 
       <div class="doctor-avatar-lg mx-auto mb-3">
         <i class="bi bi-person-fill"></i>
@@ -79,7 +74,7 @@ function experienceLabel(n) {
 
     <!-- Описание -->
     <% if (doctor.description) { %>
-      <div class="card border-0 shadow-sm p-4">
+      <div class="card border-0 shadow-sm p-4 app-card">
         <h5 class="fw-bold mb-3">
           <i class="bi bi-info-circle text-primary me-2"></i>О враче
         </h5>
@@ -89,7 +84,7 @@ function experienceLabel(n) {
 
     <!-- Образование -->
     <% if (doctor.education) { %>
-      <div class="card border-0 shadow-sm p-4">
+      <div class="card border-0 shadow-sm p-4 app-card">
         <h5 class="fw-bold mb-3">
           <i class="bi bi-mortarboard text-primary me-2"></i>Образование
         </h5>
@@ -98,7 +93,7 @@ function experienceLabel(n) {
     <% } %>
 
     <!-- Запись на приём -->
-    <div class="card border-0 shadow-sm p-4" id="bookingCard">
+    <div class="card border-0 shadow-sm p-4 app-card" id="bookingCard">
       <h5 class="fw-bold mb-3">
         <i class="bi bi-calendar2-plus text-primary me-2"></i>Запись на приём
       </h5>
@@ -111,7 +106,7 @@ function experienceLabel(n) {
             <i class="bi bi-calendar3 me-1 text-primary"></i>Выберите дату
           </label>
           <div class="booking-cal-shell w-100">
-            <div class="booking-cal card border-0 shadow-sm">
+            <div class="booking-cal card border-0 shadow-sm app-card">
               <div class="card-body p-3 p-md-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" id="bcalPrev" aria-label="Предыдущий месяц">
@@ -389,6 +384,7 @@ function experienceLabel(n) {
     slotsSection.classList.add('d-none');
     noSlotsMsg.classList.add('d-none');
     spinner.classList.remove('d-none');
+    if (slotsGrid) slotsGrid.classList.add('slots-grid--loading');
 
     try {
       const res = await fetch(apiUrl('/api/doctors/' + DOCTOR_ID + '/slots?date=' + encodeURIComponent(date)));
@@ -400,6 +396,7 @@ function experienceLabel(n) {
       noSlotsMsg.classList.remove('d-none');
     } finally {
       spinner.classList.add('d-none');
+      if (slotsGrid) slotsGrid.classList.remove('slots-grid--loading');
     }
   }
 

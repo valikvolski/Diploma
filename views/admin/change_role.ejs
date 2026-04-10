@@ -1,15 +1,9 @@
 <%- include('../partials/header', { title: title, loadChoicesCss: typeof loadChoicesCss !== 'undefined' && loadChoicesCss }) %>
+<% var dsTitle = 'Назначить врачом'; var dsSubtitle = targetUser.last_name + ' ' + targetUser.first_name + ' · ' + targetUser.email; var dsIcon = 'bi-person-badge'; var dsBackHref = '/admin/users'; var dsBackLabel = 'К пользователям'; %>
+<%- include('../partials/ds-page-header') %>
 
-<div class="mb-3">
-  <a href="/admin/users" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-arrow-left me-1"></i>К списку пользователей</a>
-</div>
-
-<div class="app-card app-narrow-card--md">
+<div class="app-card app-narrow-card--md app-card--static">
   <div class="p-4 p-md-5">
-    <h4 class="fw-bold mb-1">Назначить врачом</h4>
-    <p class="text-muted mb-4">
-      Пациент: <strong><%= targetUser.last_name %> <%= targetUser.first_name %></strong> (<%= targetUser.email %>)
-    </p>
 
     <% if (typeof error !== 'undefined' && error) { %>
       <div class="alert alert-danger"><%= error %></div>
