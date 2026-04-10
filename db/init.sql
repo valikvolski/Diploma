@@ -121,7 +121,7 @@ UPDATE specializations SET compat_group = 'ophthalmology' WHERE name = 'Офта
 
 CREATE TABLE IF NOT EXISTS doctor_specializations (
   doctor_user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  specialization_id INTEGER NOT NULL REFERENCES specializations(id) ON DELETE CASCADE,
+  specialization_id INTEGER NOT NULL REFERENCES specializations(id),
   is_primary        BOOLEAN NOT NULL DEFAULT FALSE,
   created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
   PRIMARY KEY (doctor_user_id, specialization_id)
