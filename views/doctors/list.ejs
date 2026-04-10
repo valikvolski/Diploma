@@ -10,16 +10,9 @@ function experienceLabel(n) {
 %>
 <%- include('../partials/header', { title: title }) %>
 
-<!-- Заголовок страницы -->
-<div class="d-flex align-items-center justify-content-between mb-4">
-  <div>
-    <h2 class="fw-bold mb-1">
-      <i class="bi bi-person-badge text-primary me-2"></i>Наши врачи
-    </h2>
-    <p class="text-muted mb-0">
-      Найдено специалистов: <strong><%= doctors.length %></strong>
-    </p>
-  </div>
+<div class="page-header">
+  <h1 class="page-header__title"><i class="bi bi-person-badge text-primary me-2"></i>Наши врачи</h1>
+  <p class="page-header__meta mb-0">Найдено специалистов: <strong><%= doctors.length %></strong></p>
 </div>
 
 <!-- Панель фильтров -->
@@ -72,13 +65,11 @@ function experienceLabel(n) {
 
 <!-- Список врачей -->
 <% if (doctors.length === 0) { %>
-  <div class="empty-state text-center py-5">
-    <div class="empty-icon mb-3">
-      <i class="bi bi-search text-muted" style="font-size:3.5rem;opacity:.35"></i>
-    </div>
+  <div class="empty-state text-center app-card p-5">
+    <div class="empty-state__icon text-muted mb-3"><i class="bi bi-search"></i></div>
     <h5 class="text-muted fw-semibold">Врачи не найдены</h5>
     <p class="text-muted small mb-3">Попробуйте изменить параметры поиска</p>
-    <a href="/doctors" class="btn btn-outline-primary btn-sm">
+    <a href="/doctors" class="btn btn-outline-primary btn-sm rounded-pill">
       <i class="bi bi-arrow-counterclockwise me-1"></i>Сбросить фильтры
     </a>
   </div>
@@ -94,8 +85,17 @@ function experienceLabel(n) {
             <div class="doctor-avatar mx-auto mb-3">
               <i class="bi bi-person-fill"></i>
             </div>
-            <% if (doctor.specialization) { %>
-              <span class="badge spec-badge"><%= doctor.specialization %></span>
+            <% const specs = Array.isArray(doctor.specializations) ? doctor.specializations : []; %>
+            <% if (specs.length) { %>
+              <div class="d-flex flex-wrap justify-content-center gap-1 px-2 doctor-spec-badges" title="<%= specs.map(function(x){return x.name;}).join(', ') %>">
+                <% const show = 3; %>
+                <% specs.slice(0, show).forEach(function(sp) { %>
+                  <span class="badge spec-badge<%= sp.is_primary ? '' : ' bg-light text-dark border' %>"><%= sp.name %></span>
+                <% }); %>
+                <% if (specs.length > show) { %>
+                  <span class="badge bg-secondary">+<%= specs.length - show %></span>
+                <% } %>
+              </div>
             <% } %>
           </div>
 

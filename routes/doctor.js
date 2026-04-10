@@ -100,6 +100,22 @@ function normalizeTime(v) {
   return v ? String(v).substring(0, 5) : null;
 }
 
+function timeOffFormQuery(body, opts) {
+  const q = new URLSearchParams();
+  if (opts && opts.error) q.set('error', opts.error);
+  if (body.exception_date) q.set('exception_date', String(body.exception_date).slice(0, 10));
+  if (body.date_to) q.set('date_to', String(body.date_to).slice(0, 10));
+  if (body.mode === 'period') q.set('mode', 'period');
+  if (body.reason) q.set('reason', String(body.reason).slice(0, 300));
+  const off = body.is_day_off === 'on' || body.is_day_off === 'true' || body.is_day_off === true;
+  q.set('is_day_off', off ? '1' : '0');
+  if (!off) {
+    if (body.start_time) q.set('start_time', normalizeTime(body.start_time) || '');
+    if (body.end_time) q.set('end_time', normalizeTime(body.end_time) || '');
+  }
+  return q.toString();
+}
+
 // ─── GET /doctor/time-off ────────────────────────────────────────────────────
 async function renderTimeOffPage(req, res) {
   try {
@@ -124,12 +140,24 @@ async function renderTimeOffPage(req, res) {
       .filter(r => r.date_to < today)
       .map(r => ({ ...r, start_time: normalizeTime(r.start_time), end_time: normalizeTime(r.end_time) }));
 
+    const form = {
+      exception_date: req.query.exception_date || '',
+      date_to: req.query.date_to || '',
+      mode: req.query.mode === 'period' ? 'period' : 'single',
+      is_day_off: req.query.is_day_off !== '0',
+      start_time: req.query.start_time || '',
+      end_time: req.query.end_time || '',
+      reason: req.query.reason || '',
+    };
+
     res.render('doctor/exceptions', {
       title: 'Нерабочие дни — Кабинет врача',
       upcoming, past,
       todayStr: today,
       success: req.query.success || null,
       error: req.query.error || null,
+      form,
+      loadVacationCalendar: true,
     });
   } catch (err) {
     console.error('Time-off page error:', err);
@@ -151,14 +179,18 @@ async function createTimeOff(req, res) {
   const dateFrom = exception_date;
 
   if (!dateFrom || dateFrom < today) {
-    return res.redirect('/doctor/time-off?error=' + encodeURIComponent('Дата должна быть сегодня или позже'));
+    const qs = timeOffFormQuery(req.body, {
+      error: 'Дата должна быть сегодня или позже',
+    });
+    return res.redirect('/doctor/time-off?' + qs);
   }
 
   const dateTo = (mode === 'period' && date_to && date_to >= dateFrom) ? date_to : dateFrom;
   const dates = dateRange(dateFrom, dateTo);
 
   if (dates.length > 60) {
-    return res.redirect('/doctor/time-off?error=' + encodeURIComponent('Максимум 60 дней за один раз'));
+    const qs = timeOffFormQuery(req.body, { error: 'Максимум 60 дней за один раз' });
+    return res.redirect('/doctor/time-off?' + qs);
   }
 
   const dayOff = is_day_off === 'on' || is_day_off === 'true' || is_day_off === true;
@@ -166,8 +198,18 @@ async function createTimeOff(req, res) {
   const end = dayOff ? null : normalizeTime(end_time);
   if (!dayOff) {
     if (!start || !end || start >= end) {
-      return res.redirect('/doctor/time-off?error=' + encodeURIComponent('Укажите корректное рабочее время'));
+      const qs = timeOffFormQuery(req.body, {
+        error: 'Укажите корректное рабочее время',
+      });
+      return res.redirect('/doctor/time-off?' + qs);
     }
+  }
+
+  if (mode === 'period' && (!date_to || date_to < dateFrom)) {
+    const qs = timeOffFormQuery(req.body, {
+      error: 'Укажите дату окончания периода (не раньше даты начала).',
+    });
+    return res.redirect('/doctor/time-off?' + qs);
   }
 
   const doctorId = req.session.user.id;
@@ -242,7 +284,8 @@ async function createTimeOff(req, res) {
     res.redirect('/doctor/time-off?success=' + encodeURIComponent(msg));
   } catch (err) {
     console.error('Time-off save error:', err);
-    res.redirect('/doctor/time-off?error=' + encodeURIComponent('Ошибка сохранения'));
+    const qs = timeOffFormQuery(req.body, { error: 'Ошибка сохранения' });
+    res.redirect('/doctor/time-off?' + qs);
   }
 }
 

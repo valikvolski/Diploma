@@ -26,7 +26,8 @@ async function notifyAppointmentCancelled(appointmentId, options = {}) {
      FROM appointments a
      JOIN users d ON d.id = a.doctor_id
      LEFT JOIN doctor_profiles dp ON dp.user_id = d.id
-     LEFT JOIN specializations s ON s.id = dp.specialization_id
+     LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+     LEFT JOIN specializations s ON s.id = dsp.specialization_id
      WHERE a.id = $1`,
     [appointmentId]
   );
@@ -57,7 +58,8 @@ async function notifyAppointmentCreated(appointmentId) {
      FROM appointments a
      JOIN users d ON d.id = a.doctor_id
      LEFT JOIN doctor_profiles dp ON dp.user_id = d.id
-     LEFT JOIN specializations s ON s.id = dp.specialization_id
+     LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+     LEFT JOIN specializations s ON s.id = dsp.specialization_id
      WHERE a.id = $1`,
     [appointmentId]
   );

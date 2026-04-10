@@ -66,6 +66,15 @@
     const popup = document.createElement('div');
     popup.className = 'uc-popup d-none';
 
+    // Клики внутри попапа не должны всплывать к document — иначе после render()
+    // цель события отсоединяется от DOM и срабатывает «клик снаружи» → попап закрывается.
+    popup.addEventListener('mousedown', function (e) {
+      e.stopPropagation();
+    });
+    popup.addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+
     // Keep source input for form submit/validation/listeners.
     source.classList.add('uc-source');
     source.type = 'hidden';
@@ -129,17 +138,23 @@
       popup.innerHTML = html;
 
       popup.querySelectorAll('.uc-nav').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
           const step = Number(btn.getAttribute('data-nav'));
           state.m += step;
           if (state.m < 1) { state.m = 12; state.y -= 1; }
           if (state.m > 12) { state.m = 1; state.y += 1; }
-          render();
+          queueMicrotask(function () {
+            render();
+          });
         });
       });
 
       popup.querySelectorAll('.uc-day[data-date]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
           const ymd = btn.getAttribute('data-date');
           setValue(ymd);
           closePopup();
@@ -148,6 +163,11 @@
     }
 
     function openPopup() {
+      const sel = parseYmd(source.value);
+      if (sel) {
+        state.y = sel.y;
+        state.m = sel.m;
+      }
       popup.classList.remove('d-none');
       render();
     }
@@ -156,6 +176,9 @@
       popup.classList.add('d-none');
     }
 
+    display.addEventListener('mousedown', function (e) {
+      e.stopPropagation();
+    });
     display.addEventListener('click', function (e) {
       e.stopPropagation();
       if (popup.classList.contains('d-none')) openPopup();

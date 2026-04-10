@@ -1,11 +1,11 @@
 <%- include('../partials/header', { title: title }) %>
 
-<div class="mb-4">
-  <a href="/admin/doctors" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>К списку врачей</a>
+<div class="mb-3">
+  <a href="/admin/doctors" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-arrow-left me-1"></i>К списку врачей</a>
 </div>
 
-<div class="card border-0 shadow-sm mx-auto" style="max-width:700px">
-  <div class="card-body p-4">
+<div class="app-card app-narrow-card">
+  <div class="p-4 p-md-5">
     <h4 class="fw-bold mb-2"><%= doctor ? 'Редактирование врача' : 'Добавить врача' %></h4>
     <% if (doctor) { %>
       <p class="text-muted small mb-4">ID пользователя: <strong><%= doctor.id %></strong><% if (typeof doctor.profile_id !== 'undefined' && doctor.profile_id != null) { %> (профиль #<%= doctor.profile_id %>)<% } %>. Изменения будут сохранены для этой записи.</p>
@@ -61,14 +61,36 @@
           <label class="form-label fw-semibold">Телефон</label>
           <input type="tel" class="form-control" name="phone" value="<%= doctor ? doctor.phone || '' : '' %>">
         </div>
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Специализация</label>
-          <select class="form-select" name="specialization_id">
-            <option value="">— Не выбрана —</option>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-12">
+          <label class="form-label fw-semibold">Специализации <span class="text-danger">*</span></label>
+          <p class="small text-muted mb-2">
+            Несколько специализаций можно сочетать только внутри одной группы: терапевтические профили между собой;
+            <strong>хирургия</strong> и <strong>офтальмология</strong> — отдельно (не смешиваются с другими группами).
+          </p>
+          <div class="row g-2" id="specRows">
+            <% const chosen = typeof doctorSpecIds !== 'undefined' && doctorSpecIds ? doctorSpecIds : []; %>
+            <% const prim = typeof primarySpecId !== 'undefined' ? primarySpecId : null; %>
             <% specializations.forEach(function(s) { %>
-              <option value="<%= s.id %>" <%= (doctor && doctor.specialization_id == s.id) ? 'selected' : '' %>><%= s.name %></option>
+              <div class="col-md-6 col-lg-4">
+                <div class="border rounded p-2 h-100 spec-card" data-spec-id="<%= s.id %>" data-compat="<%= s.compat_group || 'therapy' %>">
+                  <div class="form-check">
+                    <input class="form-check-input js-spec-cb" type="checkbox" name="specialization_ids" value="<%= s.id %>"
+                      id="spec_<%= s.id %>" <%= chosen.indexOf(s.id) !== -1 ? 'checked' : '' %>>
+                    <label class="form-check-label fw-semibold" for="spec_<%= s.id %>"><%= s.name %></label>
+                  </div>
+                  <div class="form-check mt-1 ms-4">
+                    <input class="form-check-input js-spec-primary" type="radio" name="primary_specialization_id" value="<%= s.id %>"
+                      id="prim_<%= s.id %>" <%= prim == s.id ? 'checked' : '' %>>
+                    <label class="form-check-label small text-muted" for="prim_<%= s.id %>">Основная (в талонах и списках первой)</label>
+                  </div>
+                </div>
+              </div>
             <% }) %>
-          </select>
+          </div>
+          <p class="small mt-2 mb-0" id="specCompatHint"><span class="text-muted">Подсказка:</span> <span id="specCompatHintText"></span></p>
         </div>
       </div>
 
@@ -109,5 +131,103 @@
     </form>
   </div>
 </div>
+
+<script>
+(function () {
+  const GROUP_RU = {
+    therapy: 'терапия и смежные консервативные специальности',
+    surgery: 'хирургия',
+    ophthalmology: 'офтальмология',
+  };
+  const hintText = document.getElementById('specCompatHintText');
+  const hintWrap = document.getElementById('specCompatHint');
+  if (!hintText) return;
+
+  function selectedCards() {
+    return Array.prototype.slice.call(document.querySelectorAll('.js-spec-cb:checked')).map(function (cb) {
+      return cb.closest('.spec-card');
+    }).filter(Boolean);
+  }
+
+  function refresh() {
+    const cards = selectedCards();
+    const groups = new Set();
+    cards.forEach(function (c) {
+      groups.add(c.getAttribute('data-compat') || 'therapy');
+    });
+
+    document.querySelectorAll('.spec-card').forEach(function (card) {
+      const g = card.getAttribute('data-compat') || 'therapy';
+      const on = card.querySelector('.js-spec-cb').checked;
+      let dim = false;
+      if (cards.length > 0 && groups.size === 1 && on) {
+        const only = groups.values().next().value;
+        dim = g !== only;
+      }
+      card.style.opacity = dim ? '0.45' : '1';
+    });
+
+    if (cards.length === 0) {
+      hintText.textContent = 'Отметьте одну или несколько совместимых специализаций.';
+      hintWrap.className = 'small mt-2 mb-0';
+      return;
+    }
+    if (groups.size > 1) {
+      hintText.textContent = 'Сочетание невозможно: выбраны специализации из разных групп. Снимите лишние или оставьте только одну группу.';
+      hintWrap.className = 'small mt-2 mb-0 text-danger';
+      return;
+    }
+    const g = groups.values().next().value;
+    const names = Array.prototype.slice
+      .call(document.querySelectorAll('.spec-card'))
+      .filter(function (card) {
+        return (card.getAttribute('data-compat') || 'therapy') === g && !card.querySelector('.js-spec-cb').checked;
+      })
+      .map(function (card) {
+        return card.querySelector('label[for^="spec_"]').textContent.trim();
+      });
+    hintWrap.className = 'small mt-2 mb-0 text-success';
+    hintText.textContent =
+      'Группа: «' +
+      (GROUP_RU[g] || g) +
+      '». Можно добавить: ' +
+      (names.length ? names.slice(0, 6).join(', ') + (names.length > 6 ? '…' : '') : 'все профили группы уже выбраны.') +
+      '';
+  }
+
+  function ensurePrimary() {
+    const checked = document.querySelectorAll('.js-spec-cb:checked');
+    if (checked.length === 0) return;
+    const anyPrimary = document.querySelector('.js-spec-primary:checked');
+    if (anyPrimary) {
+      const id = anyPrimary.value;
+      const still = Array.prototype.some.call(checked, function (c) {
+        return c.value === id;
+      });
+      if (still) return;
+    }
+    const first = checked[0];
+    const rid = first.value;
+    const r = document.getElementById('prim_' + rid);
+    if (r) r.checked = true;
+  }
+
+  document.querySelectorAll('.js-spec-cb').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      if (!cb.checked) {
+        const p = document.getElementById('prim_' + cb.value);
+        if (p) p.checked = false;
+      }
+      ensurePrimary();
+      refresh();
+    });
+  });
+  document.querySelectorAll('.js-spec-primary').forEach(function (r) {
+    r.addEventListener('change', refresh);
+  });
+  ensurePrimary();
+  refresh();
+})();
+</script>
 
 <%- include('../partials/footer') %>

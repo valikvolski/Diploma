@@ -35,8 +35,9 @@ router.get('/:id', requireAuth, async (req, res) => {
        JOIN appointments a             ON t.appointment_id = a.id
        JOIN users p                    ON a.patient_id     = p.id
        JOIN users d                    ON a.doctor_id      = d.id
-       LEFT JOIN doctor_profiles dp    ON d.id = dp.user_id
-       LEFT JOIN specializations s     ON dp.specialization_id = s.id
+       LEFT JOIN doctor_profiles dp ON d.id = dp.user_id
+       LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+       LEFT JOIN specializations s ON s.id = dsp.specialization_id
        WHERE t.id = $1`,
       [ticketId]
     );

@@ -1,11 +1,11 @@
 <%- include('../partials/header', { title: title }) %>
 
-<div class="mb-4">
-  <a href="/admin/users" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>К списку пользователей</a>
+<div class="mb-3">
+  <a href="/admin/users" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-arrow-left me-1"></i>К списку пользователей</a>
 </div>
 
-<div class="card border-0 shadow-sm mx-auto" style="max-width:650px">
-  <div class="card-body p-4">
+<div class="app-card app-narrow-card--md">
+  <div class="p-4 p-md-5">
     <h4 class="fw-bold mb-1">Назначить врачом</h4>
     <p class="text-muted mb-4">
       Пациент: <strong><%= targetUser.last_name %> <%= targetUser.first_name %></strong> (<%= targetUser.email %>)
@@ -16,21 +16,33 @@
     <% } %>
 
     <form method="POST" action="/admin/users/<%= targetUser.id %>/change-role">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Специализации <span class="text-danger">*</span></label>
+        <p class="small text-muted">Только совместимые специализации из одной группы (см. подсказку при выборе).</p>
+        <div class="row g-2">
+          <% specializations.forEach(function(s) { %>
+            <div class="col-md-6">
+              <div class="border rounded p-2 h-100 spec-card" data-compat="<%= s.compat_group || 'therapy' %>">
+                <div class="form-check">
+                  <input class="form-check-input js-cr-spec" type="checkbox" name="specialization_ids" value="<%= s.id %>" id="cr_spec_<%= s.id %>">
+                  <label class="form-check-label fw-semibold" for="cr_spec_<%= s.id %>"><%= s.name %></label>
+                </div>
+                <div class="form-check mt-1 ms-4">
+                  <input class="form-check-input js-cr-prim" type="radio" name="primary_specialization_id" value="<%= s.id %>" id="cr_prim_<%= s.id %>">
+                  <label class="form-check-label small text-muted" for="cr_prim_<%= s.id %>">Основная</label>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+        <p class="small mt-2 mb-0" id="crHint"></p>
+      </div>
       <div class="row g-3 mb-3">
         <div class="col-md-6">
-          <label class="form-label fw-semibold">Специализация <span class="text-danger">*</span></label>
-          <select class="form-select" name="specialization_id" required>
-            <option value="">— Выберите —</option>
-            <% specializations.forEach(function(s) { %>
-              <option value="<%= s.id %>"><%= s.name %></option>
-            <% }) %>
-          </select>
-        </div>
-        <div class="col-md-3">
           <label class="form-label fw-semibold">Кабинет</label>
           <input type="text" class="form-control" name="cabinet" placeholder="101">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-6">
           <label class="form-label fw-semibold">Стаж (лет)</label>
           <input type="number" class="form-control" name="experience_years" min="0" value="0">
         </div>
@@ -50,5 +62,55 @@
     </form>
   </div>
 </div>
+
+<script>
+(function () {
+  const hint = document.getElementById('crHint');
+  if (!hint) return;
+  function refresh() {
+    const checked = Array.prototype.slice.call(document.querySelectorAll('.js-cr-spec:checked'));
+    const groups = new Set();
+    checked.forEach(function (cb) {
+      const c = cb.closest('.spec-card');
+      if (c) groups.add(c.getAttribute('data-compat') || 'therapy');
+    });
+    document.querySelectorAll('.spec-card').forEach(function (card) {
+      const g = card.getAttribute('data-compat') || 'therapy';
+      const on = card.querySelector('.js-cr-spec').checked;
+      let dim = false;
+      if (checked.length > 0 && groups.size === 1 && on) {
+        dim = g !== groups.values().next().value;
+      }
+      card.style.opacity = dim ? '0.45' : '1';
+    });
+    if (groups.size > 1) hint.className = 'small mt-2 mb-0 text-danger';
+    else hint.className = 'small mt-2 mb-0 text-muted';
+    hint.textContent =
+      groups.size > 1
+        ? 'Нельзя смешивать группы специализаций.'
+        : 'Отметьте профили и выберите одну основную (радиокнопка).';
+  }
+  function ensurePrim() {
+    const checked = document.querySelectorAll('.js-cr-spec:checked');
+    if (!checked.length) return;
+    const cur = document.querySelector('.js-cr-prim:checked');
+    if (cur && Array.prototype.some.call(checked, function (x) { return x.value === cur.value; })) return;
+    const r = document.getElementById('cr_prim_' + checked[0].value);
+    if (r) r.checked = true;
+  }
+  document.querySelectorAll('.js-cr-spec').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      if (!cb.checked) {
+        const p = document.getElementById('cr_prim_' + cb.value);
+        if (p) p.checked = false;
+      }
+      ensurePrim();
+      refresh();
+    });
+  });
+  ensurePrim();
+  refresh();
+})();
+</script>
 
 <%- include('../partials/footer') %>

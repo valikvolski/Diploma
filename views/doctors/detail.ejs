@@ -12,7 +12,7 @@ function experienceLabel(n) {
 
 <!-- Кнопка «Назад» -->
 <div class="mb-4">
-  <a href="/doctors" class="btn btn-outline-secondary btn-sm">
+  <a href="/doctors" class="btn btn-outline-secondary btn-sm rounded-pill">
     <i class="bi bi-arrow-left me-1"></i>Назад к списку врачей
   </a>
 </div>
@@ -32,8 +32,13 @@ function experienceLabel(n) {
       </h4>
       <p class="text-muted mb-3"><%= doctor.middle_name %></p>
 
-      <% if (doctor.specialization) { %>
-        <span class="badge spec-badge fs-6 mb-3"><%= doctor.specialization %></span>
+      <% const dspecs = Array.isArray(doctor.specializations) ? doctor.specializations : []; %>
+      <% if (dspecs.length) { %>
+        <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+          <% dspecs.forEach(function(sp) { %>
+            <span class="badge spec-badge fs-6<%= sp.is_primary ? '' : ' bg-light text-dark border' %>"><%= sp.name %></span>
+          <% }); %>
+        </div>
       <% } %>
 
       <ul class="list-unstyled doctor-detail-meta text-start mt-3">
@@ -398,20 +403,18 @@ function experienceLabel(n) {
   calYear = now.getFullYear();
   calMonth = now.getMonth() + 1;
 
-  bcalPrev.addEventListener('click', function () {
+  bcalPrev.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
     calMonth--;
     if (calMonth < 1) { calMonth = 12; calYear--; }
-    selectedDateStr = null;
-    bcalSelectedLabel.classList.add('d-none');
-    slotsSection.classList.add('d-none');
     showMonth(calYear, calMonth);
   });
-  bcalNext.addEventListener('click', function () {
+  bcalNext.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
     calMonth++;
     if (calMonth > 12) { calMonth = 1; calYear++; }
-    selectedDateStr = null;
-    bcalSelectedLabel.classList.add('d-none');
-    slotsSection.classList.add('d-none');
     showMonth(calYear, calMonth);
   });
 

@@ -15,19 +15,22 @@ function typeBg(t, read){
 %>
 <%- include('../partials/header', { title: title }) %>
 
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-  <h3 class="fw-bold mb-0"><i class="bi bi-bell text-primary me-2"></i>Уведомления</h3>
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
+  <div>
+    <h1 class="page-header__title"><i class="bi bi-bell text-primary me-2"></i>Уведомления</h1>
+    <p class="page-header__meta mb-0">Сообщения о записях и изменениях</p>
+  </div>
   <% if (notifications.some(n => !n.is_read)) { %>
-    <form method="POST" action="/notifications/read-all">
-      <button class="btn btn-outline-primary btn-sm"><i class="bi bi-check-all me-1"></i>Отметить все прочитанными</button>
+    <form method="POST" action="/notifications/read-all" class="flex-shrink-0">
+      <button class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-check-all me-1"></i>Все прочитаны</button>
     </form>
   <% } %>
 </div>
 
 <% if (notifications.length === 0) { %>
-  <div class="text-center py-5">
-    <i class="bi bi-bell-slash text-muted" style="font-size:3rem;opacity:.35"></i>
-    <p class="text-muted mt-2">Уведомлений нет</p>
+  <div class="empty-state text-center app-card p-5">
+    <div class="empty-state__icon text-muted"><i class="bi bi-bell-slash"></i></div>
+    <p class="text-muted mt-2 mb-0">Уведомлений нет</p>
   </div>
 <% } else { %>
   <%

@@ -32,8 +32,9 @@ router.get('/appointments', ...patientOnly, async (req, res) => {
          t.ticket_number
        FROM appointments a
        JOIN users d                    ON a.doctor_id = d.id
-       LEFT JOIN doctor_profiles dp    ON d.id = dp.user_id
-       LEFT JOIN specializations s     ON dp.specialization_id = s.id
+       LEFT JOIN doctor_profiles dp ON d.id = dp.user_id
+       LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+       LEFT JOIN specializations s ON s.id = dsp.specialization_id
        LEFT JOIN tickets t             ON t.appointment_id = a.id
        WHERE a.patient_id = $1
        ORDER BY a.appointment_date DESC, a.appointment_time DESC`,

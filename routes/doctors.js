@@ -20,7 +20,9 @@ router.get('/', async (req, res) => {
 
     if (specialization_id && specialization_id !== '') {
       params.push(Number(specialization_id));
-      conditions.push(`dp.specialization_id = $${params.length}`);
+      conditions.push(
+        `EXISTS (SELECT 1 FROM doctor_specializations dsf WHERE dsf.doctor_user_id = u.id AND dsf.specialization_id = $${params.length})`
+      );
     }
 
     if (search && search.trim() !== '') {
@@ -39,14 +41,24 @@ router.get('/', async (req, res) => {
          u.last_name,
          u.first_name,
          u.middle_name,
-         s.id   AS specialization_id,
-         s.name AS specialization,
          dp.cabinet,
          dp.experience_years,
-         dp.description
+         dp.description,
+         specs.spec_list AS specializations
        FROM users u
        JOIN doctor_profiles dp ON u.id = dp.user_id
-       LEFT JOIN specializations s ON dp.specialization_id = s.id
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(
+           json_agg(
+             json_build_object('id', s.id, 'name', s.name, 'is_primary', ds.is_primary)
+             ORDER BY ds.is_primary DESC, s.name
+           ),
+           '[]'::json
+         ) AS spec_list
+         FROM doctor_specializations ds
+         JOIN specializations s ON s.id = ds.specialization_id
+         WHERE ds.doctor_user_id = u.id
+       ) specs ON true
        WHERE ${whereClause}
        ORDER BY u.last_name, u.first_name`,
       params
@@ -84,14 +96,25 @@ router.get('/:id', async (req, res) => {
          u.first_name,
          u.middle_name,
          u.phone,
-         s.name AS specialization,
          dp.cabinet,
          dp.experience_years,
          dp.education,
-         dp.description
+         dp.description,
+         specs.spec_list AS specializations
        FROM users u
        JOIN doctor_profiles dp ON u.id = dp.user_id
-       LEFT JOIN specializations s ON dp.specialization_id = s.id
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(
+           json_agg(
+             json_build_object('id', s.id, 'name', s.name, 'is_primary', ds.is_primary)
+             ORDER BY ds.is_primary DESC, s.name
+           ),
+           '[]'::json
+         ) AS spec_list
+         FROM doctor_specializations ds
+         JOIN specializations s ON s.id = ds.specialization_id
+         WHERE ds.doctor_user_id = u.id
+       ) specs ON true
        WHERE u.id = $1 AND u.role = 'doctor' AND u.is_blocked = false`,
       [doctorId]
     );

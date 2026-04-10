@@ -1,14 +1,16 @@
-<%- include('partials/header', { title: 'Ошибка — Запись к врачу' }) %>
+<%- include('partials/header', { title: 'Ошибка — МедЗапись' }) %>
 
-<div class="text-center py-5">
-  <div class="mb-4" style="font-size:4rem;opacity:.3">
-    <i class="bi bi-exclamation-triangle text-danger"></i>
+<div class="row justify-content-center py-5">
+  <div class="col-md-8 col-lg-6">
+    <div class="app-card text-center p-5">
+      <div class="empty-state__icon text-danger mb-3"><i class="bi bi-exclamation-triangle-fill"></i></div>
+      <h1 class="h4 fw-bold text-secondary mb-2"><%= typeof message !== 'undefined' ? message : 'Что-то пошло не так' %></h1>
+      <p class="text-muted mb-4">Попробуйте вернуться назад или перейти на главную страницу.</p>
+      <a href="/" class="btn btn-primary rounded-pill px-4">
+        <i class="bi bi-house me-2"></i>На главную
+      </a>
+    </div>
   </div>
-  <h3 class="fw-bold text-muted"><%= typeof message !== 'undefined' ? message : 'Что-то пошло не так' %></h3>
-  <p class="text-muted mb-4">Попробуйте вернуться на предыдущую страницу или на главную.</p>
-  <a href="/" class="btn btn-primary px-4">
-    <i class="bi bi-house me-2"></i>На главную
-  </a>
 </div>
 
 <%- include('partials/footer') %>

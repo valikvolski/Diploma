@@ -21,10 +21,13 @@ function fmtType(r){
 %>
 <%- include('../partials/header', { title: title }) %>
 
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-  <h3 class="fw-bold mb-0"><i class="bi bi-calendar-x text-primary me-2"></i>Нерабочие дни и изменения в графике</h3>
-  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExcModal">
-    <i class="bi bi-plus-circle me-1"></i>Добавить изменение
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
+  <div>
+    <h1 class="page-header__title"><i class="bi bi-calendar-x text-primary me-2"></i>Нерабочие дни и график</h1>
+    <p class="page-header__meta mb-0">Периоды выходных и особый режим работы</p>
+  </div>
+  <button type="button" class="btn btn-primary btn-sm rounded-pill flex-shrink-0" data-bs-toggle="modal" data-bs-target="#addExcModal">
+    <i class="bi bi-plus-circle me-1"></i>Добавить
   </button>
 </div>
 
@@ -37,10 +40,10 @@ function fmtType(r){
 
 <% if (upcoming.length) { %>
   <h5 class="fw-semibold mb-3">Предстоящие изменения</h5>
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+  <div class="app-table-wrap app-table-wrap--sticky mb-4">
+    <div class="table-responsive app-table-responsive">
+      <table class="table app-table table-hover mb-0">
+        <thead>
           <tr>
             <th>Период</th>
             <th>Тип</th>
@@ -72,10 +75,10 @@ function fmtType(r){
 
 <% if (past.length) { %>
   <h5 class="fw-semibold mb-3 text-muted">Прошедшие изменения</h5>
-  <div class="card border-0 shadow-sm mb-4 opacity-65">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light"><tr><th>Период</th><th>Тип</th><th>Причина</th><th>Время</th></tr></thead>
+  <div class="app-table-wrap app-table-wrap--sticky mb-4 opacity-65">
+    <div class="table-responsive app-table-responsive">
+      <table class="table app-table table-hover mb-0">
+        <thead><tr><th>Период</th><th>Тип</th><th>Причина</th><th>Время</th></tr></thead>
         <tbody>
           <% past.forEach(function(e) { %>
             <tr>
@@ -92,7 +95,10 @@ function fmtType(r){
 <% } %>
 
 <% if (!upcoming.length && !past.length) { %>
-  <div class="text-center py-5"><i class="bi bi-calendar-check text-muted" style="font-size:3rem;opacity:.35"></i><p class="text-muted mt-2">Изменений графика нет</p></div>
+  <div class="empty-state text-center app-card p-5">
+    <div class="empty-state__icon text-muted"><i class="bi bi-calendar-check"></i></div>
+    <p class="text-muted mt-2 mb-0">Изменений графика нет</p>
+  </div>
 <% } %>
 
 <!-- Модальное окно добавления -->
@@ -104,45 +110,63 @@ function fmtType(r){
         <div class="modal-body">
           <div class="mb-3">
             <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="mode" id="modeSingle" value="single" checked>
+              <input class="form-check-input" type="radio" name="mode" id="modeSingle" value="single" <%= form.mode !== 'period' ? 'checked' : '' %>>
               <label class="form-check-label" for="modeSingle">Один день</label>
             </div>
             <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" name="mode" id="modePeriod" value="period">
+              <input class="form-check-input" type="radio" name="mode" id="modePeriod" value="period" <%= form.mode === 'period' ? 'checked' : '' %>>
               <label class="form-check-label" for="modePeriod">Период (несколько дней)</label>
             </div>
           </div>
 
-          <div class="row g-3 mb-3">
-            <div class="col" id="dateFromGroup">
-              <label class="form-label fw-semibold" id="dateFromLabel">Дата</label>
-              <input type="date" class="form-control" name="exception_date" id="excDateFrom" min="<%= todayStr %>" required data-unified-calendar="1">
-            </div>
-            <div class="col" id="dateToGroup" style="display:none">
-              <label class="form-label fw-semibold">Дата окончания</label>
-              <input type="date" class="form-control" name="date_to" id="excDateTo" min="<%= todayStr %>" data-unified-calendar="1">
+          <p class="form-label fw-semibold mb-2" id="dateFromLabel">Дата</p>
+          <p class="small text-muted mb-2" id="vacCalHint">Навигация по месяцам не сбрасывает выбор. В режиме периода: первый клик — начало, второй — конец (можно в другом месяце).</p>
+          <input type="hidden" name="exception_date" id="excDateFrom" value="<%= form.exception_date %>" required>
+          <input type="hidden" name="date_to" id="excDateTo" value="<%= form.date_to %>">
+          <div
+            class="booking-cal card border-0 shadow-sm mb-3"
+            data-vacation-calendar="1"
+            data-min="<%= todayStr %>"
+            data-input-from="excDateFrom"
+            data-input-to="excDateTo"
+          >
+            <div class="card-body p-3">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" data-vac-prev aria-label="Предыдущий месяц">
+                  <i class="bi bi-chevron-left"></i>
+                </button>
+                <span class="fw-bold text-center px-2" data-vac-title></span>
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-circle booking-cal-nav" data-vac-next aria-label="Следующий месяц">
+                  <i class="bi bi-chevron-right"></i>
+                </button>
+              </div>
+              <div class="booking-cal-weekdays">
+                <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+              </div>
+              <div class="booking-cal-grid" data-vac-grid></div>
+              <p class="small fw-semibold text-primary mt-3 mb-0" data-vac-summary>Выберите дату в календаре</p>
             </div>
           </div>
 
           <div class="form-check form-switch mb-3">
-            <input class="form-check-input" type="checkbox" role="switch" id="isDayOff" name="is_day_off" checked>
+            <input class="form-check-input" type="checkbox" role="switch" id="isDayOff" name="is_day_off" <%= form.is_day_off ? 'checked' : '' %>>
             <label class="form-check-label fw-semibold" for="isDayOff">Полный выходной</label>
           </div>
 
-          <div class="row g-3 mb-3 d-none" id="timeRow">
+          <div class="row g-3 mb-3 <%= form.is_day_off ? 'd-none' : '' %>" id="timeRow">
             <div class="col">
               <label class="form-label fw-semibold">Начало приёма</label>
-              <input type="time" class="form-control" name="start_time" id="startTime">
+              <input type="time" class="form-control" name="start_time" id="startTime" value="<%= form.start_time %>">
             </div>
             <div class="col">
               <label class="form-label fw-semibold">Окончание приёма</label>
-              <input type="time" class="form-control" name="end_time" id="endTime">
+              <input type="time" class="form-control" name="end_time" id="endTime" value="<%= form.end_time %>">
             </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Причина</label>
-            <textarea class="form-control" name="reason" rows="2" placeholder="Отпуск, больничный и т.д."></textarea>
+            <textarea class="form-control" name="reason" rows="2" placeholder="Отпуск, больничный и т.д."><%= form.reason %></textarea>
           </div>
 
           <div class="alert alert-warning small py-2 mb-0">
@@ -163,10 +187,9 @@ function fmtType(r){
 (function() {
   const modeSingle = document.getElementById('modeSingle');
   const modePeriod = document.getElementById('modePeriod');
-  const dateToGroup = document.getElementById('dateToGroup');
   const dateFromLabel = document.getElementById('dateFromLabel');
+  const vacCalHint = document.getElementById('vacCalHint');
   const excDateTo = document.getElementById('excDateTo');
-  const excDateFrom = document.getElementById('excDateFrom');
   const isDayOff = document.getElementById('isDayOff');
   const timeRow = document.getElementById('timeRow');
   const startTime = document.getElementById('startTime');
@@ -174,8 +197,10 @@ function fmtType(r){
 
   function toggle() {
     const isPeriod = modePeriod.checked;
-    dateToGroup.style.display = isPeriod ? '' : 'none';
-    dateFromLabel.textContent = isPeriod ? 'Дата начала' : 'Дата';
+    dateFromLabel.textContent = isPeriod ? 'Даты периода' : 'Дата';
+    if (vacCalHint) {
+      vacCalHint.style.display = isPeriod ? '' : 'none';
+    }
     excDateTo.required = isPeriod;
   }
   function toggleTime() {
@@ -188,11 +213,6 @@ function fmtType(r){
   modeSingle.addEventListener('change', toggle);
   modePeriod.addEventListener('change', toggle);
   isDayOff.addEventListener('change', toggleTime);
-
-  excDateFrom.addEventListener('change', function() {
-    excDateTo.min = this.value;
-    if (excDateTo.value && excDateTo.value < this.value) excDateTo.value = this.value;
-  });
   toggle();
   toggleTime();
 })();

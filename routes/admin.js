@@ -2,6 +2,43 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const {
+  validateSpecializationSet,
+  resolvePrimarySpecializationId,
+} = require('../utils/specializationCompat');
+
+function parseSpecializationIds(body) {
+  const raw = body.specialization_ids;
+  if (raw == null) return [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  return arr
+    .map((x) => parseInt(x, 10))
+    .filter((n) => !isNaN(n));
+}
+
+async function loadSpecsForForms(clientOrPool) {
+  const { rows } = await clientOrPool.query(
+    'SELECT id, name, compat_group FROM specializations ORDER BY name'
+  );
+  return rows;
+}
+
+async function replaceDoctorSpecializations(client, doctorUserId, specIds, primaryId) {
+  await client.query('DELETE FROM doctor_specializations WHERE doctor_user_id = $1', [
+    doctorUserId,
+  ]);
+  for (const sid of specIds) {
+    await client.query(
+      `INSERT INTO doctor_specializations (doctor_user_id, specialization_id, is_primary)
+       VALUES ($1, $2, $3)`,
+      [doctorUserId, sid, sid === primaryId]
+    );
+  }
+  await client.query(
+    'UPDATE doctor_profiles SET specialization_id = $1 WHERE user_id = $2',
+    [primaryId, doctorUserId]
+  );
+}
 
 const router = express.Router();
 const adminOnly = [requireAuth, requireRole(['admin'])];
@@ -60,10 +97,22 @@ router.get('/doctors', ...adminOnly, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked,
-              s.name AS specialization, dp.cabinet, dp.experience_years
+              dp.cabinet, dp.experience_years,
+              specs.spec_list AS specializations
        FROM users u
        JOIN doctor_profiles dp ON u.id = dp.user_id
-       LEFT JOIN specializations s ON dp.specialization_id = s.id
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(
+           json_agg(
+             json_build_object('id', s.id, 'name', s.name, 'is_primary', ds.is_primary)
+             ORDER BY ds.is_primary DESC, s.name
+           ),
+           '[]'::json
+         ) AS spec_list
+         FROM doctor_specializations ds
+         JOIN specializations s ON s.id = ds.specialization_id
+         WHERE ds.doctor_user_id = u.id
+       ) specs ON true
        WHERE u.role = 'doctor'
        ORDER BY u.last_name`
     );
@@ -83,11 +132,13 @@ router.get('/doctors', ...adminOnly, async (req, res) => {
 
 router.get('/doctors/new', ...adminOnly, async (req, res) => {
   try {
-    const specs = await pool.query('SELECT id, name FROM specializations ORDER BY name');
+    const specs = await loadSpecsForForms(pool);
     res.render('admin/doctor_form', {
       title: 'Добавить врача — Админ-панель',
       doctor: null,
-      specializations: specs.rows,
+      doctorSpecIds: [],
+      primarySpecId: null,
+      specializations: specs,
     });
   } catch (err) {
     console.error(err);
@@ -99,31 +150,49 @@ router.get('/doctors/new', ...adminOnly, async (req, res) => {
 
 router.post('/doctors', ...adminOnly, async (req, res) => {
   const { email, password, first_name, last_name, middle_name, phone,
-          specialization_id, cabinet, experience_years, education, description } = req.body;
+          cabinet, experience_years, education, description, primary_specialization_id } = req.body;
+  const specIds = parseSpecializationIds(req.body);
 
   if (!email || !password || !first_name || !last_name) {
     return res.redirect('/admin/doctors?error=' + encodeURIComponent('Заполните обязательные поля'));
   }
 
   try {
+    const allSpecs = await loadSpecsForForms(pool);
+    const v = validateSpecializationSet(specIds, allSpecs);
+    if (!v.ok) {
+      return res.redirect('/admin/doctors?error=' + encodeURIComponent(v.message));
+    }
+    const { primary } = resolvePrimarySpecializationId(specIds, primary_specialization_id);
+
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (exists.rows.length > 0) {
       return res.redirect('/admin/doctors?error=' + encodeURIComponent('Пользователь с таким email уже существует'));
     }
 
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
-    const userRes = await pool.query(
-      `INSERT INTO users (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked)
-       VALUES ($1, $2, $3, $4, $5, $6, 'doctor', false) RETURNING id`,
-      [email.toLowerCase().trim(), hash, first_name.trim(), last_name.trim(), (middle_name || '').trim(), (phone || '').trim()]
-    );
-
-    await pool.query(
-      `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userRes.rows[0].id, specialization_id || null, cabinet || null,
-       parseInt(experience_years) || 0, education || null, description || null]
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const userRes = await client.query(
+        `INSERT INTO users (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked)
+         VALUES ($1, $2, $3, $4, $5, $6, 'doctor', false) RETURNING id`,
+        [email.toLowerCase().trim(), hash, first_name.trim(), last_name.trim(), (middle_name || '').trim(), (phone || '').trim()]
+      );
+      const uid = userRes.rows[0].id;
+      await client.query(
+        `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [uid, primary, cabinet || null, parseInt(experience_years) || 0, education || null, description || null]
+      );
+      await replaceDoctorSpecializations(client, uid, specIds, primary);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
 
     res.redirect('/admin/doctors?success=' + encodeURIComponent('Врач добавлен'));
   } catch (err) {
@@ -149,7 +218,11 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
     );
     if (uRes.rows.length === 0) return res.status(404).render('error', { message: 'Врач не найден' });
     const dpRes = await pool.query('SELECT * FROM doctor_profiles WHERE user_id = $1', [resolvedDoctorId]);
-    const specs = await pool.query('SELECT id, name FROM specializations ORDER BY name');
+    const specs = await loadSpecsForForms(pool);
+    const dsRes = await pool.query(
+      `SELECT specialization_id, is_primary FROM doctor_specializations WHERE doctor_user_id = $1`,
+      [resolvedDoctorId]
+    );
 
     if (dpRes.rows.length === 0) {
       return res.status(400).render('error', { message: 'Профиль врача отсутствует. Обратитесь к администратору БД.' });
@@ -157,12 +230,17 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
 
     const u = uRes.rows[0];
     const dp = dpRes.rows[0];
+    const doctorSpecIds = dsRes.rows.map((r) => r.specialization_id);
+    const primaryRow = dsRes.rows.find((r) => r.is_primary);
+    const primarySpecId = primaryRow ? primaryRow.specialization_id : dp.specialization_id;
     // Важно: id в шаблоне должен быть users.id (для action формы и проверок). Иначе doctor_profiles.id
     // перезапишет users.id и POST уйдёт на чужого врача → ложный «email занят» и редирект не туда.
     res.render('admin/doctor_form', {
       title: 'Редактировать врача — Админ-панель',
       doctor: { ...u, ...dp, id: u.id, profile_id: dp.id },
-      specializations: specs.rows,
+      doctorSpecIds,
+      primarySpecId,
+      specializations: specs,
       error: req.query.error || null,
     });
   } catch (err) {
@@ -175,7 +253,8 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
 
 router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
   const { email, new_password, first_name, last_name, middle_name, phone, is_blocked,
-          specialization_id, cabinet, experience_years, education, description, user_id } = req.body;
+          cabinet, experience_years, education, description, user_id, primary_specialization_id } = req.body;
+  const specIds = parseSpecializationIds(req.body);
   const rawId = req.params.id;
 
   if (isNaN(parseInt(rawId, 10))) {
@@ -186,6 +265,15 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
   }
 
   try {
+    const allSpecs = await loadSpecsForForms(pool);
+    const v = validateSpecializationSet(specIds, allSpecs);
+    if (!v.ok) {
+      const doctorIdEarly = await resolveDoctorUserId(rawId, pool);
+      const eid = doctorIdEarly != null ? doctorIdEarly : rawId;
+      return res.redirect(`/admin/doctors/${eid}/edit?error=` + encodeURIComponent(v.message));
+    }
+    const { primary } = resolvePrimarySpecializationId(specIds, primary_specialization_id);
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -237,12 +325,14 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
         `UPDATE doctor_profiles
          SET specialization_id=$1, cabinet=$2, experience_years=$3, education=$4, description=$5
          WHERE user_id=$6`,
-        [specialization_id || null, cabinet || null, parseInt(experience_years) || 0, education || null, description || null, doctorId]
+        [primary, cabinet || null, parseInt(experience_years) || 0, education || null, description || null, doctorId]
       );
       if (profileUpdate.rowCount === 0) {
         await client.query('ROLLBACK');
         return res.redirect(`/admin/doctors/${doctorId}/edit?error=` + encodeURIComponent('Профиль врача не найден. Изменения не сохранены'));
       }
+
+      await replaceDoctorSpecializations(client, doctorId, specIds, primary);
 
       await client.query('COMMIT');
     } catch (txErr) {
@@ -292,11 +382,11 @@ router.post('/doctors/:id/delete', ...adminOnly, async (req, res) => {
 router.get('/specializations', ...adminOnly, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT s.id, s.name,
-              COUNT(dp.id) AS doctor_count
+      `SELECT s.id, s.name, s.compat_group,
+              COUNT(ds.doctor_user_id) AS doctor_count
        FROM specializations s
-       LEFT JOIN doctor_profiles dp ON dp.specialization_id = s.id
-       GROUP BY s.id, s.name ORDER BY s.name`
+       LEFT JOIN doctor_specializations ds ON ds.specialization_id = s.id
+       GROUP BY s.id, s.name, s.compat_group ORDER BY s.name`
     );
     res.render('admin/specializations', {
       title: 'Специализации — Админ-панель',
@@ -333,7 +423,10 @@ router.post('/specializations', ...adminOnly, async (req, res) => {
 
 router.post('/specializations/:id/delete', ...adminOnly, async (req, res) => {
   try {
-    const used = await pool.query('SELECT COUNT(*) FROM doctor_profiles WHERE specialization_id=$1', [req.params.id]);
+    const used = await pool.query(
+      'SELECT COUNT(*) FROM doctor_specializations WHERE specialization_id=$1',
+      [req.params.id]
+    );
     if (parseInt(used.rows[0].count) > 0) {
       return res.redirect('/admin/specializations?error=' + encodeURIComponent('Нельзя удалить — есть врачи с этой специализацией'));
     }
@@ -394,11 +487,11 @@ router.get('/users/:id/change-role', ...adminOnly, async (req, res) => {
     if (u.role !== 'patient') {
       return res.redirect('/admin/users?error=' + encodeURIComponent('Можно изменить роль только пациенту'));
     }
-    const specs = await pool.query('SELECT id, name FROM specializations ORDER BY name');
+    const specs = await loadSpecsForForms(pool);
     res.render('admin/change_role', {
       title: 'Назначить врачом — Админ-панель',
       targetUser: u,
-      specializations: specs.rows,
+      specializations: specs,
       error: req.query.error || null,
     });
   } catch (err) {
@@ -410,7 +503,8 @@ router.get('/users/:id/change-role', ...adminOnly, async (req, res) => {
 // ─── POST /admin/users/:id/change-role ───────────────────────────────────────
 
 router.post('/users/:id/change-role', ...adminOnly, async (req, res) => {
-  const { specialization_id, cabinet, experience_years, education, description } = req.body;
+  const { cabinet, experience_years, education, description, primary_specialization_id } = req.body;
+  const specIds = parseSpecializationIds(req.body);
   const userId = parseInt(req.params.id, 10);
 
   try {
@@ -420,6 +514,13 @@ router.post('/users/:id/change-role', ...adminOnly, async (req, res) => {
       return res.redirect('/admin/users?error=' + encodeURIComponent('Можно изменить роль только пациенту'));
     }
 
+    const allSpecs = await loadSpecsForForms(pool);
+    const v = validateSpecializationSet(specIds, allSpecs);
+    if (!v.ok) {
+      return res.redirect(`/admin/users/${userId}/change-role?error=` + encodeURIComponent(v.message));
+    }
+    const { primary } = resolvePrimarySpecializationId(specIds, primary_specialization_id);
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -428,8 +529,9 @@ router.post('/users/:id/change-role', ...adminOnly, async (req, res) => {
         `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
          VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (user_id) DO UPDATE SET specialization_id=$2, cabinet=$3, experience_years=$4, education=$5, description=$6`,
-        [userId, specialization_id || null, cabinet || null, parseInt(experience_years) || 0, education || null, description || null]
+        [userId, primary, cabinet || null, parseInt(experience_years) || 0, education || null, description || null]
       );
+      await replaceDoctorSpecializations(client, userId, specIds, primary);
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
@@ -495,7 +597,8 @@ router.get('/appointments', ...adminOnly, async (req, res) => {
        JOIN users p ON a.patient_id = p.id
        JOIN users d ON a.doctor_id  = d.id
        LEFT JOIN doctor_profiles dp ON d.id = dp.user_id
-       LEFT JOIN specializations s  ON dp.specialization_id = s.id
+       LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+       LEFT JOIN specializations s ON s.id = dsp.specialization_id
        ${where}
        ORDER BY a.appointment_date DESC, a.appointment_time DESC
        LIMIT 200`, params
