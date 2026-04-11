@@ -134,7 +134,7 @@
           </div>
 
           <div class="mb-4">
-            <label for="phone" class="form-label fw-semibold">Телефон (РБ)</label>
+            <label for="phone" class="form-label fw-semibold">Телефон</label>
             <div class="input-group ds-input-group">
               <span class="input-group-text"><i class="bi bi-phone"></i></span>
               <input
@@ -142,15 +142,17 @@
                 class="form-control"
                 id="phone"
                 name="phone"
-                value="<%= typeof formData !== 'undefined' ? formData.phone || '' : '' %>"
+                data-phone-by="1"
+                value="<%= typeof formData !== 'undefined' ? String(formData.phone || '').replace(/^\+/, '') : '' %>"
                 required
-                pattern="\+375[0-9]{9}"
-                placeholder="+375291234567"
+                pattern="\+?375[0-9]{9}|[0-9]{9}"
+                placeholder="375291234567"
+                inputmode="tel"
                 autocomplete="tel"
-                maxlength="13"
+                maxlength="12"
               />
             </div>
-            <div class="form-text">Формат: <strong>+375</strong> и 9 цифр (например +375291234567)</div>
+            <div class="form-text">Пример: 375291234567</div>
           </div>
 
           <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-semibold" id="submitBtn">
@@ -167,5 +169,6 @@
   </div>
 </div>
 
+<script src="/js/phone-belarus.js"></script>
 <script src="/js/auth-forms.js"></script>
 <%- include('../partials/footer') %>

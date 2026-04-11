@@ -89,10 +89,32 @@
               <i class="bi bi-shield-lock me-1"></i>Админ-панель
             </a>
             <ul class="dropdown-menu app-dropdown shadow border-0">
-              <li><a class="dropdown-item" href="/admin/doctors"><i class="bi bi-person-badge me-2 text-primary"></i>Врачи</a></li>
-              <li><a class="dropdown-item" href="/admin/users"><i class="bi bi-people me-2 text-primary"></i>Пользователи</a></li>
-              <li><a class="dropdown-item" href="/admin/appointments"><i class="bi bi-journal-text me-2 text-primary"></i>Записи</a></li>
-              <li><a class="dropdown-item" href="/admin/specializations"><i class="bi bi-tags me-2 text-primary"></i>Специализации</a></li>
+              <li>
+                <a class="dropdown-item <%= navExact('/admin') ? 'active' : '' %>" href="/admin" <%= navExact('/admin') ? 'aria-current="page"' : '' %>>
+                  <i class="bi bi-speedometer2 me-2 text-primary"></i>Админ-панель
+                </a>
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <a class="dropdown-item <%= navStarts('/admin/doctors') ? 'active' : '' %>" href="/admin/doctors" <%= navStarts('/admin/doctors') ? 'aria-current="page"' : '' %>>
+                  <i class="bi bi-person-badge me-2 text-primary"></i>Врачи
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item <%= navStarts('/admin/specializations') ? 'active' : '' %>" href="/admin/specializations" <%= navStarts('/admin/specializations') ? 'aria-current="page"' : '' %>>
+                  <i class="bi bi-tags me-2 text-primary"></i>Специализации
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item <%= navStarts('/admin/users') ? 'active' : '' %>" href="/admin/users" <%= navStarts('/admin/users') ? 'aria-current="page"' : '' %>>
+                  <i class="bi bi-people me-2 text-primary"></i>Пользователи
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item <%= navStarts('/admin/appointments') ? 'active' : '' %>" href="/admin/appointments" <%= navStarts('/admin/appointments') ? 'aria-current="page"' : '' %>>
+                  <i class="bi bi-journal-text me-2 text-primary"></i>Записи
+                </a>
+              </li>
             </ul>
           </li>
         <% } %>

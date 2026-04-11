@@ -10,6 +10,7 @@ const {
   validateSpecializationSet,
   resolvePrimarySpecializationId,
 } = require('../utils/specializationCompat');
+const { normalizeBelarusPhone } = require('../utils/patientPhone');
 
 function parseSpecializationIds(body) {
   const raw =
@@ -146,6 +147,7 @@ router.get('/doctors/new', ...adminOnly, async (req, res) => {
       doctorSpecIds: [],
       primarySpecId: null,
       specializations: specs,
+      error: req.query.error || null,
       loadChoicesCss: true,
       loadChoicesJs: true,
       loadAdminSpecChoices: true,
@@ -165,6 +167,13 @@ router.post('/doctors', ...adminOnly, async (req, res) => {
 
   if (!email || !password || !first_name || !last_name) {
     return res.redirect('/admin/doctors?error=' + encodeURIComponent('Заполните обязательные поля'));
+  }
+
+  const phoneNormCreate = normalizeBelarusPhone(phone);
+  if (!phoneNormCreate) {
+    return res.redirect(
+      '/admin/doctors/new?error=' + encodeURIComponent('Неверный формат телефона. Пример: 375291234567')
+    );
   }
 
   try {
@@ -187,7 +196,7 @@ router.post('/doctors', ...adminOnly, async (req, res) => {
       const userRes = await client.query(
         `INSERT INTO users (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked)
          VALUES ($1, $2, $3, $4, $5, $6, 'doctor', false) RETURNING id`,
-        [email.toLowerCase().trim(), hash, first_name.trim(), last_name.trim(), (middle_name || '').trim(), (phone || '').trim()]
+        [email.toLowerCase().trim(), hash, first_name.trim(), last_name.trim(), (middle_name || '').trim(), phoneNormCreate]
       );
       const uid = userRes.rows[0].id;
       await client.query(
@@ -278,6 +287,13 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
     return res.redirect(`/admin/doctors/${rawId}/edit?error=` + encodeURIComponent('Заполните обязательные поля'));
   }
 
+  const phoneNormEdit = normalizeBelarusPhone(phone);
+  if (!phoneNormEdit) {
+    return res.redirect(
+      `/admin/doctors/${rawId}/edit?error=` + encodeURIComponent('Неверный формат телефона. Пример: 375291234567')
+    );
+  }
+
   try {
     const allSpecs = await loadSpecsForForms(pool);
     const v = validateSpecializationSet(specIds, allSpecs);
@@ -324,14 +340,14 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
           `UPDATE users
            SET email=$1, first_name=$2, last_name=$3, middle_name=$4, phone=$5, is_blocked=$6, password_hash=$7
            WHERE id=$8 AND role='doctor'`,
-          [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), (phone||'').trim(), is_blocked === 'true', hash, doctorId]
+          [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), phoneNormEdit, is_blocked === 'true', hash, doctorId]
         );
       } else {
         await client.query(
           `UPDATE users
            SET email=$1, first_name=$2, last_name=$3, middle_name=$4, phone=$5, is_blocked=$6
            WHERE id=$7 AND role='doctor'`,
-          [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), (phone||'').trim(), is_blocked === 'true', doctorId]
+          [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), phoneNormEdit, is_blocked === 'true', doctorId]
         );
       }
 

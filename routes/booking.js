@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
@@ -11,12 +12,6 @@ const {
 } = require('../utils/bookingSlots');
 
 const router = express.Router();
-
-function generateTicketNumber() {
-  const ts = Date.now();
-  const rand = Math.floor(Math.random() * 9000) + 1000;
-  return `T-${ts}-${rand}`;
-}
 
 function isValidDate(str) {
   return /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(Date.parse(str));
@@ -94,7 +89,7 @@ router.post(
       if (patientNeedsPhoneCompletion(phoneRes.rows[0]?.phone)) {
         return res.redirect(
           '/profile/edit?need_phone=1&error=' +
-            encodeURIComponent('Укажите корректный телефон +375… в профиле, чтобы записаться к врачу.')
+            encodeURIComponent('Укажите корректный телефон в профиле (пример: 375291234567), чтобы записаться к врачу.')
         );
       }
 
@@ -136,25 +131,42 @@ router.post(
         });
       }
 
-      const apptRes = await pool.query(
-        `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status)
-         VALUES ($1, $2, $3, $4, 'booked')
-         RETURNING id`,
-        [patientId, doctor_id, date, time]
-      );
-      const appointmentId = apptRes.rows[0].id;
+      const client = await pool.connect();
+      let appointmentId;
+      let ticketId;
+      try {
+        await client.query('BEGIN');
+        const apptRes = await client.query(
+          `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status)
+           VALUES ($1, $2, $3, $4, 'booked')
+           RETURNING id`,
+          [patientId, doctor_id, date, time]
+        );
+        appointmentId = apptRes.rows[0].id;
 
-      const ticketNumber = generateTicketNumber();
-      const ticketRes = await pool.query(
-        'INSERT INTO tickets (appointment_id, ticket_number) VALUES ($1, $2) RETURNING id',
-        [appointmentId, ticketNumber]
-      );
+        const tempNumber = `TMP-${crypto.randomBytes(12).toString('hex')}`;
+        const ticketRes = await client.query(
+          'INSERT INTO tickets (appointment_id, ticket_number) VALUES ($1, $2) RETURNING id',
+          [appointmentId, tempNumber]
+        );
+        ticketId = ticketRes.rows[0].id;
+        const ticketNumber = `МЗ-${String(ticketId).padStart(6, '0')}`;
+        await client.query('UPDATE tickets SET ticket_number = $1 WHERE id = $2', [ticketNumber, ticketId]);
+        await client.query('COMMIT');
+      } catch (e) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (_) {}
+        throw e;
+      } finally {
+        client.release();
+      }
 
       invalidateDoctorAvailabilityCache(Number(doctor_id), date);
-      notifyAppointmentCreated(appointmentId).catch(e => console.error('Notify error:', e));
+      notifyAppointmentCreated(appointmentId).catch((e) => console.error('Notify error:', e));
       sendAppointmentBookedEmail(pool, appointmentId);
 
-      res.redirect(`/tickets/${ticketRes.rows[0].id}`);
+      res.redirect(`/tickets/${ticketId}`);
     } catch (err) {
       if (err.code === '23505') {
         return res.status(409).render('error', {

@@ -22,6 +22,7 @@ function fmtType(r){
 <%- include('../partials/header', { title: title }) %>
 <% var dsTitle = 'Нерабочие дни и график'; var dsSubtitle = 'Периоды выходных и особый режим работы'; var dsIcon = 'bi-calendar-x'; %>
 <%- include('../partials/ds-page-header') %>
+<div class="page-doctor-timeoff">
 <div class="d-flex flex-wrap justify-content-end mb-3">
   <button type="button" class="btn btn-primary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#addExcModal">
     <i class="bi bi-plus-circle me-1"></i>Добавить
@@ -53,7 +54,7 @@ function fmtType(r){
           <% upcoming.forEach(function(e) { %>
             <tr>
               <td class="fw-semibold"><%= fmtPeriod(e) %></td>
-              <td><span class="badge bg-light text-dark"><%= fmtType(e) %></span></td>
+              <td><span class="badge app-count-badge"><%= fmtType(e) %></span></td>
               <td><%= e.reason || '—' %></td>
               <td><%= fmtTime(e) %></td>
               <td class="text-end">
@@ -72,8 +73,8 @@ function fmtType(r){
 <% } %>
 
 <% if (past.length) { %>
-  <h5 class="fw-semibold mb-3 text-muted">Прошедшие изменения</h5>
-  <div class="app-table-wrap app-table-wrap--sticky mb-4 opacity-65">
+  <h5 class="fw-semibold mb-3 time-off-past-heading">Прошедшие изменения</h5>
+  <div class="app-table-wrap app-table-wrap--sticky mb-4 time-off-past-wrap">
     <div class="table-responsive app-table-responsive">
       <table class="table app-table table-hover mb-0">
         <thead><tr><th>Период</th><th>Тип</th><th>Причина</th><th>Время</th></tr></thead>
@@ -180,6 +181,8 @@ function fmtType(r){
       </form>
     </div>
   </div>
+</div>
+
 </div>
 
 <script>

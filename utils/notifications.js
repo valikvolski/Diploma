@@ -66,7 +66,7 @@ async function notifyAppointmentCreated(appointmentId) {
   if (rows.length === 0) return;
 
   const a = rows[0];
-  const title = 'Запись подтверждена';
+  const title = 'Электронный талон';
   const message = `Вы записаны к врачу ${a.d_last} ${a.d_first}` +
     (a.specialization ? ` (${a.specialization})` : '') +
     ` на ${a.appt_date} в ${a.appt_time}` +

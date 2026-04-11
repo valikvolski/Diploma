@@ -17,7 +17,7 @@
                 <td><%= s.id %></td>
                 <td class="fw-semibold"><%= s.name %></td>
                 <td><code class="small"><%= s.compat_group || 'therapy' %></code></td>
-                <td><span class="badge bg-light text-dark"><%= s.doctor_count %></span></td>
+                <td><span class="badge app-count-badge"><%= s.doctor_count %></span></td>
                 <td class="text-end">
                   <form method="POST" action="/admin/specializations/<%= s.id %>/delete" class="d-inline"
                     onsubmit="return confirm('Удалить «<%= s.name %>»?')">

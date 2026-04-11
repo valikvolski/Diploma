@@ -7,12 +7,23 @@ const { baseCookieOptions } = require('../utils/cookieConfig');
 const {
   issueTokenCookies,
   revokeRefreshByRaw,
+  revokeAllRefreshTokensForUser,
   clearAuthCookies,
   rotateRefreshAndIssue,
 } = require('../utils/jwtTokens');
+const { normalizeSixDigitCode } = require('../utils/passwordResetCode');
+const {
+  PURPOSE_FORGOT,
+  sendPasswordVerificationCode,
+  verifyPurposeCodeAndSetPassword,
+} = require('../utils/passwordResetOps');
+const {
+  sendPasswordResetCodeEmail,
+  sendPasswordChangedNoticeEmail,
+} = require('../utils/mailer');
 const { googleAuthParams, exchangeCodeForTokens, fetchGoogleUserInfo } = require('../utils/googleOAuth');
 const { deriveNamesFromGoogleProfile, syncGoogleProfileAfterLogin } = require('../utils/googleProfileSync');
-const { GOOGLE_SIGNUP_PLACEHOLDER_PHONE } = require('../utils/patientPhone');
+const { GOOGLE_SIGNUP_PLACEHOLDER_PHONE, normalizeBelarusPhone } = require('../utils/patientPhone');
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
@@ -49,12 +60,30 @@ const refreshLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req, res, _next, options) {
+    res.status(429).render('error', { message: String(options.message) });
+  },
+  message: 'Слишком много запросов восстановления. Попробуйте через час.',
+});
+
+const resetPasswordSubmitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req, res, _next, options) {
+    res.status(429).render('error', { message: String(options.message) });
+  },
+  message: 'Слишком много попыток сброса пароля. Подождите немного.',
+});
+
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function validatePhoneBY(phone) {
-  return /^\+375[0-9]{9}$/.test(String(phone || '').trim());
 }
 
 function safeNextPath(raw) {
@@ -63,6 +92,168 @@ function safeNextPath(raw) {
   if (!s.startsWith('/') || s.startsWith('//')) return '/';
   return s;
 }
+
+// ─── GET /auth/forgot-password ─────────────────────────────────────────────────
+
+router.get('/forgot-password', (req, res) => {
+  if (req.user) return res.redirect('/');
+  res.render('auth/forgot-password', {
+    error: null,
+    formData: { email: '' },
+    googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+  });
+});
+
+// ─── POST /auth/forgot-password ──────────────────────────────────────────────
+
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
+  if (req.user) return res.redirect('/');
+
+  const emailRaw = (req.body.email || '').trim();
+  const formData = { email: emailRaw };
+
+  if (!validateEmail(emailRaw)) {
+    return res.render('auth/forgot-password', {
+      error: 'Введите корректный адрес электронной почты',
+      formData,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    });
+  }
+
+  const email = emailRaw.toLowerCase();
+
+  try {
+    const uRes = await pool.query('SELECT id, is_blocked FROM users WHERE email = $1', [email]);
+    const user = uRes.rows[0];
+
+    if (user && !user.is_blocked) {
+      await sendPasswordVerificationCode(pool, {
+        userId: user.id,
+        email,
+        purpose: PURPOSE_FORGOT,
+        sendMailWithPlain: async ({ plain, expiresMinutes, to }) => {
+          await sendPasswordResetCodeEmail({
+            to,
+            code: plain,
+            expiresMinutes,
+          });
+        },
+      });
+    }
+
+    return res.redirect('/auth/reset-password?info=sent');
+  } catch (err) {
+    console.error('Forgot password error:', err.message || err);
+    return res.redirect('/auth/reset-password?info=sent');
+  }
+});
+
+// ─── GET /auth/reset-password ────────────────────────────────────────────────
+
+router.get('/reset-password', (req, res) => {
+  if (req.user) return res.redirect('/');
+  const info = req.query.info === 'sent';
+  res.render('auth/reset-password', {
+    error: null,
+    infoSent: info,
+    formData: { email: '', code: '', password: '', password_confirm: '' },
+    googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+  });
+});
+
+// ─── POST /auth/reset-password ───────────────────────────────────────────────
+
+router.post('/reset-password', resetPasswordSubmitLimiter, async (req, res) => {
+  if (req.user) return res.redirect('/');
+
+  const { email: emailRaw, password, password_confirm, code: codeRaw } = req.body;
+  const formData = {
+    email: (emailRaw || '').trim(),
+    code: codeRaw || '',
+    password: password || '',
+    password_confirm: password_confirm || '',
+  };
+
+  const renderErr = (error) =>
+    res.render('auth/reset-password', {
+      error,
+      infoSent: false,
+      formData: { ...formData, password: '', password_confirm: '' },
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    });
+
+  if (!validateEmail(formData.email)) {
+    return renderErr('Введите корректный email');
+  }
+
+  const code = normalizeSixDigitCode(formData.code);
+  if (!/^\d{6}$/.test(code)) {
+    return renderErr('Код должен состоять из 6 цифр');
+  }
+
+  if (!password || password.length < 6) {
+    return renderErr('Пароль должен содержать не менее 6 символов');
+  }
+
+  if (password !== password_confirm) {
+    return renderErr('Пароли не совпадают');
+  }
+
+  const email = formData.email.toLowerCase();
+
+  try {
+    const uRes = await pool.query(
+      'SELECT id, email, first_name, is_blocked FROM users WHERE email = $1',
+      [email]
+    );
+    if (!uRes.rows.length) {
+      return renderErr('Не удалось сбросить пароль. Проверьте email и код.');
+    }
+
+    const user = uRes.rows[0];
+    if (user.is_blocked) {
+      return renderErr('Не удалось сбросить пароль. Проверьте email и код.');
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const vr = await verifyPurposeCodeAndSetPassword(pool, {
+      userId: user.id,
+      purpose: PURPOSE_FORGOT,
+      codeRaw: formData.code,
+      password,
+      bcryptHash: passwordHash,
+    });
+
+    if (!vr.ok) {
+      const map = {
+        config: 'Сброс пароля временно недоступен. Обратитесь к администратору.',
+        bad_code_format: 'Код должен состоять из 6 цифр',
+        weak_password: 'Пароль должен содержать не менее 6 символов',
+        no_code: 'Сначала запросите код на странице «Забыли пароль?».',
+        code_invalid: 'Код недействителен или уже использован. Запросите новый на странице «Забыли пароль?».',
+        expired: 'Срок действия кода истёк. Запросите новый на странице «Забыли пароль?».',
+        too_many_attempts: 'Превышено число попыток ввода кода. Запросите новый код.',
+        wrong_code: 'Неверный код подтверждения.',
+      };
+      return renderErr(map[vr.error] || 'Не удалось сбросить пароль. Попробуйте снова.');
+    }
+
+    await revokeAllRefreshTokensForUser(pool, user.id);
+    try {
+      await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
+    } catch (_) {}
+    clearAuthCookies(res);
+
+    sendPasswordChangedNoticeEmail({ to: user.email, firstName: user.first_name }).catch(() => {});
+
+    return res.redirect(
+      '/auth/login?success=' + encodeURIComponent('Пароль обновлён. Войдите с новым паролем.')
+    );
+  } catch (err) {
+    console.error('Reset password error:', err.message || err);
+    return renderErr('Произошла ошибка. Попробуйте позже.');
+  }
+});
 
 // ─── GET /auth/register ──────────────────────────────────────────────────────
 
@@ -109,9 +300,10 @@ router.post('/register', registerLimiter, async (req, res) => {
     });
   }
 
-  if (!validatePhoneBY(phone)) {
+  const phoneNorm = normalizeBelarusPhone(phone);
+  if (!phoneNorm) {
     return res.render('auth/register', {
-      error: 'Неверный формат телефона. Пример: +375291234567',
+      error: 'Неверный формат телефона. Пример: 375291234567',
       formData,
       googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
@@ -134,7 +326,7 @@ router.post('/register', registerLimiter, async (req, res) => {
          (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked)
        VALUES ($1, $2, $3, $4, $5, $6, 'patient', false)
        RETURNING id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, password_hash, google_id`,
-      [email.toLowerCase().trim(), passwordHash, first_name.trim(), last_name.trim(), middle_name.trim(), phone.trim()]
+      [email.toLowerCase().trim(), passwordHash, first_name.trim(), last_name.trim(), middle_name.trim(), phoneNorm]
     );
 
     const row = ins.rows[0];
@@ -158,9 +350,19 @@ router.post('/register', registerLimiter, async (req, res) => {
 
 router.get('/login', (req, res) => {
   if (req.user) return res.redirect('/');
-  const success = req.query.registered
-    ? 'Регистрация прошла успешно! Теперь вы можете войти.'
-    : null;
+  let success = null;
+  if (req.query.registered) {
+    success = 'Регистрация прошла успешно! Теперь вы можете войти.';
+  } else if (req.query.password_changed === '1') {
+    success = 'Пароль изменён. Войдите с новым паролем.';
+  } else if (req.query.success && typeof req.query.success === 'string') {
+    try {
+      success = decodeURIComponent(req.query.success);
+    } catch {
+      success = null;
+    }
+    if (success && success.length > 500) success = success.slice(0, 500);
+  }
   res.render('auth/login', {
     success,
     formData: { email: '' },
@@ -214,7 +416,8 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     if (!user.password_hash) {
       return res.render('auth/login', {
-        error: 'Для этого аккаунта вход только через Google.',
+        error:
+          'Пароль для этого аккаунта ещё не задан. Войдите через Google или установите пароль через «Забыли пароль?».',
         formData: loginForm,
         next,
         googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
@@ -431,7 +634,7 @@ router.get('/google/callback', async (req, res) => {
     await issueTokenCookies(pool, user, req, res);
     return res.redirect(
       '/profile/edit?need_phone=1&success=' +
-        encodeURIComponent('Укажите номер телефона Беларуси (+375…) — он нужен для записи к врачу.')
+        encodeURIComponent('Укажите номер телефона (пример: 375291234567) — он нужен для записи к врачу.')
     );
   } catch (err) {
     console.error('Google OAuth error:', err);

@@ -111,23 +111,31 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
 
     <section class="mb-4 mb-lg-5" aria-labelledby="guest-spec-heading">
       <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-        <h2 id="guest-spec-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-0 js-home-reveal">Специализации</h2>
-        <a href="/doctors" class="btn btn-sm btn-outline-primary rounded-pill js-home-reveal">В каталог</a>
-      </div>
-      <div class="app-card border-0 shadow-sm p-3 p-md-4">
-        <div class="row g-2 g-md-3" data-reveal-stagger="1">
-          <% if (guest && guest.specializations && guest.specializations.length) { %>
-            <% guest.specializations.forEach(function(s, idx) { %>
-              <div class="col-6 col-md-4 col-xl-3">
-                <a href="/doctors" class="guest-spec-chip js-home-stagger d-block text-center text-decoration-none" data-stagger-order="<%= idx % 12 %>">
-                  <span class="fw-semibold small"><%= s.name %></span>
-                </a>
-              </div>
-            <% }) %>
-          <% } else { %>
-            <div class="col-12"><p class="text-muted small mb-0 text-center py-3">Список специализаций загружается из базы данных.</p></div>
-          <% } %>
+        <div class="min-w-0">
+          <h2 id="guest-spec-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-1 js-home-reveal">Популярные специализации</h2>
+          <p class="small text-muted mb-0 js-home-reveal">Направления из каталога — можно записаться к врачу онлайн.</p>
         </div>
+        <a href="/doctors" class="btn btn-sm btn-outline-primary rounded-pill flex-shrink-0 js-home-reveal">Показать все специализации</a>
+      </div>
+      <div class="row g-3" data-reveal-stagger="1">
+        <% var topSpecs = guest && guest.topSpecializations ? guest.topSpecializations : []; %>
+        <% if (topSpecs.length) { %>
+          <% topSpecs.forEach(function(s, idx) { %>
+            <div class="col-6 col-lg-3">
+              <a href="/doctors" class="guest-top-spec-card js-home-stagger h-100 text-decoration-none" data-stagger-order="<%= idx %>">
+                <span class="guest-top-spec-card__name"><%= s.name %></span>
+                <span class="guest-top-spec-card__hint">Доступны врачи в каталоге</span>
+              </a>
+            </div>
+          <% }) %>
+        <% } else { %>
+          <div class="col-12">
+            <div class="app-card border-0 shadow-sm p-4 text-center">
+              <p class="text-muted small mb-0">Специализации появятся после настройки справочника.</p>
+              <a href="/doctors" class="btn btn-sm btn-primary rounded-pill mt-3">Открыть каталог врачей</a>
+            </div>
+          </div>
+        <% } %>
       </div>
     </section>
 

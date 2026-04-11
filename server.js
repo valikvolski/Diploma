@@ -109,10 +109,28 @@ app.get('/', async (req, res) => {
     admin: null,
   };
 
+  const curatedTopSpecs = [
+    { id: null, name: 'Терапевт' },
+    { id: null, name: 'Педиатр' },
+    { id: null, name: 'Кардиолог' },
+    { id: null, name: 'Офтальмолог' },
+  ];
+
   try {
     if (!user) {
-      const [specsRes, previewDocsRes] = await Promise.all([
-        pool.query('SELECT id, name FROM specializations ORDER BY name'),
+      const [topSpecsRes, previewDocsRes] = await Promise.all([
+        pool.query(`
+          SELECT s.id, s.name, COALESCE(dc.cnt, 0)::int AS doctor_count
+          FROM specializations s
+          LEFT JOIN (
+            SELECT ds.specialization_id, COUNT(DISTINCT ds.doctor_user_id) AS cnt
+            FROM doctor_specializations ds
+            INNER JOIN users u ON u.id = ds.doctor_user_id AND u.role = 'doctor' AND u.is_blocked = false
+            GROUP BY ds.specialization_id
+          ) dc ON dc.specialization_id = s.id
+          ORDER BY COALESCE(dc.cnt, 0) DESC, s.name ASC
+          LIMIT 4
+        `),
         pool.query(
           `SELECT u.id,
                   u.last_name,
@@ -142,8 +160,9 @@ app.get('/', async (req, res) => {
            LIMIT 3`
         ),
       ]);
+      const topRows = topSpecsRes.rows || [];
       viewData.guest = {
-        specializations: specsRes.rows,
+        topSpecializations: topRows.length ? topRows.slice(0, 4) : curatedTopSpecs,
         previewDoctors: previewDocsRes.rows,
       };
     } else if (user.role === 'patient') {

@@ -1,6 +1,11 @@
 <%- include('../partials/header', { title: title }) %>
-<% var dsTitle = 'Управление врачами'; var dsSubtitle = 'Создание, редактирование и блокировка учётных записей'; var dsIcon = 'bi-person-badge'; var dsActions = '<a href="/admin/doctors/new" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-plus-circle me-1"></i>Добавить врача</a>'; %>
-<%- include('../partials/ds-page-header') %>
+<%
+  var dsTitle = 'Управление врачами';
+  var dsSubtitle = 'Создание, редактирование и блокировка учётных записей';
+  var dsIcon = 'bi-person-badge';
+  var dsActions = '<a href="/admin/doctors/new" class="btn btn-primary rounded-pill d-inline-flex align-items-center gap-1 text-nowrap"><i class="bi bi-plus-lg"></i>Добавить врача</a>';
+%>
+<%- include('../partials/ds-page-header', { dsTitle: dsTitle, dsSubtitle: dsSubtitle, dsIcon: dsIcon, dsActions: dsActions }) %>
 
 <% if (success) { %><div class="alert alert-success alert-dismissible fade show"><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
 <% if (error) { %><div class="alert alert-danger alert-dismissible fade show"><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>

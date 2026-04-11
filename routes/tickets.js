@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/db');
 const { requireAuth } = require('../middleware/auth');
+const { formatAppointmentDateRu } = require('../utils/ticketFormat');
 
 const router = express.Router();
 
@@ -47,6 +48,8 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
 
     const ticket = result.rows[0];
+    ticket.formatted_date = formatAppointmentDateRu(ticket.appointment_date);
+    ticket.formatted_time = ticket.appointment_time || '—';
 
     if (req.user.role === 'patient' && ticket.patient_id !== req.user.id) {
       return res.status(403).render('error', { message: 'Доступ запрещён' });

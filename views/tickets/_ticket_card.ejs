@@ -1,0 +1,125 @@
+<%#
+  Общая вёрстка талона (сайт + PDF).
+  Ожидает объект ticket с полями:
+  ticket_number, status, patient_*, doctor_*, specialization,
+  formatted_date, formatted_time, cabinet
+-%>
+<div class="ticket-wrapper ticket-print-root">
+  <div class="ticket-card card shadow">
+
+    <div class="ticket-header text-white text-center p-4">
+      <div class="ticket-icon mb-2">
+        <i class="bi bi-ticket-perforated-fill"></i>
+      </div>
+      <div class="ticket-label small text-uppercase fw-bold opacity-75 mb-1">Электронный талон</div>
+      <div class="ticket-number"><%= ticket.ticket_number %></div>
+    </div>
+
+    <div class="ticket-body card-body p-4">
+
+      <div class="text-center mb-4">
+        <% if (ticket.status === 'booked') { %>
+          <span class="status-pill status-pill--booked fs-6 px-4 py-2">
+            <i class="bi bi-check-circle"></i>Забронировано
+          </span>
+        <% } else if (ticket.status === 'cancelled') { %>
+          <span class="status-pill status-pill--cancelled fs-6 px-4 py-2">
+            <i class="bi bi-x-circle"></i>Отменено
+          </span>
+        <% } else if (ticket.status === 'completed') { %>
+          <span class="status-pill status-pill--completed fs-6 px-4 py-2">
+            <i class="bi bi-check2-all"></i>Завершено
+          </span>
+        <% } %>
+      </div>
+
+      <div class="ticket-divider"></div>
+
+      <div class="row g-4 mt-1">
+
+        <div class="col-md-6">
+          <div class="ticket-section">
+            <div class="ticket-section-title">
+              <i class="bi bi-person-fill text-primary"></i> Пациент
+            </div>
+            <div class="ticket-section-value">
+              <%= ticket.patient_last_name %> <%= ticket.patient_first_name %> <%= ticket.patient_middle_name || '' %>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="ticket-section">
+            <div class="ticket-section-title">
+              <i class="bi bi-person-badge-fill text-primary"></i> Врач
+            </div>
+            <div class="ticket-section-value">
+              <%= ticket.doctor_last_name %>
+              <%= ticket.doctor_first_name ? ticket.doctor_first_name.charAt(0) + '.' : '' %>
+              <%= ticket.doctor_middle_name ? ticket.doctor_middle_name.charAt(0) + '.' : '' %>
+            </div>
+            <% if (ticket.specialization) { %>
+              <span class="badge spec-badge mt-1"><%= ticket.specialization %></span>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="ticket-section">
+            <div class="ticket-section-title">
+              <i class="bi bi-calendar3 text-primary"></i> Дата приёма
+            </div>
+            <div class="ticket-section-value"><%= ticket.formatted_date %></div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="ticket-section">
+            <div class="ticket-section-title">
+              <i class="bi bi-clock text-primary"></i> Время приёма
+            </div>
+            <div class="ticket-section-value ticket-time"><%= ticket.formatted_time || '—' %></div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="ticket-section">
+            <div class="ticket-section-title">
+              <i class="bi bi-door-open text-primary"></i> Кабинет
+            </div>
+            <div class="ticket-section-value">
+              <%= ticket.cabinet ? '№ ' + ticket.cabinet : '—' %>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="ticket-divider mt-4"></div>
+
+      <div class="ticket-hint text-muted small text-center mt-3 mb-1">
+        <i class="bi bi-info-circle me-1"></i>
+        Пожалуйста, приходите за 10–15 минут до начала приёма.
+        Предъявите этот талон на стойке регистрации.
+      </div>
+
+    </div>
+
+    <% if (typeof showActionFooter !== 'undefined' && showActionFooter) { %>
+    <div class="card-footer bg-transparent border-0 px-4 pb-4 no-print">
+      <div class="d-flex gap-3 justify-content-center flex-wrap">
+        <button type="button" id="ticketPrintBtn" class="btn btn-primary px-4 rounded-pill">
+          <i class="bi bi-printer me-2"></i>Распечатать талон
+        </button>
+        <a href="/profile/appointments" class="btn btn-outline-secondary px-4 rounded-pill">
+          <i class="bi bi-list-ul me-2"></i>Мои записи
+        </a>
+        <a href="/doctors" class="btn btn-outline-secondary px-4 rounded-pill">
+          <i class="bi bi-search me-2"></i>Найти врача
+        </a>
+      </div>
+    </div>
+    <% } %>
+
+  </div>
+</div>

@@ -89,8 +89,25 @@
 
       <div class="row g-3 mb-3">
         <div class="col-md-6">
-          <label class="form-label fw-semibold">Телефон</label>
-          <input type="tel" class="form-control" name="phone" value="<%= doctor ? doctor.phone || '' : '' %>">
+          <label class="form-label fw-semibold" for="admin_doctor_phone">Телефон</label>
+          <div class="input-group ds-input-group">
+            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+            <input
+              type="tel"
+              class="form-control"
+              id="admin_doctor_phone"
+              name="phone"
+              data-phone-by="1"
+              value="<%= doctor ? String(doctor.phone || '').replace(/^\+/, '') : '' %>"
+              required
+              pattern="\+?375[0-9]{9}|[0-9]{9}"
+              placeholder="375291234567"
+              inputmode="tel"
+              autocomplete="tel"
+              maxlength="12"
+            />
+          </div>
+          <div class="form-text">Пример: 375291234567</div>
         </div>
       </div>
 
@@ -162,4 +179,5 @@
   </div>
 </div>
 
+<script src="/js/phone-belarus.js"></script>
 <%- include('../partials/footer') %>

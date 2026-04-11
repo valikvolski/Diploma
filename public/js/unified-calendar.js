@@ -40,6 +40,14 @@
     return true;
   }
 
+  function yearBounds(min, max) {
+    const lo = min ? parseYmd(min) : null;
+    const hi = max ? parseYmd(max) : null;
+    const minY = lo ? lo.y : 1900;
+    const maxY = hi ? hi.y : new Date().getFullYear();
+    return { minY, maxY, min, max };
+  }
+
   function initUnifiedDateField(source) {
     if (source.dataset.ucInit === '1') return;
     source.dataset.ucInit = '1';
@@ -48,6 +56,8 @@
     const max = source.getAttribute('max') || '';
     const autoSubmit = source.getAttribute('data-auto-submit') === '1';
     const required = source.required;
+    const yearMonthPickers = source.getAttribute('data-uc-year-month') === '1';
+    const bounds = yearBounds(min, max);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'uc-field';
@@ -100,7 +110,32 @@
       if (autoSubmit && source.form) source.form.submit();
     }
 
+    function clampStateToBounds() {
+      if (state.y < bounds.minY) state.y = bounds.minY;
+      if (state.y > bounds.maxY) state.y = bounds.maxY;
+      const dimNow = new Date(state.y, state.m, 0).getDate();
+      if (state.d > dimNow) state.d = dimNow;
+      const cur = toYmd(state.y, state.m, state.d);
+      if (min && cur < min) {
+        const p = parseYmd(min);
+        if (p) {
+          state.y = p.y;
+          state.m = p.m;
+          state.d = p.d;
+        }
+      }
+      if (max && cur > max) {
+        const p = parseYmd(max);
+        if (p) {
+          state.y = p.y;
+          state.m = p.m;
+          state.d = p.d;
+        }
+      }
+    }
+
     function render() {
+      clampStateToBounds();
       const first = new Date(state.y, state.m - 1, 1);
       const dim = new Date(state.y, state.m, 0).getDate();
       const startPad = mondayOffset(first.getDay());
@@ -109,10 +144,24 @@
       const today = todayYmd();
 
       let html = '';
-      html += '<div class="uc-head">';
-      html += '<button type="button" class="btn btn-outline-primary btn-sm uc-nav" data-nav="-1"><i class="bi bi-chevron-left"></i></button>';
-      html += '<strong>' + MONTHS[state.m - 1] + ' ' + state.y + '</strong>';
-      html += '<button type="button" class="btn btn-outline-primary btn-sm uc-nav" data-nav="1"><i class="bi bi-chevron-right"></i></button>';
+      html += '<div class="uc-head' + (yearMonthPickers ? ' uc-head--ym' : '') + '">';
+      html += '<button type="button" class="btn btn-outline-primary btn-sm uc-nav" data-nav="-1" aria-label="Предыдущий месяц"><i class="bi bi-chevron-left"></i></button>';
+      if (yearMonthPickers) {
+        html += '<div class="uc-ym-selects">';
+        html += '<select class="form-select form-select-sm uc-select-month" aria-label="Месяц">';
+        for (let mi = 1; mi <= 12; mi++) {
+          html += '<option value="' + mi + '"' + (mi === state.m ? ' selected' : '') + '>' + MONTHS[mi - 1] + '</option>';
+        }
+        html += '</select>';
+        html += '<select class="form-select form-select-sm uc-select-year" aria-label="Год">';
+        for (let yy = bounds.maxY; yy >= bounds.minY; yy--) {
+          html += '<option value="' + yy + '"' + (yy === state.y ? ' selected' : '') + '>' + yy + '</option>';
+        }
+        html += '</select></div>';
+      } else {
+        html += '<strong class="uc-month-title">' + MONTHS[state.m - 1] + ' ' + state.y + '</strong>';
+      }
+      html += '<button type="button" class="btn btn-outline-primary btn-sm uc-nav" data-nav="1" aria-label="Следующий месяц"><i class="bi bi-chevron-right"></i></button>';
       html += '</div>';
       html += '<div class="uc-week">' + WEEKDAYS.map(function (d) { return '<span>' + d + '</span>'; }).join('') + '</div>';
       html += '<div class="uc-grid">';
@@ -145,11 +194,37 @@
           state.m += step;
           if (state.m < 1) { state.m = 12; state.y -= 1; }
           if (state.m > 12) { state.m = 1; state.y += 1; }
+          clampStateToBounds();
           queueMicrotask(function () {
             render();
           });
         });
       });
+
+      if (yearMonthPickers) {
+        const selM = popup.querySelector('.uc-select-month');
+        const selY = popup.querySelector('.uc-select-year');
+        if (selM) {
+          selM.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+          selM.addEventListener('click', function (e) { e.stopPropagation(); });
+          selM.addEventListener('change', function (ev) {
+            ev.stopPropagation();
+            state.m = parseInt(selM.value, 10) || 1;
+            clampStateToBounds();
+            queueMicrotask(function () { render(); });
+          });
+        }
+        if (selY) {
+          selY.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+          selY.addEventListener('click', function (e) { e.stopPropagation(); });
+          selY.addEventListener('change', function (ev) {
+            ev.stopPropagation();
+            state.y = parseInt(selY.value, 10) || bounds.minY;
+            clampStateToBounds();
+            queueMicrotask(function () { render(); });
+          });
+        }
+      }
 
       popup.querySelectorAll('.uc-day[data-date]').forEach(function (btn) {
         btn.addEventListener('click', function (ev) {
@@ -167,6 +242,7 @@
       if (sel) {
         state.y = sel.y;
         state.m = sel.m;
+        state.d = sel.d;
       }
       popup.classList.remove('d-none');
       render();

@@ -25,6 +25,8 @@
   "homepage": "https://github.com/valikvolski/Diploma#readme",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
     "cookie-parser": "^1.4.7",
     "csrf": "^3.1.0",
     "dotenv": "^17.4.1",
@@ -36,6 +38,7 @@
     "multer": "^2.1.1",
     "nodemailer": "^6.10.1",
     "pg": "^8.20.0",
+    "puppeteer": "^24.40.0",
     "sharp": "^0.34.5"
   },
   "devDependencies": {

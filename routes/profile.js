@@ -1,15 +1,48 @@
 const express = require('express');
 const fs = require('fs').promises;
+const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
-const { patientNeedsPhoneCompletion } = require('../utils/patientPhone');
+const { patientNeedsPhoneCompletion, normalizeBelarusPhone } = require('../utils/patientPhone');
 const { verifyCsrfFromRequest } = require('../middleware/csrf');
-const { sendAppointmentCancelledEmail } = require('../utils/mailer');
+const { sendAppointmentCancelledEmail, sendProfilePasswordChangeCodeEmail, sendPasswordChangedNoticeEmail } = require('../utils/mailer');
+const {
+  PURPOSE_PROFILE_CHANGE,
+  sendPasswordVerificationCode,
+  verifyPurposeCodeAndSetPassword,
+} = require('../utils/passwordResetOps');
+const {
+  revokeAllRefreshTokensForUser,
+  revokeRefreshByRaw,
+  clearAuthCookies,
+} = require('../utils/jwtTokens');
 
 const router = express.Router();
 const patientOnly = [requireAuth, requireRole(['patient'])];
+const SALT_ROUNDS = 10;
+
+const profilePasswordSendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req, res) {
+    res.status(429).json({ ok: false, error: 'rate_limit', message: 'Слишком много запросов. Попробуйте позже.' });
+  },
+});
+
+const profilePasswordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 35,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req, res) {
+    res.status(429).json({ ok: false, error: 'rate_limit', message: 'Слишком много попыток. Подождите.' });
+  },
+});
 
 function avatarUserForEdit(currentUser, formData) {
   return {
@@ -209,12 +242,13 @@ router.post('/edit', ...patientOnly, async (req, res) => {
     });
   }
 
-  if (!/^\+375[0-9]{9}$/.test(phone.trim())) {
+  const phoneNorm = normalizeBelarusPhone(phone);
+  if (!phoneNorm) {
     return res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
       avatarUser: avatarUserForEdit(req.user, formData),
-      error: 'Неверный формат телефона. Пример: +375291234567',
+      error: 'Неверный формат телефона. Пример: 375291234567',
       ...profileEditExtras,
     });
   }
@@ -222,7 +256,7 @@ router.post('/edit', ...patientOnly, async (req, res) => {
   try {
     await pool.query(
       'UPDATE users SET first_name=$1, last_name=$2, middle_name=$3, phone=$4 WHERE id=$5',
-      [first_name.trim(), last_name.trim(), middle_name.trim(), phone.trim(), req.user.id]
+      [first_name.trim(), last_name.trim(), middle_name.trim(), phoneNorm, req.user.id]
     );
 
     // Upsert patient_profiles
@@ -303,6 +337,117 @@ router.post('/avatar/remove', ...patientOnly, async (req, res) => {
   } catch (e) {
     console.error('Profile avatar remove error:', e);
     res.redirect('/profile/edit?error=' + encodeURIComponent('Не удалось удалить фото'));
+  }
+});
+
+// ─── POST /profile/password/send-code (JSON, пациент) ─────────────────────────
+
+router.post('/password/send-code', profilePasswordSendLimiter, ...patientOnly, async (req, res) => {
+  if (!verifyCsrfFromRequest(req)) {
+    return res.status(403).json({ ok: false, error: 'csrf' });
+  }
+  try {
+    const uRes = await pool.query('SELECT id, email, is_blocked FROM users WHERE id = $1', [req.user.id]);
+    if (!uRes.rows.length) {
+      return res.status(404).json({ ok: false, error: 'user' });
+    }
+    const u = uRes.rows[0];
+    if (u.is_blocked) {
+      return res.status(403).json({ ok: false, error: 'blocked' });
+    }
+
+    const result = await sendPasswordVerificationCode(pool, {
+      userId: u.id,
+      email: u.email,
+      purpose: PURPOSE_PROFILE_CHANGE,
+      sendMailWithPlain: async ({ plain, expiresMinutes, to }) => {
+        await sendProfilePasswordChangeCodeEmail({
+          to,
+          code: plain,
+          expiresMinutes,
+        });
+      },
+    });
+
+    if (result.reason === 'config') {
+      return res.status(503).json({ ok: false, error: 'config', message: 'Сервис временно недоступен.' });
+    }
+    if (!result.sent && result.reason === 'cooldown') {
+      return res.json({
+        ok: true,
+        sent: false,
+        message: 'Подождите минуту перед повторной отправкой кода.',
+      });
+    }
+    if (!result.sent && result.reason === 'hourly_limit') {
+      return res.json({
+        ok: true,
+        sent: false,
+        message: 'Превышен лимит писем в час. Попробуйте позже.',
+      });
+    }
+    return res.json({ ok: true, sent: true });
+  } catch (err) {
+    console.error('Profile password send-code:', err.message || err);
+    return res.status(500).json({ ok: false, error: 'server' });
+  }
+});
+
+// ─── POST /profile/password/change (JSON, пациент) ───────────────────────────
+
+router.post('/password/change', profilePasswordChangeLimiter, ...patientOnly, async (req, res) => {
+  if (!verifyCsrfFromRequest(req)) {
+    return res.status(403).json({ ok: false, error: 'csrf' });
+  }
+
+  const { code, password, password_confirm } = req.body || {};
+  const pwd = typeof password === 'string' ? password : '';
+  const pwd2 = typeof password_confirm === 'string' ? password_confirm : '';
+
+  if (!pwd || pwd.length < 6) {
+    return res.status(400).json({ ok: false, error: 'weak_password' });
+  }
+  if (pwd !== pwd2) {
+    return res.status(400).json({ ok: false, error: 'mismatch' });
+  }
+
+  try {
+    const uRes = await pool.query('SELECT id, email, first_name, is_blocked FROM users WHERE id = $1', [
+      req.user.id,
+    ]);
+    if (!uRes.rows.length || uRes.rows[0].is_blocked) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const u = uRes.rows[0];
+
+    const passwordHash = await bcrypt.hash(pwd, SALT_ROUNDS);
+    const vr = await verifyPurposeCodeAndSetPassword(pool, {
+      userId: u.id,
+      purpose: PURPOSE_PROFILE_CHANGE,
+      codeRaw: code,
+      password: pwd,
+      bcryptHash: passwordHash,
+    });
+
+    if (!vr.ok) {
+      return res.status(400).json({ ok: false, error: vr.error });
+    }
+
+    await revokeAllRefreshTokensForUser(pool, u.id);
+    try {
+      await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
+    } catch (_) {}
+    clearAuthCookies(res);
+
+    sendPasswordChangedNoticeEmail({ to: u.email, firstName: u.first_name }).catch(() => {});
+
+    return res.json({
+      ok: true,
+      redirect: '/auth/login?password_changed=1',
+    });
+  } catch (err) {
+    console.error('Profile password change:', err.message || err);
+    return res.status(500).json({ ok: false, error: 'server' });
   }
 });
 

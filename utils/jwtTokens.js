@@ -100,6 +100,14 @@ async function revokeRefreshByRaw(pool, rawRefresh) {
   );
 }
 
+async function revokeAllRefreshTokensForUser(pool, userId) {
+  const id = parseInt(userId, 10);
+  if (isNaN(id)) return;
+  await pool.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL', [
+    id,
+  ]);
+}
+
 /**
  * Validates refresh cookie, revokes old row, issues new refresh + access. Returns user row or null.
  */
@@ -168,6 +176,7 @@ module.exports = {
   verifyAccessToken,
   issueTokenCookies,
   revokeRefreshByRaw,
+  revokeAllRefreshTokensForUser,
   rotateRefreshAndIssue,
   attachUserFromAccessOrRefresh,
   parseDurationToMs,

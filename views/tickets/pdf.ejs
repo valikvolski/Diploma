@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ru" class="ticket-pdf-root" data-bs-theme="light" data-app-theme="light" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Талон <%= ticket.ticket_number %></title>
+  <style type="text/css">
+<%- inlinedStyles %>
+  </style>
+</head>
+<body class="ticket-pdf-body app-body">
+<% if (typeof pdfBannerLine !== 'undefined' && pdfBannerLine) { %>
+  <div class="ticket-pdf-banner"><%= pdfBannerLine %></div>
+<% } %>
+<%- include('_ticket_card', { ticket }) %>
+</body>
+</html>

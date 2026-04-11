@@ -1,8 +1,9 @@
 <%- include('../partials/header', { title: title }) %>
 <% var dsTitle = 'Профиль пациента'; var dsSubtitle = 'ФИО, телефон и дата рождения'; var dsIcon = 'bi-person'; var dsBackHref = '/profile/appointments'; var dsBackLabel = 'К моим записям'; %>
 <%- include('../partials/ds-page-header') %>
+<% var birthDateMax = new Date().toISOString().slice(0, 10); %>
 
-<div class="row justify-content-center">
+<div class="row justify-content-center profile-edit-page">
   <div class="col-lg-8">
     <div class="auth-card ds-auth-card card border-0 mx-auto" style="max-width: 640px;">
       <div class="card-body p-4 p-md-5">
@@ -29,7 +30,7 @@
         <% if (typeof needPhoneBanner !== 'undefined' && needPhoneBanner) { %>
           <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
             <i class="bi bi-telephone-fill flex-shrink-0 mt-1"></i>
-            <span>Для записи к врачу укажите <strong>реальный</strong> номер телефона Беларуси в формате <code>+375XXXXXXXXX</code> (заглушка из Google недостаточна).</span>
+            <span>Для записи к врачу укажите <strong>реальный</strong> номер телефона в формате <code>375XXXXXXXXX</code> (пример: <code>375291234567</code>). Заглушка из Google недостаточна.</span>
           </div>
         <% } %>
 
@@ -64,6 +65,14 @@
           </div>
         </div>
         <% } %>
+
+        <div class="app-card border-0 shadow-sm p-3 p-md-4 mb-4 profile-security-card">
+          <h2 class="h6 fw-bold mb-3"><i class="bi bi-shield-lock text-primary me-2"></i>Безопасность</h2>
+          <p class="small text-muted mb-3 mb-md-0">Смена пароля подтверждается кодом из письма на ваш адрес <strong class="text-body"><%= typeof formData !== 'undefined' && formData.email ? formData.email : '' %></strong>.</p>
+          <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+            <i class="bi bi-key me-1"></i>Изменить пароль
+          </button>
+        </div>
 
         <form method="POST" action="/profile/edit" novalidate>
           <%- include('../partials/csrf') %>
@@ -108,24 +117,31 @@
           </div>
 
           <div class="mb-3">
-            <label for="phone" class="form-label fw-semibold">Телефон (РБ)</label>
+            <label for="phone" class="form-label fw-semibold">Телефон</label>
             <div class="input-group ds-input-group">
               <span class="input-group-text"><i class="bi bi-phone"></i></span>
               <input type="tel" class="form-control" id="phone" name="phone"
-                value="<%= formData.phone %>"
-                pattern="\+375[0-9]{9}"
-                placeholder="+375291234567"
-                maxlength="13"
+                data-phone-by="1"
+                value="<%= String(formData.phone || '').replace(/^\+/, '') %>"
+                pattern="\+?375[0-9]{9}|[0-9]{9}"
+                placeholder="375291234567"
+                inputmode="tel"
+                autocomplete="tel"
+                maxlength="12"
                 required />
             </div>
-            <div class="form-text">Формат: +375 и 9 цифр</div>
+            <div class="form-text">Пример: 375291234567</div>
           </div>
 
-          <div class="mb-4">
+          <div class="mb-4 profile-birth-field">
             <label for="birth_date" class="form-label fw-semibold">Дата рождения</label>
             <input type="date" class="form-control" id="birth_date" name="birth_date"
               value="<%= formData.birth_date ? String(formData.birth_date).substring(0, 10) : '' %>"
-              data-unified-calendar="1" />
+              min="1900-01-01"
+              max="<%= birthDateMax %>"
+              data-unified-calendar="1"
+              data-uc-year-month="1"
+              autocomplete="bday" />
           </div>
 
           <button type="submit" class="btn btn-primary rounded-pill px-4">
@@ -137,5 +153,57 @@
   </div>
 </div>
 
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold" id="changePasswordModalLabel">Смена пароля</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div id="pwChangeStepA">
+          <p class="small mb-3">Для смены пароля подтвердите действие кодом из письма.</p>
+          <button type="button" class="btn btn-primary w-100 rounded-pill" id="pwChangeSendCode">
+            <span class="pw-change-btn-label"><i class="bi bi-envelope me-2"></i>Отправить код на почту</span>
+            <span class="pw-change-btn-spinner d-none spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span class="pw-change-btn-loading d-none">Отправка…</span>
+          </button>
+          <p class="small text-success mt-3 mb-0 d-none" id="pwChangeCodeSent"><i class="bi bi-check-circle me-1"></i>Код отправлен. Проверьте почту.</p>
+          <p class="small text-danger mt-2 mb-0 d-none" id="pwChangeStepAError"></p>
+        </div>
+        <div id="pwChangeStepB" class="d-none">
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="pwChangeCode">Код из письма</label>
+            <input type="text" class="form-control" id="pwChangeCode" inputmode="numeric" maxlength="12" placeholder="000000" autocomplete="one-time-code" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="pwChangeNew">Новый пароль</label>
+            <div class="input-group ds-input-group">
+              <span class="input-group-text"><i class="bi bi-key"></i></span>
+              <input type="password" class="form-control" id="pwChangeNew" minlength="6" autocomplete="new-password" />
+              <button class="btn btn-outline-secondary" type="button" id="pwChangeToggle1" aria-label="Показать пароль"><i class="bi bi-eye"></i></button>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="pwChangeNew2">Подтверждение</label>
+            <div class="input-group ds-input-group">
+              <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
+              <input type="password" class="form-control" id="pwChangeNew2" minlength="6" autocomplete="new-password" />
+              <button class="btn btn-outline-secondary" type="button" id="pwChangeToggle2" aria-label="Показать пароль"><i class="bi bi-eye"></i></button>
+            </div>
+          </div>
+          <p class="small text-danger mb-3 d-none" id="pwChangeStepBError"></p>
+          <button type="button" class="btn btn-danger w-100 rounded-pill" id="pwChangeSubmit">
+            <span class="pw-change-submit-label"><i class="bi bi-check-lg me-2"></i>Сменить пароль</span>
+            <span class="pw-change-submit-spinner d-none spinner-border spinner-border-sm me-2"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/phone-belarus.js"></script>
 <script src="/js/auth-forms.js"></script>
+<script src="/js/profile-password-modal.js"></script>
 <%- include('../partials/footer') %>

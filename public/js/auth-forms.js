@@ -1,5 +1,6 @@
 /**
- * Auth: password visibility toggles, register helpers (phone mask, strength, confirm match).
+ * Auth: password visibility toggles, register helpers (strength, confirm match).
+ * Телефон (375…): /js/phone-belarus.js + data-phone-by="1"
  */
 (function () {
   'use strict';
@@ -75,26 +76,6 @@
           strengthEl.innerHTML = html;
         });
       }
-    }
-
-    var phoneInput = document.getElementById('phone');
-    if (phoneInput) {
-      phoneInput.addEventListener('input', function () {
-        var val = this.value.replace(/[^\d+]/g, '');
-        if (!val.startsWith('+')) val = '+' + val;
-        if (!val.startsWith('+375')) {
-          if (val.length <= 1) val = '+375';
-          else val = '+375' + val.replace(/^\+/, '').replace(/^375/, '');
-        }
-        if (val.length > 13) val = val.slice(0, 13);
-        this.value = val;
-      });
-      phoneInput.addEventListener('focus', function () {
-        if (!this.value) this.value = '+375';
-      });
-      phoneInput.addEventListener('blur', function () {
-        if (this.value === '+375') this.value = '';
-      });
     }
   });
 })();
