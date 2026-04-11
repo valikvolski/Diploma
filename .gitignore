@@ -65,14 +65,35 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# User uploads (keep directory via .gitkeep)
-public/uploads/avatars/*
+# User uploads (локальные файлы; в репозитории только .gitkeep)
+public/uploads/**
+!public/uploads/avatars/
 !public/uploads/avatars/.gitkeep
 
-# dotenv environment variable files
+# dotenv — секреты только в локальном .env
 .env
 .env.*
 !.env.example
+
+# Ключи и учётные данные
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+credentials*.json
+client_secret*.json
+service-account*.json
+
+# IDE / ОС
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Случайные файлы с секретами (не добавлять в git)
+Untitled
+Untitled.*
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
