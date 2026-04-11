@@ -1,6 +1,6 @@
 const GOOGLE_AUTH = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token';
-const GOOGLE_USERINFO = 'https://www.googleapis.com/oauth2/v2/userinfo';
+const GOOGLE_OIDC_USERINFO = 'https://openidconnect.googleapis.com/v1/userinfo';
 
 function googleAuthParams(state) {
   const clientId = process.env.GOOGLE_CLIENT_ID || '';
@@ -41,21 +41,56 @@ async function exchangeCodeForTokens(code) {
   return data;
 }
 
-async function fetchGoogleProfile(accessToken) {
-  const res = await fetch(GOOGLE_USERINFO, {
+function normalizeGoogleUserinfo(raw) {
+  const sub = raw.sub != null ? String(raw.sub) : raw.id != null ? String(raw.id) : '';
+  let emailVerified = raw.email_verified === true || raw.email_verified === 'true';
+  if (raw.email_verified === false || raw.email_verified === 'false') emailVerified = false;
+
+  return {
+    sub,
+    email: raw.email ? String(raw.email).toLowerCase().trim() : '',
+    email_verified: emailVerified,
+    name: raw.name ? String(raw.name).trim() : '',
+    given_name: raw.given_name ? String(raw.given_name).trim() : '',
+    family_name: raw.family_name ? String(raw.family_name).trim() : '',
+    picture: raw.picture ? String(raw.picture).trim() : null,
+    locale: raw.locale ? String(raw.locale).trim() : null,
+  };
+}
+
+/**
+ * Prefer OIDC userinfo; decode id_token payload as fallback (unsigned body only).
+ */
+async function fetchGoogleUserInfo(accessToken, idToken) {
+  const res = await fetch(GOOGLE_OIDC_USERINFO, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.id) {
-    const err = new Error('profile_fetch_failed');
-    err.code = 'GOOGLE_PROFILE';
-    throw err;
+  if (res.ok && data.sub) {
+    return normalizeGoogleUserinfo(data);
   }
-  return data;
+
+  if (idToken) {
+    try {
+      const parts = String(idToken).split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        if (payload.sub) {
+          return normalizeGoogleUserinfo(payload);
+        }
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  const err = new Error('profile_fetch_failed');
+  err.code = 'GOOGLE_PROFILE';
+  throw err;
 }
 
 module.exports = {
   googleAuthParams,
   exchangeCodeForTokens,
-  fetchGoogleProfile,
+  fetchGoogleUserInfo,
 };

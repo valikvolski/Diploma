@@ -103,7 +103,7 @@ router.get('/', ...adminOnly, async (req, res) => {
 router.get('/doctors', ...adminOnly, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked, u.avatar_path,
+      `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked, u.avatar_path, u.avatar_url,
               dp.cabinet, dp.experience_years,
               specs.spec_list AS specializations
        FROM users u

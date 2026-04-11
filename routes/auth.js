@@ -10,7 +10,9 @@ const {
   clearAuthCookies,
   rotateRefreshAndIssue,
 } = require('../utils/jwtTokens');
-const { googleAuthParams, exchangeCodeForTokens, fetchGoogleProfile } = require('../utils/googleOAuth');
+const { googleAuthParams, exchangeCodeForTokens, fetchGoogleUserInfo } = require('../utils/googleOAuth');
+const { deriveNamesFromGoogleProfile, syncGoogleProfileAfterLogin } = require('../utils/googleProfileSync');
+const { GOOGLE_SIGNUP_PLACEHOLDER_PHONE } = require('../utils/patientPhone');
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
@@ -311,9 +313,9 @@ router.get('/google/callback', async (req, res) => {
 
   try {
     const tokenPayload = await exchangeCodeForTokens(String(code));
-    const profile = await fetchGoogleProfile(tokenPayload.access_token);
+    const profile = await fetchGoogleUserInfo(tokenPayload.access_token, tokenPayload.id_token);
 
-    if (!profile.verified_email || !profile.email) {
+    if (!profile.email_verified || !profile.email) {
       return res.render('auth/login', {
         error: 'Google не подтвердил email. Выберите аккаунт с подтверждённой почтой.',
         formData: { email: '' },
@@ -322,14 +324,22 @@ router.get('/google/callback', async (req, res) => {
       });
     }
 
-    const email = String(profile.email).toLowerCase().trim();
-    const googleSub = String(profile.id);
+    const email = profile.email;
+    const googleSub = profile.sub;
+    if (!googleSub) {
+      return res.render('auth/login', {
+        error: 'Не удалось получить идентификатор профиля Google.',
+        formData: { email: '' },
+        next: '/',
+        googleAuthEnabled: true,
+      });
+    }
 
-    const byGoogle = await pool.query(
-      `SELECT id, email, password_hash, first_name, last_name, middle_name, role, is_blocked, avatar_path, google_id
-       FROM users WHERE google_id = $1`,
-      [googleSub]
-    );
+    const userSelect = `SELECT id, email, password_hash, first_name, last_name, middle_name, role, is_blocked,
+        avatar_path, avatar_url, google_id
+       FROM users WHERE `;
+
+    const byGoogle = await pool.query(userSelect + 'google_id = $1', [googleSub]);
 
     let user = byGoogle.rows[0];
 
@@ -342,16 +352,19 @@ router.get('/google/callback', async (req, res) => {
           googleAuthEnabled: true,
         });
       }
+      await syncGoogleProfileAfterLogin(pool, user.id, profile, user);
+      const refreshed = await pool.query(
+        `SELECT id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, avatar_url, password_hash, google_id
+         FROM users WHERE id = $1`,
+        [user.id]
+      );
+      user = refreshed.rows[0];
       await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
       await issueTokenCookies(pool, user, req, res);
       return res.redirect('/');
     }
 
-    const byEmail = await pool.query(
-      `SELECT id, email, password_hash, first_name, last_name, middle_name, role, is_blocked, avatar_path, google_id
-       FROM users WHERE email = $1`,
-      [email]
-    );
+    const byEmail = await pool.query(userSelect + 'email = $1', [email]);
 
     if (byEmail.rows.length) {
       user = byEmail.rows[0];
@@ -375,22 +388,38 @@ router.get('/google/callback', async (req, res) => {
         await pool.query('UPDATE users SET google_id = $1 WHERE id = $2', [googleSub, user.id]);
         user.google_id = googleSub;
       }
+      await syncGoogleProfileAfterLogin(pool, user.id, profile, user);
+      const refreshed = await pool.query(
+        `SELECT id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, avatar_url, password_hash, google_id
+         FROM users WHERE id = $1`,
+        [user.id]
+      );
+      user = refreshed.rows[0];
       await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
       await issueTokenCookies(pool, user, req, res);
       return res.redirect('/');
     }
 
-    const given = profile.given_name ? String(profile.given_name).trim() : '';
-    const family = profile.family_name ? String(profile.family_name).trim() : '';
-    const firstName = given || 'Пользователь';
-    const lastName = family || 'Google';
+    const { first_name: firstName, last_name: lastName } = deriveNamesFromGoogleProfile(profile);
+    const pic = profile.picture || null;
 
     const ins = await pool.query(
       `INSERT INTO users
-        (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked, google_id)
-       VALUES ($1, NULL, $2, $3, '', '+375000000000', 'patient', false, $4)
-       RETURNING id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, password_hash, google_id`,
-      [email, firstName, lastName, googleSub]
+        (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked, google_id,
+         google_picture_url, google_locale, google_email_verified, avatar_url)
+       VALUES ($1, NULL, $2, $3, '', $4, 'patient', false, $5, $6, $7, $8, $9)
+       RETURNING id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, avatar_url, password_hash, google_id`,
+      [
+        email,
+        firstName,
+        lastName,
+        GOOGLE_SIGNUP_PLACEHOLDER_PHONE,
+        googleSub,
+        pic,
+        profile.locale,
+        profile.email_verified === true,
+        pic,
+      ]
     );
 
     user = ins.rows[0];
@@ -400,7 +429,10 @@ router.get('/google/callback', async (req, res) => {
 
     await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
     await issueTokenCookies(pool, user, req, res);
-    return res.redirect('/');
+    return res.redirect(
+      '/profile/edit?need_phone=1&success=' +
+        encodeURIComponent('Укажите номер телефона Беларуси (+375…) — он нужен для записи к врачу.')
+    );
   } catch (err) {
     console.error('Google OAuth error:', err);
     return res.render('auth/login', {

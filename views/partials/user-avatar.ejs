@@ -1,5 +1,5 @@
 <%#
-  person: { first_name, last_name, avatar_path, id?, email? }
+  person: { first_name, last_name, avatar_path, avatar_url?, id?, email? }
   size: 'sm' | 'md' | 'card' | 'detail' | 'profile'
 -%>
 <%
@@ -18,9 +18,13 @@
   }
   var hue2 = (hue + 32) % 360;
   var src = null;
+  var extImg = false;
   if (p.avatar_path) {
     var ap = String(p.avatar_path).replace(/^\/+/, '');
     src = '/' + ap;
+  } else if (p.avatar_url) {
+    src = String(p.avatar_url).trim();
+    extImg = src.indexOf('http://') === 0 || src.indexOf('https://') === 0;
   }
   var grad = 'linear-gradient(135deg, hsl(' + hue + ', 58%, 48%) 0%, hsl(' + hue2 + ', 55%, 36%) 100%)';
   var label = (L + ' ' + F).trim() || 'Пользователь';
@@ -33,7 +37,7 @@
   aria-label="Аватар: <%= label %>"
 >
   <% if (src) { %>
-    <img class="user-avatar__img" src="<%= src %>" alt="" width="256" height="256" loading="lazy" decoding="async" />
+    <img class="user-avatar__img" src="<%= src %>" alt="" width="256" height="256" loading="lazy" decoding="async"<% if (extImg) { %> referrerpolicy="no-referrer"<% } %> />
   <% } else { %>
     <span class="user-avatar__initials" aria-hidden="true"><%= initials %></span>
   <% } %>

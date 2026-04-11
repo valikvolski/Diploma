@@ -4,6 +4,7 @@ const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
+const { patientNeedsPhoneCompletion } = require('../utils/patientPhone');
 const { verifyCsrfFromRequest } = require('../middleware/csrf');
 
 const router = express.Router();
@@ -16,6 +17,7 @@ function avatarUserForEdit(currentUser, formData) {
     first_name: formData.first_name,
     last_name: formData.last_name,
     avatar_path: currentUser.avatar_path,
+    avatar_url: currentUser.avatar_url || null,
   };
 }
 
@@ -146,6 +148,12 @@ router.get('/edit', ...patientOnly, async (req, res) => {
     const userData = userRes.rows[0];
     const profile = profileRes.rows[0] || {};
 
+    const needPhoneBanner =
+      req.query.need_phone === '1' || patientNeedsPhoneCompletion(userData.phone);
+    const avatarFromGoogle =
+      !userData.avatar_path &&
+      !!(userData.avatar_url || userData.google_picture_url);
+
     res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData: {
@@ -164,7 +172,10 @@ router.get('/edit', ...patientOnly, async (req, res) => {
         first_name: userData.first_name,
         last_name: userData.last_name,
         avatar_path: userData.avatar_path,
+        avatar_url: userData.avatar_url,
       },
+      needPhoneBanner,
+      avatarFromGoogle,
       flashSuccess: req.query.success || null,
       flashError: req.query.error || null,
     });
@@ -180,12 +191,18 @@ router.post('/edit', ...patientOnly, async (req, res) => {
   const { first_name, last_name, middle_name, phone, birth_date, gender, address } = req.body;
   const formData = { ...req.body, email: req.user.email };
 
+  const profileEditExtras = {
+    needPhoneBanner: patientNeedsPhoneCompletion(phone),
+    avatarFromGoogle: !req.user.avatar_path && !!req.user.avatar_url,
+  };
+
   if (!first_name || !last_name || !middle_name || !phone) {
     return res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
       avatarUser: avatarUserForEdit(req.user, formData),
       error: 'ФИО и телефон обязательны для заполнения',
+      ...profileEditExtras,
     });
   }
 
@@ -195,6 +212,7 @@ router.post('/edit', ...patientOnly, async (req, res) => {
       formData,
       avatarUser: avatarUserForEdit(req.user, formData),
       error: 'Неверный формат телефона. Пример: +375291234567',
+      ...profileEditExtras,
     });
   }
 
@@ -227,6 +245,8 @@ router.post('/edit', ...patientOnly, async (req, res) => {
       formData,
       avatarUser: avatarUserForEdit(req.user, formData),
       error: 'Ошибка сохранения профиля',
+      needPhoneBanner: patientNeedsPhoneCompletion(formData.phone),
+      avatarFromGoogle: !req.user.avatar_path && !!req.user.avatar_url,
     });
   }
 });

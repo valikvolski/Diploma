@@ -119,6 +119,7 @@ app.get('/', async (req, res) => {
                   u.first_name,
                   u.middle_name,
                   u.avatar_path,
+                  u.avatar_url,
                   dp.cabinet,
                   dp.experience_years,
                   specs.spec_list AS specializations

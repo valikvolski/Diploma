@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { patientNeedsPhoneCompletion } = require('../utils/patientPhone');
 const { notifyAppointmentCreated } = require('../utils/notifications');
 const {
   getFreeSlotsForDate,
@@ -88,6 +89,14 @@ router.post(
     }
 
     try {
+      const phoneRes = await pool.query('SELECT phone FROM users WHERE id = $1', [patientId]);
+      if (patientNeedsPhoneCompletion(phoneRes.rows[0]?.phone)) {
+        return res.redirect(
+          '/profile/edit?need_phone=1&error=' +
+            encodeURIComponent('Укажите корректный телефон +375… в профиле, чтобы записаться к врачу.')
+        );
+      }
+
       const doctorRes = await pool.query(
         "SELECT id FROM users WHERE id = $1 AND role = 'doctor' AND is_blocked = false",
         [doctor_id]

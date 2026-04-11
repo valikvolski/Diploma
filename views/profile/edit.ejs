@@ -26,6 +26,20 @@
           </div>
         <% } %>
 
+        <% if (typeof needPhoneBanner !== 'undefined' && needPhoneBanner) { %>
+          <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-telephone-fill flex-shrink-0 mt-1"></i>
+            <span>Для записи к врачу укажите <strong>реальный</strong> номер телефона Беларуси в формате <code>+375XXXXXXXXX</code> (заглушка из Google недостаточна).</span>
+          </div>
+        <% } %>
+
+        <% if (typeof avatarFromGoogle !== 'undefined' && avatarFromGoogle) { %>
+          <div class="alert alert-info d-flex align-items-start gap-2 py-2 small" role="status">
+            <i class="bi bi-google flex-shrink-0 mt-1"></i>
+            <span>Фото взято из профиля Google. Загрузите своё изображение ниже — оно заменит фото Google и не будет перезаписано при следующем входе.</span>
+          </div>
+        <% } %>
+
         <% if (typeof avatarUser !== 'undefined' && avatarUser) { %>
         <div class="profile-avatar-panel app-card border-0 shadow-sm p-3 p-md-4 mb-4">
           <h2 class="h6 fw-bold mb-3">Фото профиля</h2>

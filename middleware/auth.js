@@ -17,6 +17,7 @@ function mapUserRow(u) {
     role: u.role,
     is_blocked: u.is_blocked,
     avatar_path: u.avatar_path || null,
+    avatar_url: u.avatar_url || null,
   };
 }
 
@@ -50,7 +51,7 @@ async function enrichUserLocals(req, res, next) {
 
   try {
     const uRes = await pool.query(
-      `SELECT id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path
+      `SELECT id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, avatar_url
        FROM users WHERE id = $1`,
       [req.jwtUser.id]
     );

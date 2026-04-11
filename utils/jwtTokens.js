@@ -122,7 +122,7 @@ async function rotateRefreshAndIssue(pool, rawRefresh, req, res) {
   await pool.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1', [row.rt_id]);
 
   const userRes = await pool.query(
-    `SELECT id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, password_hash, google_id
+    `SELECT id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, avatar_url, password_hash, google_id
      FROM users WHERE id = $1`,
     [row.user_id]
   );
