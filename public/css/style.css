@@ -394,6 +394,22 @@ a:hover { color: var(--app-primary-dark); }
   border-radius: var(--radius-lg);
   border: 1px solid var(--app-gray-200);
   box-shadow: var(--shadow-lg);
+  background-color: var(--bs-modal-bg, var(--app-white));
+  color: var(--bs-modal-color, var(--app-text));
+}
+
+/* Врезка с деталями внутри модалки (не использовать bg-light — в тёмной теме даёт светлый фон + светлый текст) */
+.app-modal-detail-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--app-gray-200);
+  background: var(--surface-2, var(--app-gray-100));
+  color: var(--app-text);
+  padding: 0.85rem 1rem;
+}
+
+.app-modal-detail-card strong {
+  color: var(--app-text);
+  font-weight: 700;
 }
 
 .badge-role {
@@ -2610,6 +2626,12 @@ html[data-theme="dark"] {
   --bs-body-bg: #0f172a;
   --bs-body-color: #f1f5f9;
   --bs-border-color: #334155;
+  /* Модалки: иначе Bootstrap оставляет светлые токены, а внутри часто «светлые» утилиты (bg-light) */
+  --bs-modal-bg: #1e293b;
+  --bs-modal-color: #f1f5f9;
+  --bs-modal-border-color: #334155;
+  --bs-modal-header-border-color: #334155;
+  --bs-modal-footer-border-color: #334155;
 }
 
 [data-app-theme="dark"] .app-body {
@@ -3025,14 +3047,32 @@ html[data-theme="dark"] {
 }
 
 [data-app-theme="dark"] .modal-content {
-  background: var(--app-white);
+  background: var(--bs-modal-bg, var(--app-white));
   border-color: var(--app-gray-200);
-  color: var(--app-text);
+  color: var(--bs-modal-color, var(--app-text));
 }
 
 [data-app-theme="dark"] .modal-header,
 [data-app-theme="dark"] .modal-footer {
   border-color: var(--app-gray-200);
+}
+
+[data-app-theme="dark"] .modal-title {
+  color: var(--app-text);
+}
+
+[data-app-theme="dark"] .modal-body {
+  color: var(--app-text);
+}
+
+[data-app-theme="dark"] .modal-body .text-muted {
+  color: var(--app-muted) !important;
+}
+
+/* Утилита bg-light внутри модалки в тёмной теме */
+[data-app-theme="dark"] .modal-content .bg-light {
+  background-color: rgba(15, 23, 42, 0.85) !important;
+  color: var(--app-text) !important;
 }
 
 [data-app-theme="dark"] .btn-close {

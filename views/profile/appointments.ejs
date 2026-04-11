@@ -173,21 +173,19 @@ function statusBadge(s) {
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p>Вы уверены, что хотите отменить запись?</p>
-        <div class="card bg-light border-0 p-3 mb-0">
-          <div class="small">
-            <strong>Врач:</strong> <span id="cancelDoctor"></span><br>
-            <strong>Дата:</strong> <span id="cancelDate"></span><br>
-            <strong>Время:</strong> <span id="cancelTime"></span>
-          </div>
+        <p class="mb-3">Вы уверены, что хотите отменить запись?</p>
+        <div class="app-modal-detail-card small mb-0">
+          <strong>Врач:</strong> <span id="cancelDoctor"></span><br>
+          <strong>Дата:</strong> <span id="cancelDate"></span><br>
+          <strong>Время:</strong> <span id="cancelTime"></span>
         </div>
       </div>
-      <div class="modal-footer border-0">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет, оставить</button>
-        <form id="cancelForm" method="POST">
+      <div class="modal-footer border-0 gap-2">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <form id="cancelForm" method="POST" class="d-inline">
           <%- include('../partials/csrf') %>
           <button type="submit" class="btn btn-danger">
-            <i class="bi bi-x-lg me-1"></i>Да, отменить
+            <i class="bi bi-x-lg me-1"></i>Отменить запись
           </button>
         </form>
       </div>
