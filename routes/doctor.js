@@ -6,6 +6,7 @@ const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middlewar
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
 const { verifyCsrfFromRequest } = require('../middleware/csrf');
 const { notifyAppointmentCancelled } = require('../utils/notifications');
+const { sendDoctorUnavailableCancelEmail } = require('../utils/mailer');
 const { invalidateDoctorAvailabilityCache } = require('../utils/bookingSlots');
 
 const router = express.Router();
@@ -257,6 +258,7 @@ async function createTimeOff(req, res) {
         totalCancelled = affected.rows.length;
         for (const apt of affected.rows) {
           await notifyAppointmentCancelled(apt.id, { mode: 'day_off' });
+          sendDoctorUnavailableCancelEmail(pool, apt.id);
         }
       }
 

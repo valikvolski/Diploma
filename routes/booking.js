@@ -3,6 +3,7 @@ const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { patientNeedsPhoneCompletion } = require('../utils/patientPhone');
 const { notifyAppointmentCreated } = require('../utils/notifications');
+const { sendAppointmentBookedEmail } = require('../utils/mailer');
 const {
   getFreeSlotsForDate,
   getMonthAvailabilityMap,
@@ -151,6 +152,7 @@ router.post(
 
       invalidateDoctorAvailabilityCache(Number(doctor_id), date);
       notifyAppointmentCreated(appointmentId).catch(e => console.error('Notify error:', e));
+      sendAppointmentBookedEmail(pool, appointmentId);
 
       res.redirect(`/tickets/${ticketRes.rows[0].id}`);
     } catch (err) {

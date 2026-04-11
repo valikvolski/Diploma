@@ -6,6 +6,7 @@ const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middlewar
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
 const { patientNeedsPhoneCompletion } = require('../utils/patientPhone');
 const { verifyCsrfFromRequest } = require('../middleware/csrf');
+const { sendAppointmentCancelledEmail } = require('../utils/mailer');
 
 const router = express.Router();
 const patientOnly = [requireAuth, requireRole(['patient'])];
@@ -130,6 +131,8 @@ router.post('/appointments/:id/cancel', ...patientOnly, async (req, res) => {
       "UPDATE appointments SET status = 'cancelled' WHERE id = $1",
       [appointmentId]
     );
+
+    sendAppointmentCancelledEmail(pool, appointmentId);
 
     res.redirect('/profile/appointments?success=' + encodeURIComponent('Запись успешно отменена'));
   } catch (err) {

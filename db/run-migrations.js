@@ -4,7 +4,7 @@
  *
  *   npm run migrate
  */
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+require('../dotenv-config');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
