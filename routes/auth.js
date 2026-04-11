@@ -1,34 +1,85 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 const { pool } = require('../db/db');
+const { baseCookieOptions } = require('../utils/cookieConfig');
+const {
+  issueTokenCookies,
+  revokeRefreshByRaw,
+  clearAuthCookies,
+  rotateRefreshAndIssue,
+} = require('../utils/jwtTokens');
+const { googleAuthParams, exchangeCodeForTokens, fetchGoogleProfile } = require('../utils/googleOAuth');
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+const OAUTH_STATE_COOKIE = 'oauth_google_state';
+const OAUTH_STATE_MAX_AGE = 10 * 60 * 1000;
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req, res, _next, options) {
+    res.status(429).render('error', { message: String(options.message) });
+  },
+  message: 'Слишком много попыток входа. Попробуйте позже.',
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req, res, _next, options) {
+    res.status(429).render('error', { message: String(options.message) });
+  },
+  message: 'Слишком много регистраций с этого адреса. Попробуйте позже.',
+});
+
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function validatePhoneBY(phone) {
+  return /^\+375[0-9]{9}$/.test(String(phone || '').trim());
+}
+
+function safeNextPath(raw) {
+  if (!raw || typeof raw !== 'string') return '/';
+  const s = raw.trim();
+  if (!s.startsWith('/') || s.startsWith('//')) return '/';
+  return s;
+}
+
 // ─── GET /auth/register ──────────────────────────────────────────────────────
 
 router.get('/register', (req, res) => {
-  if (req.session.user) return res.redirect('/');
-  res.render('auth/register');
+  if (req.user) return res.redirect('/');
+  res.render('auth/register', { googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID });
 });
 
 // ─── POST /auth/register ─────────────────────────────────────────────────────
 
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   const { email, password, password_confirm, first_name, last_name, middle_name, phone } = req.body;
   const formData = { email, first_name, last_name, middle_name, phone };
 
-  // Server-side validation
   if (!email || !password || !password_confirm || !first_name || !last_name || !middle_name || !phone) {
     return res.render('auth/register', {
       error: 'Все поля обязательны для заполнения',
       formData,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
   }
 
@@ -36,6 +87,7 @@ router.post('/register', async (req, res) => {
     return res.render('auth/register', {
       error: 'Введите корректный адрес электронной почты',
       formData,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
   }
 
@@ -43,6 +95,7 @@ router.post('/register', async (req, res) => {
     return res.render('auth/register', {
       error: 'Пароль должен содержать не менее 6 символов',
       formData,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
   }
 
@@ -50,51 +103,51 @@ router.post('/register', async (req, res) => {
     return res.render('auth/register', {
       error: 'Пароли не совпадают',
       formData,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
   }
 
-  if (!/^\+375[0-9]{9}$/.test(phone.trim())) {
+  if (!validatePhoneBY(phone)) {
     return res.render('auth/register', {
       error: 'Неверный формат телефона. Пример: +375291234567',
       formData,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
   }
 
   try {
-    // Check duplicate email
-    const existing = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email.toLowerCase().trim()]
-    );
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (existing.rows.length > 0) {
       return res.render('auth/register', {
         error: 'Пользователь с таким email уже зарегистрирован',
         formData,
+        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
       });
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    await pool.query(
+    const ins = await pool.query(
       `INSERT INTO users
          (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked)
-       VALUES ($1, $2, $3, $4, $5, $6, 'patient', false)`,
-      [
-        email.toLowerCase().trim(),
-        passwordHash,
-        first_name.trim(),
-        last_name.trim(),
-        middle_name.trim(),
-        phone.trim(),
-      ]
+       VALUES ($1, $2, $3, $4, $5, $6, 'patient', false)
+       RETURNING id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, password_hash, google_id`,
+      [email.toLowerCase().trim(), passwordHash, first_name.trim(), last_name.trim(), middle_name.trim(), phone.trim()]
     );
 
-    res.redirect('/auth/login?registered=1');
+    const row = ins.rows[0];
+    await pool.query('INSERT INTO patient_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [
+      row.id,
+    ]);
+
+    await issueTokenCookies(pool, row, req, res);
+    return res.redirect('/');
   } catch (err) {
     console.error('Registration error:', err);
     res.render('auth/register', {
       error: 'Произошла ошибка при регистрации. Попробуйте позже.',
       formData,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
   }
 });
@@ -102,31 +155,48 @@ router.post('/register', async (req, res) => {
 // ─── GET /auth/login ─────────────────────────────────────────────────────────
 
 router.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/');
+  if (req.user) return res.redirect('/');
   const success = req.query.registered
     ? 'Регистрация прошла успешно! Теперь вы можете войти.'
     : null;
-  res.render('auth/login', { success, formData: { email: '' } });
+  res.render('auth/login', {
+    success,
+    formData: { email: '' },
+    next: safeNextPath(req.query.next),
+    googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+  });
 });
 
 // ─── POST /auth/login ────────────────────────────────────────────────────────
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   const loginForm = { email: email || '' };
+  const next = safeNextPath(req.body.next || req.query.next);
 
   if (!email || !password) {
-    return res.render('auth/login', { error: 'Введите email и пароль', formData: loginForm });
+    return res.render('auth/login', {
+      error: 'Введите email и пароль',
+      formData: loginForm,
+      next,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    });
   }
 
   try {
     const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
+      `SELECT id, email, password_hash, first_name, last_name, middle_name, role, is_blocked, avatar_path, google_id
+       FROM users WHERE email = $1`,
       [email.toLowerCase().trim()]
     );
 
     if (result.rows.length === 0) {
-      return res.render('auth/login', { error: 'Неверный email или пароль', formData: loginForm });
+      return res.render('auth/login', {
+        error: 'Неверный email или пароль',
+        formData: loginForm,
+        next,
+        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+      });
     }
 
     const user = result.rows[0];
@@ -135,39 +205,211 @@ router.post('/login', async (req, res) => {
       return res.render('auth/login', {
         error: 'Ваш аккаунт заблокирован. Обратитесь к администратору.',
         formData: loginForm,
+        next,
+        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+      });
+    }
+
+    if (!user.password_hash) {
+      return res.render('auth/login', {
+        error: 'Для этого аккаунта вход только через Google.',
+        formData: loginForm,
+        next,
+        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
       });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
-      return res.render('auth/login', { error: 'Неверный email или пароль', formData: loginForm });
+      return res.render('auth/login', {
+        error: 'Неверный email или пароль',
+        formData: loginForm,
+        next,
+        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+      });
     }
 
-    req.session.user = {
-      id: user.id,
-      email: user.email,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      middle_name: user.middle_name,
-      role: user.role,
-      is_blocked: user.is_blocked,
-      avatar_path: user.avatar_path || null,
-    };
-
-    res.redirect('/');
+    await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
+    await issueTokenCookies(pool, user, req, res);
+    return res.redirect(next);
   } catch (err) {
     console.error('Login error:', err);
-    res.render('auth/login', { error: 'Произошла ошибка. Попробуйте позже.', formData: loginForm });
+    res.render('auth/login', {
+      error: 'Произошла ошибка. Попробуйте позже.',
+      formData: loginForm,
+      next,
+      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    });
   }
 });
 
 // ─── POST /auth/logout ───────────────────────────────────────────────────────
 
-router.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) console.error('Session destroy error:', err);
-    res.redirect('/');
-  });
+router.post('/logout', async (req, res) => {
+  try {
+    await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
+  } catch (e) {
+    console.error('Logout revoke error:', e);
+  }
+  clearAuthCookies(res);
+  res.redirect('/');
+});
+
+// ─── POST /auth/refresh ──────────────────────────────────────────────────────
+
+router.post('/refresh', refreshLimiter, async (req, res) => {
+  const raw = req.cookies && req.cookies.refresh_token;
+  if (!raw) {
+    clearAuthCookies(res);
+    return res.status(401).json({ ok: false });
+  }
+  const userRow = await rotateRefreshAndIssue(pool, raw, req, res);
+  if (!userRow) {
+    clearAuthCookies(res);
+    return res.status(401).json({ ok: false });
+  }
+  return res.json({ ok: true });
+});
+
+// ─── GET /auth/google ─────────────────────────────────────────────────────────
+
+router.get('/google', (req, res) => {
+  if (req.user) return res.redirect('/');
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_CALLBACK_URL) {
+    return res.status(503).render('error', { message: 'Вход через Google временно недоступен.' });
+  }
+  const state = crypto.randomBytes(32).toString('hex');
+  res.cookie(OAUTH_STATE_COOKIE, state, baseCookieOptions({ maxAge: OAUTH_STATE_MAX_AGE }));
+  res.redirect(googleAuthParams(state));
+});
+
+// ─── GET /auth/google/callback ────────────────────────────────────────────────
+
+router.get('/google/callback', async (req, res) => {
+  const { code, state, error, error_description: errDesc } = req.query;
+  const cookieState = req.cookies && req.cookies[OAUTH_STATE_COOKIE];
+
+  res.clearCookie(OAUTH_STATE_COOKIE, { path: '/' });
+
+  if (error) {
+    return res.render('auth/login', {
+      error: errDesc || error || 'Вход через Google отменён',
+      formData: { email: '' },
+      next: '/',
+      googleAuthEnabled: true,
+    });
+  }
+
+  if (!code || !state || !cookieState || state !== cookieState) {
+    return res.render('auth/login', {
+      error: 'Недействительный запрос OAuth. Попробуйте снова.',
+      formData: { email: '' },
+      next: '/',
+      googleAuthEnabled: true,
+    });
+  }
+
+  try {
+    const tokenPayload = await exchangeCodeForTokens(String(code));
+    const profile = await fetchGoogleProfile(tokenPayload.access_token);
+
+    if (!profile.verified_email || !profile.email) {
+      return res.render('auth/login', {
+        error: 'Google не подтвердил email. Выберите аккаунт с подтверждённой почтой.',
+        formData: { email: '' },
+        next: '/',
+        googleAuthEnabled: true,
+      });
+    }
+
+    const email = String(profile.email).toLowerCase().trim();
+    const googleSub = String(profile.id);
+
+    const byGoogle = await pool.query(
+      `SELECT id, email, password_hash, first_name, last_name, middle_name, role, is_blocked, avatar_path, google_id
+       FROM users WHERE google_id = $1`,
+      [googleSub]
+    );
+
+    let user = byGoogle.rows[0];
+
+    if (user) {
+      if (user.is_blocked) {
+        return res.render('auth/login', {
+          error: 'Аккаунт заблокирован. Обратитесь к администратору.',
+          formData: { email: '' },
+          next: '/',
+          googleAuthEnabled: true,
+        });
+      }
+      await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
+      await issueTokenCookies(pool, user, req, res);
+      return res.redirect('/');
+    }
+
+    const byEmail = await pool.query(
+      `SELECT id, email, password_hash, first_name, last_name, middle_name, role, is_blocked, avatar_path, google_id
+       FROM users WHERE email = $1`,
+      [email]
+    );
+
+    if (byEmail.rows.length) {
+      user = byEmail.rows[0];
+      if (user.is_blocked) {
+        return res.render('auth/login', {
+          error: 'Аккаунт заблокирован. Обратитесь к администратору.',
+          formData: { email: '' },
+          next: '/',
+          googleAuthEnabled: true,
+        });
+      }
+      if (user.google_id && user.google_id !== googleSub) {
+        return res.render('auth/login', {
+          error: 'Этот email уже привязан к другому аккаунту Google.',
+          formData: { email: '' },
+          next: '/',
+          googleAuthEnabled: true,
+        });
+      }
+      if (!user.google_id) {
+        await pool.query('UPDATE users SET google_id = $1 WHERE id = $2', [googleSub, user.id]);
+        user.google_id = googleSub;
+      }
+      await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
+      await issueTokenCookies(pool, user, req, res);
+      return res.redirect('/');
+    }
+
+    const given = profile.given_name ? String(profile.given_name).trim() : '';
+    const family = profile.family_name ? String(profile.family_name).trim() : '';
+    const firstName = given || 'Пользователь';
+    const lastName = family || 'Google';
+
+    const ins = await pool.query(
+      `INSERT INTO users
+        (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked, google_id)
+       VALUES ($1, NULL, $2, $3, '', '+375000000000', 'patient', false, $4)
+       RETURNING id, email, first_name, last_name, middle_name, role, is_blocked, avatar_path, password_hash, google_id`,
+      [email, firstName, lastName, googleSub]
+    );
+
+    user = ins.rows[0];
+    await pool.query('INSERT INTO patient_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [
+      user.id,
+    ]);
+
+    await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
+    await issueTokenCookies(pool, user, req, res);
+    return res.redirect('/');
+  } catch (err) {
+    console.error('Google OAuth error:', err);
+    return res.render('auth/login', {
+      error: 'Не удалось войти через Google. Попробуйте позже.',
+      formData: { email: '' },
+      next: '/',
+      googleAuthEnabled: true,
+    });
+  }
 });
 
 module.exports = router;

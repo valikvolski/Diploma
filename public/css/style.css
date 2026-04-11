@@ -1407,6 +1407,67 @@ a:hover { color: var(--app-primary-dark); }
   box-shadow: var(--shadow-sm) !important;
 }
 
+.notification-item--unread {
+  background: linear-gradient(90deg, rgba(26, 110, 230, 0.08) 0%, var(--app-white) 40%) !important;
+  border-left: 4px solid var(--app-primary) !important;
+}
+
+.notification-item--unread.notification-item--accent-warning {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, var(--app-white) 45%) !important;
+  border-left-color: #f59e0b !important;
+}
+
+.notification-item--unread.notification-item--accent-success {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, var(--app-white) 45%) !important;
+  border-left-color: #10b981 !important;
+}
+
+[data-app-theme="dark"] .notification-item--unread {
+  background: linear-gradient(90deg, rgba(30, 58, 95, 0.65) 0%, rgba(30, 41, 59, 0.98) 55%) !important;
+  border-left-color: #60a5fa !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-app-theme="dark"] .notification-item--unread.notification-item--accent-warning {
+  background: linear-gradient(90deg, rgba(120, 53, 15, 0.45) 0%, rgba(30, 41, 59, 0.98) 55%) !important;
+  border-left-color: #fbbf24 !important;
+}
+
+[data-app-theme="dark"] .notification-item--unread.notification-item--accent-success {
+  background: linear-gradient(90deg, rgba(6, 78, 59, 0.45) 0%, rgba(30, 41, 59, 0.98) 55%) !important;
+  border-left-color: #34d399 !important;
+}
+
+[data-app-theme="dark"] .notification-item:hover {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* Поле специализаций (админ) */
+.admin-spec-field .admin-spec-error:not(.d-none) {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.choices--admin-spec .choices__inner {
+  min-height: 3.25rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.choices--admin-spec .choices__list--multiple .choices__item {
+  font-size: 0.8125rem;
+  padding: 0.28rem 0.65rem;
+  margin: 0.2rem 0.35rem 0.2rem 0;
+}
+
+.choices--admin-spec-primary .choices__inner {
+  min-height: calc(1.5em + 0.75rem + 2px);
+}
+
+.choices__list--dropdown .choices__item--disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
 /* ── Единый календарь (date) ─────────────────────────────────── */
 .uc-field { position: relative; }
 
@@ -2787,8 +2848,150 @@ html[data-theme="dark"] {
 
 [data-app-theme="dark"] .choices__list--multiple .choices__item {
   background-color: rgba(26, 110, 230, 0.22);
-  border-color: rgba(26, 110, 230, 0.4);
+  border-color: rgba(26, 110, 230, 0.45);
   color: #e8f1fc;
+}
+
+[data-app-theme="dark"] .choices__button {
+  border-left-color: rgba(147, 197, 253, 0.35);
+  filter: brightness(1.15);
+}
+
+[data-app-theme="dark"] .choices__input {
+  background-color: transparent !important;
+  color: #f1f5f9 !important;
+  caret-color: #93c5fd;
+}
+
+[data-app-theme="dark"] .choices__input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+
+[data-app-theme="dark"] .choices__list--dropdown .choices__item,
+[data-app-theme="dark"] .choices__list[aria-expanded] .choices__item {
+  color: #f1f5f9;
+}
+
+[data-app-theme="dark"] .choices__list--dropdown .choices__item--selectable.is-highlighted {
+  background-color: rgba(59, 130, 246, 0.28) !important;
+  color: #fff !important;
+}
+
+[data-app-theme="dark"] .choices__list--dropdown .choices__item--disabled {
+  opacity: 0.32;
+  color: #64748b !important;
+}
+
+[data-app-theme="dark"] .choices__placeholder {
+  color: #94a3b8 !important;
+  opacity: 0.95;
+}
+
+[data-app-theme="dark"] textarea.form-control,
+[data-app-theme="dark"] textarea.form-control:focus {
+  background-color: #0f172a;
+  color: #f1f5f9;
+  border-color: #334155;
+}
+
+[data-app-theme="dark"] .form-control::placeholder,
+[data-app-theme="dark"] .form-select option {
+  color: #94a3b8;
+}
+
+[data-app-theme="dark"] .form-control:disabled,
+[data-app-theme="dark"] .form-select:disabled {
+  background-color: rgba(15, 23, 42, 0.65);
+  color: #64748b;
+  border-color: #334155;
+}
+
+[data-app-theme="dark"] .form-control:focus,
+[data-app-theme="dark"] .form-select:focus {
+  background-color: #0f172a;
+  color: #f1f5f9;
+  border-color: rgba(96, 165, 250, 0.65) !important;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.28) !important;
+}
+
+[data-app-theme="dark"] .choices__inner:focus-within,
+[data-app-theme="dark"] .is-focused .choices__inner {
+  border-color: rgba(96, 165, 250, 0.55) !important;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.22) !important;
+}
+
+[data-app-theme="dark"] .form-label,
+[data-app-theme="dark"] .col-form-label {
+  color: #e2e8f0 !important;
+}
+
+[data-app-theme="dark"] .form-text {
+  color: #94a3b8 !important;
+}
+
+[data-app-theme="dark"] .invalid-feedback,
+[data-app-theme="dark"] .admin-spec-error {
+  color: #fca5a5 !important;
+}
+
+[data-app-theme="dark"] .valid-feedback {
+  color: #6ee7b7 !important;
+}
+
+[data-app-theme="dark"] .form-control.is-invalid {
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+[data-app-theme="dark"] .form-control.is-valid {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+[data-app-theme="dark"] .form-control.is-invalid:focus {
+  box-shadow: 0 0 0 0.2rem rgba(248, 113, 113, 0.2) !important;
+}
+
+[data-app-theme="dark"] .form-control.is-valid:focus {
+  box-shadow: 0 0 0 0.2rem rgba(52, 211, 153, 0.18) !important;
+}
+
+[data-app-theme="dark"] input[type="file"].form-control {
+  background-color: #0f172a;
+  color: #cbd5e1;
+}
+
+[data-app-theme="dark"] input[type="file"].form-control::file-selector-button {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: var(--radius-sm);
+  margin-right: 0.75rem;
+  padding: 0.35rem 0.75rem;
+}
+
+[data-app-theme="dark"] .form-check-input {
+  background-color: #0f172a;
+  border-color: #475569;
+}
+
+[data-app-theme="dark"] .form-check-input:checked {
+  background-color: var(--app-primary);
+  border-color: var(--app-primary);
+}
+
+[data-app-theme="dark"] .form-switch .form-check-input:focus {
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+[data-app-theme="dark"] .input-group-text {
+  background: #0f172a;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+[data-app-theme="dark"] .admin-doctor-avatar-panel {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 [data-app-theme="dark"] .user-avatar {

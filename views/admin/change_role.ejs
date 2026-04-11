@@ -18,29 +18,28 @@
     }) %></script>
 
     <form method="POST" action="/admin/users/<%= targetUser.id %>/change-role">
-      <div class="mb-3">
+      <%- include('../partials/csrf') %>
+      <div class="mb-3 admin-spec-field">
         <label class="form-label fw-semibold" for="admin-spec-multi">Специализации <span class="text-danger">*</span></label>
-        <p class="small text-muted mb-2">Только совместимые специализации из одной группы (см. подсказку при выборе).</p>
+        <div id="spec-field-error" class="invalid-feedback admin-spec-error d-none" role="alert"></div>
         <select
           id="admin-spec-multi"
           class="form-select choices-spec-multi"
           name="specialization_ids[]"
           multiple
           required
-          aria-describedby="specCompatHint"
+          aria-describedby="spec-field-error specCompatCompact"
         >
           <% specializations.forEach(function (s) { %>
             <option value="<%= s.id %>"><%= s.name %></option>
           <% }) %>
         </select>
 
-        <label class="form-label fw-semibold mt-3" for="admin-spec-primary">Основная специализация</label>
-        <p class="small text-muted mb-2">Будет показана первой в талонах и в списках.</p>
-        <select id="admin-spec-primary" class="form-select choices-spec-primary" name="primary_specialization_id">
+        <label class="form-label fw-semibold mt-3 mb-2" for="admin-spec-primary">Основная специализация</label>
+        <select id="admin-spec-primary" class="form-select choices-spec-primary" name="primary_specialization_id" aria-label="Основная специализация">
           <option value="">— Не выбрано —</option>
         </select>
-
-        <p class="small mt-2 mb-0" id="specCompatHint"><span class="text-muted">Подсказка:</span> <span id="specCompatHintText"></span></p>
+        <p class="small mb-0 mt-2 d-none admin-spec-hint text-muted" id="specCompatCompact"></p>
       </div>
       <div class="row g-3 mb-3">
         <div class="col-md-6">

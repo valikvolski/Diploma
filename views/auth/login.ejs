@@ -24,7 +24,9 @@
           </div>
         <% } %>
 
+        <% var nextPath = typeof next !== 'undefined' && next ? next : '/'; %>
         <form method="POST" action="/auth/login" novalidate class="mt-2">
+          <input type="hidden" name="next" value="<%= nextPath %>" />
           <div class="mb-3">
             <label for="email" class="form-label fw-semibold">Электронная почта</label>
             <div class="input-group ds-input-group">
@@ -71,6 +73,18 @@
             <i class="bi bi-box-arrow-in-right me-2"></i>Войти
           </button>
         </form>
+
+        <% if (typeof googleAuthEnabled !== 'undefined' && googleAuthEnabled) { %>
+        <div class="d-flex align-items-center gap-2 my-4">
+          <hr class="flex-grow-1 opacity-25" />
+          <span class="small text-muted text-nowrap">или</span>
+          <hr class="flex-grow-1 opacity-25" />
+        </div>
+        <a href="/auth/google" class="btn btn-outline-secondary w-100 py-2 rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-2">
+          <i class="bi bi-google"></i>
+          Продолжить с Google
+        </a>
+        <% } %>
 
         <p class="text-center mt-4 mb-0 text-muted small">
           Нет аккаунта?

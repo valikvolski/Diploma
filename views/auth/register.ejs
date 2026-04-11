@@ -17,6 +17,18 @@
           </div>
         <% } %>
 
+        <% if (typeof googleAuthEnabled !== 'undefined' && googleAuthEnabled) { %>
+        <a href="/auth/google" class="btn btn-outline-secondary w-100 py-2 rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-2 mb-4">
+          <i class="bi bi-google"></i>
+          Продолжить с Google
+        </a>
+        <div class="d-flex align-items-center gap-2 mb-4">
+          <hr class="flex-grow-1 opacity-25" />
+          <span class="small text-muted text-nowrap">или по email</span>
+          <hr class="flex-grow-1 opacity-25" />
+        </div>
+        <% } %>
+
         <form method="POST" action="/auth/register" novalidate id="registerForm" class="mt-2">
 
           <div class="mb-3">

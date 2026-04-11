@@ -4,17 +4,18 @@ const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
+const { verifyCsrfFromRequest } = require('../middleware/csrf');
 
 const router = express.Router();
 const patientOnly = [requireAuth, requireRole(['patient'])];
 
-function avatarUserForEdit(sessionUser, formData) {
+function avatarUserForEdit(currentUser, formData) {
   return {
-    id: sessionUser.id,
+    id: currentUser.id,
     email: formData.email,
     first_name: formData.first_name,
     last_name: formData.last_name,
-    avatar_path: sessionUser.avatar_path,
+    avatar_path: currentUser.avatar_path,
   };
 }
 
@@ -51,7 +52,7 @@ router.get('/appointments', ...patientOnly, async (req, res) => {
        LEFT JOIN tickets t             ON t.appointment_id = a.id
        WHERE a.patient_id = $1
        ORDER BY a.appointment_date DESC, a.appointment_time DESC`,
-      [req.session.user.id]
+      [req.user.id]
     );
 
     const today = new Date();
@@ -107,7 +108,7 @@ router.post('/appointments/:id/cancel', ...patientOnly, async (req, res) => {
 
     const appt = check.rows[0];
 
-    if (appt.patient_id !== req.session.user.id) {
+    if (appt.patient_id !== req.user.id) {
       return res.status(403).render('error', { message: 'Доступ запрещён' });
     }
 
@@ -139,8 +140,8 @@ router.post('/appointments/:id/cancel', ...patientOnly, async (req, res) => {
 
 router.get('/edit', ...patientOnly, async (req, res) => {
   try {
-    const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.session.user.id]);
-    const profileRes = await pool.query('SELECT * FROM patient_profiles WHERE user_id = $1', [req.session.user.id]);
+    const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const profileRes = await pool.query('SELECT * FROM patient_profiles WHERE user_id = $1', [req.user.id]);
 
     const userData = userRes.rows[0];
     const profile = profileRes.rows[0] || {};
@@ -177,13 +178,13 @@ router.get('/edit', ...patientOnly, async (req, res) => {
 
 router.post('/edit', ...patientOnly, async (req, res) => {
   const { first_name, last_name, middle_name, phone, birth_date, gender, address } = req.body;
-  const formData = { ...req.body, email: req.session.user.email };
+  const formData = { ...req.body, email: req.user.email };
 
   if (!first_name || !last_name || !middle_name || !phone) {
     return res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
-      avatarUser: avatarUserForEdit(req.session.user, formData),
+      avatarUser: avatarUserForEdit(req.user, formData),
       error: 'ФИО и телефон обязательны для заполнения',
     });
   }
@@ -192,7 +193,7 @@ router.post('/edit', ...patientOnly, async (req, res) => {
     return res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
-      avatarUser: avatarUserForEdit(req.session.user, formData),
+      avatarUser: avatarUserForEdit(req.user, formData),
       error: 'Неверный формат телефона. Пример: +375291234567',
     });
   }
@@ -200,7 +201,7 @@ router.post('/edit', ...patientOnly, async (req, res) => {
   try {
     await pool.query(
       'UPDATE users SET first_name=$1, last_name=$2, middle_name=$3, phone=$4 WHERE id=$5',
-      [first_name.trim(), last_name.trim(), middle_name.trim(), phone.trim(), req.session.user.id]
+      [first_name.trim(), last_name.trim(), middle_name.trim(), phone.trim(), req.user.id]
     );
 
     // Upsert patient_profiles
@@ -210,7 +211,7 @@ router.post('/edit', ...patientOnly, async (req, res) => {
        ON CONFLICT (user_id)
        DO UPDATE SET birth_date = EXCLUDED.birth_date, gender = EXCLUDED.gender, address = EXCLUDED.address`,
       [
-        req.session.user.id,
+        req.user.id,
         birth_date || null,
         gender || null,
         address ? address.trim() : null,
@@ -218,17 +219,13 @@ router.post('/edit', ...patientOnly, async (req, res) => {
     );
 
     // Обновляем сессию
-    req.session.user.first_name = first_name.trim();
-    req.session.user.last_name = last_name.trim();
-    req.session.user.middle_name = middle_name.trim();
-
     res.redirect('/profile/appointments?success=' + encodeURIComponent('Профиль успешно обновлён'));
   } catch (err) {
     console.error('Profile edit save error:', err);
     res.render('profile/edit', {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
-      avatarUser: avatarUserForEdit(req.session.user, formData),
+      avatarUser: avatarUserForEdit(req.user, formData),
       error: 'Ошибка сохранения профиля',
     });
   }
@@ -241,16 +238,25 @@ router.post('/avatar', ...patientOnly, (req, res, next) => {
     const editPath = '/profile/edit';
     if (redirectMulterAvatarError(err, res, editPath)) return;
     if (err) return next(err);
+    if (!verifyCsrfFromRequest(req)) {
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      return res.status(403).render('error', {
+        message: 'Запрос отклонён (защита CSRF). Обновите страницу и попробуйте снова.',
+      });
+    }
     if (!req.file) {
       return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
     }
     try {
-      const rel = await finalizeTempToWebp(req.file.path, req.session.user.id);
-      const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.session.user.id]);
+      const rel = await finalizeTempToWebp(req.file.path, req.user.id);
+      const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.user.id]);
       const oldPath = prev.rows[0]?.avatar_path;
-      await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, req.session.user.id]);
+      await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, req.user.id]);
       await unlinkDbPath(oldPath);
-      req.session.user.avatar_path = rel;
       res.redirect(`${editPath}?success=${encodeURIComponent('Фото профиля обновлено')}`);
     } catch (e) {
       console.error('Profile avatar error:', e);
@@ -266,11 +272,10 @@ router.post('/avatar', ...patientOnly, (req, res, next) => {
 
 router.post('/avatar/remove', ...patientOnly, async (req, res) => {
   try {
-    const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.session.user.id]);
+    const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.user.id]);
     const oldPath = prev.rows[0]?.avatar_path;
-    await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [req.session.user.id]);
+    await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [req.user.id]);
     await unlinkDbPath(oldPath);
-    req.session.user.avatar_path = null;
     res.redirect('/profile/edit?success=' + encodeURIComponent('Фото профиля удалено'));
   } catch (e) {
     console.error('Profile avatar remove error:', e);

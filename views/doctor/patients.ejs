@@ -51,12 +51,14 @@ function statusBadge(s){
               <td class="text-end">
                 <% if (a.status === 'booked') { %>
                   <form method="POST" action="/doctor/appointments/<%= a.appointment_id %>/status" class="d-inline">
+                    <%- include('../partials/csrf') %>
                     <input type="hidden" name="status" value="completed">
                     <input type="hidden" name="redirect_date" value="<%= selectedDate %>">
                     <button class="btn btn-sm btn-outline-success" title="Принят"><i class="bi bi-check-lg"></i></button>
                   </form>
                   <form method="POST" action="/doctor/appointments/<%= a.appointment_id %>/status" class="d-inline"
                     onsubmit="return confirm('Отменить запись?')">
+                    <%- include('../partials/csrf') %>
                     <input type="hidden" name="status" value="cancelled">
                     <input type="hidden" name="redirect_date" value="<%= selectedDate %>">
                     <button class="btn btn-sm btn-outline-danger" title="Отменить"><i class="bi bi-x-lg"></i></button>

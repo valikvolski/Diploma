@@ -21,11 +21,13 @@
           <p class="small text-muted mb-2">JPG, PNG или WebP, до 2 МБ. Для каталога и карточки врача.</p>
           <div class="d-flex flex-wrap gap-2 align-items-center">
             <form method="POST" action="/admin/doctors/<%= doctor.id %>/avatar" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
+              <%- include('../partials/csrf') %>
               <input type="file" name="avatar" class="form-control form-control-sm" style="max-width: 220px;" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required />
               <button type="submit" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-upload me-1"></i>Загрузить</button>
             </form>
             <% if (doctor.avatar_path) { %>
             <form method="POST" action="/admin/doctors/<%= doctor.id %>/avatar/remove" class="d-inline" onsubmit="return confirm('Удалить фото врача?');">
+              <%- include('../partials/csrf') %>
               <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-trash me-1"></i>Удалить</button>
             </form>
             <% } %>
@@ -46,6 +48,7 @@
     }) %></script>
 
     <form method="POST" action="<%= doctor ? '/admin/doctors/' + doctor.id + '/edit' : '/admin/doctors' %>">
+      <%- include('../partials/csrf') %>
     <% if (doctor) { %>
       <input type="hidden" name="user_id" value="<%= doctor.id %>">
     <% } %>
@@ -92,28 +95,24 @@
       </div>
 
       <div class="row g-3 mb-3">
-        <div class="col-12">
+        <div class="col-12 admin-spec-field">
           <label class="form-label fw-semibold" for="admin-spec-multi">Специализации <span class="text-danger">*</span></label>
-          <p class="small text-muted mb-2">
-            Список специализаций берётся из справочника в базе данных. Несколько специализаций у одного врача можно сочетать
-            только внутри одной группы совместимости (поле <code>compat_group</code> у записи в таблице <code>specializations</code>).
-          </p>
+          <div id="spec-field-error" class="invalid-feedback admin-spec-error d-none" role="alert"></div>
           <select
             id="admin-spec-multi"
             class="form-select choices-spec-multi"
             name="specialization_ids[]"
             multiple
             required
-            aria-describedby="specCompatHint"
+            aria-describedby="spec-field-error specCompatCompact"
           >
             <% specializations.forEach(function (s) { %>
               <option value="<%= s.id %>" <%= chosen.indexOf(s.id) !== -1 ? 'selected' : '' %>><%= s.name %></option>
             <% }) %>
           </select>
 
-          <label class="form-label fw-semibold mt-3" for="admin-spec-primary">Основная специализация</label>
-          <p class="small text-muted mb-2">Отображается первой в талонах и в списках. Доступны только выбранные выше профили.</p>
-          <select id="admin-spec-primary" class="form-select choices-spec-primary" name="primary_specialization_id">
+          <label class="form-label fw-semibold mt-3 mb-2" for="admin-spec-primary">Основная специализация</label>
+          <select id="admin-spec-primary" class="form-select choices-spec-primary" name="primary_specialization_id" aria-label="Основная специализация">
             <option value="">— Не выбрано —</option>
             <% specializations.forEach(function (s) { %>
               <% if (chosen.indexOf(s.id) !== -1) { %>
@@ -121,8 +120,7 @@
               <% } %>
             <% }) %>
           </select>
-
-          <p class="small mt-2 mb-0" id="specCompatHint"><span class="text-muted">Подсказка:</span> <span id="specCompatHintText"></span></p>
+          <p class="small mb-0 mt-2 d-none admin-spec-hint text-muted" id="specCompatCompact"></p>
         </div>
       </div>
 

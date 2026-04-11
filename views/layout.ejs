@@ -49,6 +49,7 @@
             <% if (typeof user !== 'undefined' && user) { %>
               <li class="nav-item">
                 <form method="POST" action="/auth/logout" class="d-inline">
+                  <%- include('partials/csrf') %>
                   <button type="submit" class="nav-link btn btn-link border-0 py-2">Выйти</button>
                 </form>
               </li>

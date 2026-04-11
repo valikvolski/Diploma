@@ -185,6 +185,7 @@ function statusBadge(s) {
       <div class="modal-footer border-0">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Нет, оставить</button>
         <form id="cancelForm" method="POST">
+          <%- include('../partials/csrf') %>
           <button type="submit" class="btn btn-danger">
             <i class="bi bi-x-lg me-1"></i>Да, отменить
           </button>

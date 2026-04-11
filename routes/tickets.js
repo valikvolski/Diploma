@@ -48,7 +48,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     const ticket = result.rows[0];
 
-    if (req.session.user.role === 'patient' && ticket.patient_id !== req.session.user.id) {
+    if (req.user.role === 'patient' && ticket.patient_id !== req.user.id) {
       return res.status(403).render('error', { message: 'Доступ запрещён' });
     }
 

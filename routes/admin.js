@@ -5,6 +5,7 @@ const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
+const { verifyCsrfFromRequest } = require('../middleware/csrf');
 const {
   validateSpecializationSet,
   resolvePrimarySpecializationId,
@@ -374,6 +375,16 @@ router.post('/doctors/:id/avatar', ...adminOnly, (req, res, next) => {
       : '/admin/doctors';
     if (redirectMulterAvatarError(err, res, editPath)) return;
     if (err) return next(err);
+    if (!verifyCsrfFromRequest(req)) {
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      return res.status(403).render('error', {
+        message: 'Запрос отклонён (защита CSRF). Обновите страницу и попробуйте снова.',
+      });
+    }
     if (!resolvedDoctorId) {
       if (req.file?.path) {
         try {
@@ -544,7 +555,7 @@ router.get('/users', ...adminOnly, async (req, res) => {
 
 router.post('/users/:id/block', ...adminOnly, async (req, res) => {
   try {
-    if (parseInt(req.params.id) === req.session.user.id) {
+    if (parseInt(req.params.id) === req.user.id) {
       return res.redirect('/admin/users?error=' + encodeURIComponent('Нельзя заблокировать самого себя'));
     }
     await pool.query('UPDATE users SET is_blocked = NOT is_blocked WHERE id = $1', [req.params.id]);
@@ -633,7 +644,7 @@ router.post('/users/:id/change-role', ...adminOnly, async (req, res) => {
 router.post('/users/:id/delete', ...adminOnly, async (req, res) => {
   const userId = parseInt(req.params.id, 10);
   try {
-    if (userId === req.session.user.id) {
+    if (userId === req.user.id) {
       return res.redirect('/admin/users?error=' + encodeURIComponent('Нельзя удалить самого себя'));
     }
     const active = await pool.query(

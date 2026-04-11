@@ -35,11 +35,13 @@
               <p class="small text-muted mb-2">JPG, PNG или WebP, до 2 МБ. Изображение будет обрезано до квадрата.</p>
               <div class="d-flex flex-wrap gap-2 align-items-center">
                 <form method="POST" action="/profile/avatar" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
+                  <%- include('../partials/csrf') %>
                   <input type="file" name="avatar" class="form-control form-control-sm" style="max-width: 220px;" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required />
                   <button type="submit" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-upload me-1"></i>Загрузить</button>
                 </form>
                 <% if (avatarUser.avatar_path) { %>
                 <form method="POST" action="/profile/avatar/remove" class="d-inline" onsubmit="return confirm('Удалить фото профиля?');">
+                  <%- include('../partials/csrf') %>
                   <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-trash me-1"></i>Удалить</button>
                 </form>
                 <% } %>
@@ -50,6 +52,7 @@
         <% } %>
 
         <form method="POST" action="/profile/edit" novalidate>
+          <%- include('../partials/csrf') %>
 
           <div class="mb-3">
             <label class="form-label fw-semibold">Электронная почта</label>

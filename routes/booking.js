@@ -74,7 +74,7 @@ router.post(
   requireRole(['patient']),
   async (req, res) => {
     const { doctor_id, date, time } = req.body;
-    const patientId = req.session.user.id;
+    const patientId = req.user.id;
 
     if (!doctor_id || !isValidDate(date) || !time || !/^\d{2}:\d{2}$/.test(time)) {
       return res.status(400).render('error', { message: 'Некорректные данные для записи' });

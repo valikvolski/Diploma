@@ -4,6 +4,7 @@ const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
+const { verifyCsrfFromRequest } = require('../middleware/csrf');
 const { notifyAppointmentCancelled } = require('../utils/notifications');
 const { invalidateDoctorAvailabilityCache } = require('../utils/bookingSlots');
 
@@ -18,7 +19,7 @@ router.get('/schedule', ...docOnly, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM schedules WHERE doctor_id = $1 ORDER BY weekday',
-      [req.session.user.id]
+      [req.user.id]
     );
     const scheduleMap = {};
     result.rows.forEach(r => { scheduleMap[r.weekday] = r; });
@@ -56,7 +57,7 @@ router.post('/schedule', ...docOnly, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (doctor_id, weekday)
        DO UPDATE SET start_time = $3, end_time = $4, slot_duration = $5`,
-      [req.session.user.id, wd, start_time, end_time, dur]
+      [req.user.id, wd, start_time, end_time, dur]
     );
     res.redirect('/doctor/schedule?success=' + encodeURIComponent('Расписание обновлено'));
   } catch (err) {
@@ -71,7 +72,7 @@ router.post('/schedule/:id/delete', ...docOnly, async (req, res) => {
   try {
     await pool.query(
       'DELETE FROM schedules WHERE id = $1 AND doctor_id = $2',
-      [req.params.id, req.session.user.id]
+      [req.params.id, req.user.id]
     );
     res.redirect('/doctor/schedule?success=' + encodeURIComponent('День удалён из расписания'));
   } catch (err) {
@@ -133,7 +134,7 @@ async function renderTimeOffPage(req, res) {
        FROM schedule_exceptions
        WHERE doctor_id = $1
        ORDER BY COALESCE(date_from, exception_date) DESC, id DESC`,
-      [req.session.user.id]
+      [req.user.id]
     );
     const today = new Date().toISOString().split('T')[0];
     const upcoming = result.rows
@@ -215,7 +216,7 @@ async function createTimeOff(req, res) {
     return res.redirect('/doctor/time-off?' + qs);
   }
 
-  const doctorId = req.session.user.id;
+  const doctorId = req.user.id;
   const reasonText = (reason || '').trim() || (dayOff ? 'Нерабочий период' : 'Изменённое время приёма');
   let totalCancelled = 0;
 
@@ -304,15 +305,15 @@ async function deleteTimeOff(req, res) {
               TO_CHAR(COALESCE(date_to, exception_date), 'YYYY-MM-DD') AS date_to
        FROM schedule_exceptions
        WHERE id = $1 AND doctor_id = $2`,
-      [req.params.id, req.session.user.id]
+      [req.params.id, req.user.id]
     );
     await pool.query(
       'DELETE FROM schedule_exceptions WHERE id = $1 AND doctor_id = $2',
-      [req.params.id, req.session.user.id]
+      [req.params.id, req.user.id]
     );
     if (old.rows.length > 0) {
       for (const d of dateRange(old.rows[0].date_from, old.rows[0].date_to)) {
-        invalidateDoctorAvailabilityCache(req.session.user.id, d);
+        invalidateDoctorAvailabilityCache(req.user.id, d);
       }
     }
     res.redirect('/doctor/time-off?success=' + encodeURIComponent('Запись удалена'));
@@ -342,7 +343,7 @@ router.get('/patients', ...docOnly, async (req, res) => {
        JOIN users p ON a.patient_id = p.id
        WHERE a.doctor_id = $1 AND a.appointment_date = $2
        ORDER BY a.appointment_time ASC`,
-      [req.session.user.id, date]
+      [req.user.id, date]
     );
 
     res.render('doctor/patients', {
@@ -374,7 +375,7 @@ router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
       'SELECT doctor_id, appointment_date FROM appointments WHERE id = $1',
       [apptId]
     );
-    if (check.rows.length === 0 || check.rows[0].doctor_id !== req.session.user.id) {
+    if (check.rows.length === 0 || check.rows[0].doctor_id !== req.user.id) {
       return res.status(403).render('error', { message: 'Доступ запрещён' });
     }
 
@@ -402,17 +403,26 @@ router.post('/avatar', ...docOnly, (req, res, next) => {
     const editPath = '/doctor/schedule';
     if (redirectMulterAvatarError(err, res, editPath)) return;
     if (err) return next(err);
+    if (!verifyCsrfFromRequest(req)) {
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      return res.status(403).render('error', {
+        message: 'Запрос отклонён (защита CSRF). Обновите страницу и попробуйте снова.',
+      });
+    }
     if (!req.file) {
       return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
     }
     try {
-      const uid = req.session.user.id;
+      const uid = req.user.id;
       const rel = await finalizeTempToWebp(req.file.path, uid);
       const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [uid]);
       const oldPath = prev.rows[0]?.avatar_path;
       await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, uid]);
       await unlinkDbPath(oldPath);
-      req.session.user.avatar_path = rel;
       res.redirect(`${editPath}?success=${encodeURIComponent('Фото профиля обновлено')}`);
     } catch (e) {
       console.error('Doctor avatar error:', e);
@@ -428,12 +438,11 @@ router.post('/avatar', ...docOnly, (req, res, next) => {
 
 router.post('/avatar/remove', ...docOnly, async (req, res) => {
   try {
-    const uid = req.session.user.id;
+    const uid = req.user.id;
     const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [uid]);
     const oldPath = prev.rows[0]?.avatar_path;
     await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [uid]);
     await unlinkDbPath(oldPath);
-    req.session.user.avatar_path = null;
     res.redirect('/doctor/schedule?success=' + encodeURIComponent('Фото профиля удалено'));
   } catch (e) {
     console.error('Doctor avatar remove error:', e);

@@ -1,19 +1,8 @@
 /**
- * Choices.js: admin multi-select specializations + primary single-select sync.
- * Expects #admin-spec-choices-config (JSON), #admin-spec-multi, #admin-spec-primary,
- * optional #specCompatHint / #specCompatHintText.
+ * Choices.js: admin specializations multi-select with compat_group locking.
+ * Disables incompatible options when one+ spec selected; re-enables when cleared.
  */
 (function () {
-  var GROUP_RU = {
-    therapy: 'терапия и смежные консервативные специальности',
-    surgery: 'хирургия и операционные профили',
-    ophthalmology: 'офтальмология',
-    dental: 'стоматология',
-    ent: 'ЛОР',
-    imaging: 'инструментальная диагностика (УЗИ, рентген)',
-    gynecology: 'акушерство и гинекология',
-  };
-
   function ready(fn) {
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn);
@@ -23,6 +12,10 @@
     var cfgEl = document.getElementById('admin-spec-choices-config');
     var multiEl = document.getElementById('admin-spec-multi');
     var primaryEl = document.getElementById('admin-spec-primary');
+    var formEl = multiEl && multiEl.closest('form');
+    var errEl = document.getElementById('spec-field-error');
+    var hintEl = document.getElementById('specCompatCompact');
+
     if (!cfgEl || !multiEl || !primaryEl || typeof Choices === 'undefined') return;
 
     var cfg;
@@ -33,8 +26,12 @@
     }
 
     var SPEC_META = cfg.meta || [];
-    var hintText = document.getElementById('specCompatHintText');
-    var hintWrap = document.getElementById('specCompatHint');
+    var metaById = {};
+    SPEC_META.forEach(function (s) {
+      metaById[String(s.id)] = s;
+    });
+
+    var rebuilding = false;
 
     var multi = new Choices(multiEl, {
       removeItemButton: true,
@@ -47,26 +44,122 @@
       searchPlaceholderValue: 'Поиск…',
       allowHTML: false,
       classNames: {
-        containerOuter: 'choices choices-spec-multi',
+        containerOuter: 'choices choices-spec-multi choices--admin-spec',
       },
     });
 
     var primary = new Choices(primaryEl, {
-      searchEnabled: true,
+      searchEnabled: false,
       shouldSort: false,
       placeholder: true,
-      placeholderValue: 'Основная специализация',
+      placeholderValue: 'Основная',
       itemSelectText: '',
-      searchPlaceholderValue: 'Поиск…',
       allowHTML: false,
-      noResultsText: 'Ничего не найдено',
       classNames: {
-        containerOuter: 'choices choices-spec-primary',
+        containerOuter: 'choices choices-spec-primary choices--admin-spec-primary',
       },
     });
 
     function selectedIds() {
       return multi.getValue(true).map(String);
+    }
+
+    function primaryValueRaw() {
+      var v = primary.getValue(true);
+      if (v == null || v === '') return '';
+      if (Array.isArray(v)) return v.length ? String(v[0]) : '';
+      return String(v);
+    }
+
+    function getLockGroup(ids) {
+      if (!ids.length) return null;
+      var groups = new Set();
+      ids.forEach(function (id) {
+        var row = metaById[id];
+        if (row) groups.add(row.g || 'therapy');
+      });
+      if (groups.size > 1) return '__CONFLICT__';
+      return groups.values().next().value;
+    }
+
+    function validateClient() {
+      var ids = selectedIds().map(function (x) {
+        return parseInt(x, 10);
+      }).filter(function (n) {
+        return !isNaN(n);
+      });
+      if (!ids.length) {
+        return { ok: false, message: 'Выберите хотя бы одну специализацию.' };
+      }
+      var g = getLockGroup(ids.map(String));
+      if (g === '__CONFLICT__') {
+        return { ok: false, message: 'Нельзя сочетать специализации из разных групп. Оставьте профили одной группы.' };
+      }
+      return { ok: true };
+    }
+
+    function setFieldError(msg) {
+      if (!errEl) return;
+      if (msg) {
+        errEl.textContent = msg;
+        errEl.classList.remove('d-none');
+      } else {
+        errEl.textContent = '';
+        errEl.classList.add('d-none');
+      }
+    }
+
+    function updateCompactHint() {
+      if (!hintEl) return;
+      var ids = selectedIds();
+      var lock = getLockGroup(ids);
+      if (!ids.length) {
+        hintEl.textContent = '';
+        hintEl.classList.add('d-none');
+        return;
+      }
+      hintEl.classList.remove('d-none');
+      if (lock === '__CONFLICT__') {
+        hintEl.textContent = 'Удалите лишние специализации — допустима только одна группа совместимости.';
+        hintEl.classList.remove('text-muted');
+        hintEl.classList.add('text-danger');
+        return;
+      }
+      hintEl.classList.add('text-muted');
+      hintEl.classList.remove('text-danger');
+      hintEl.textContent = 'Доступны совместимые специализации той же группы.';
+    }
+
+    function buildChoiceList() {
+      var ids = selectedIds();
+      var lock = getLockGroup(ids);
+      return SPEC_META.map(function (s) {
+        var id = String(s.id);
+        var isSelected = ids.indexOf(id) >= 0;
+        var disabled = false;
+        if (lock === '__CONFLICT__') {
+          disabled = !isSelected;
+        } else if (lock && !isSelected) {
+          disabled = (s.g || 'therapy') !== lock;
+        }
+        return { value: id, label: s.name, selected: isSelected, disabled: disabled };
+      });
+    }
+
+    function applyCompatToMulti() {
+      if (rebuilding) return;
+      rebuilding = true;
+      try {
+        var prevPrimary = primaryValueRaw();
+        var list = buildChoiceList();
+        multi.clearStore();
+        multi.setChoices(list, 'value', 'label', true);
+        syncPrimaryChoices(prevPrimary);
+        updateCompactHint();
+        setFieldError('');
+      } finally {
+        rebuilding = false;
+      }
     }
 
     function syncPrimaryChoices(preserveValue) {
@@ -80,10 +173,25 @@
       var prev =
         preserveValue !== undefined && preserveValue !== null && String(preserveValue).trim() !== ''
           ? String(preserveValue)
-          : String(primary.getValue(true) || '');
+          : primaryValueRaw();
 
       primary.clearStore();
-      primary.setChoices(items, 'value', 'label', true);
+      if (!items.length) {
+        primary.setChoices(
+          [{ value: '', label: '— Сначала выберите специализации —', selected: true, disabled: false }],
+          'value',
+          'label',
+          true
+        );
+        return;
+      }
+
+      primary.setChoices(
+        [{ value: '', label: '— Не выбрано —', selected: false, disabled: false }].concat(items),
+        'value',
+        'label',
+        true
+      );
 
       var next = '';
       if (prev && ids.indexOf(prev) >= 0) next = prev;
@@ -98,58 +206,34 @@
       }
     }
 
-    function refreshHint() {
-      if (!hintText || !hintWrap) return;
-      var ids = selectedIds();
-      var groups = new Set();
-      ids.forEach(function (id) {
-        var row = null;
-        for (var mi = 0; mi < SPEC_META.length; mi++) {
-          if (String(SPEC_META[mi].id) === String(id)) {
-            row = SPEC_META[mi];
-            break;
-          }
-        }
-        if (row) groups.add(row.g || 'therapy');
-      });
-
-      if (ids.length === 0) {
-        hintText.textContent = 'Выберите одну или несколько совместимых специализаций.';
-        hintWrap.className = 'small mt-2 mb-0';
-        return;
-      }
-      if (groups.size > 1) {
-        hintText.textContent = 'Нельзя сочетать специализации из разных групп совместимости.';
-        hintWrap.className = 'small mt-2 mb-0 text-danger';
-        return;
-      }
-      var g = groups.values().next().value;
-      var addable = SPEC_META.filter(function (s) {
-        return (s.g || 'therapy') === g && ids.indexOf(String(s.id)) < 0;
-      }).map(function (s) {
-        return s.name;
-      });
-      hintWrap.className = 'small mt-2 mb-0 text-success';
-      hintText.textContent =
-        'Группа: «' +
-        (GROUP_RU[g] || g) +
-        '». Можно добавить: ' +
-        (addable.length
-          ? addable.slice(0, 8).join(', ') + (addable.length > 8 ? '…' : '')
-          : 'все профили группы уже выбраны.');
-    }
-
     multiEl.addEventListener('change', function () {
-      var prevPrim = primary.getValue(true);
-      syncPrimaryChoices(prevPrim);
-      refreshHint();
+      if (rebuilding) return;
+      applyCompatToMulti();
     });
+
+    if (formEl) {
+      formEl.addEventListener('submit', function (e) {
+        var v = validateClient();
+        if (!v.ok) {
+          e.preventDefault();
+          setFieldError(v.message);
+        }
+      });
+    }
 
     var initPrimary =
       cfg.initialPrimary != null && String(cfg.initialPrimary).trim() !== ''
         ? String(cfg.initialPrimary)
-        : undefined;
-    syncPrimaryChoices(initPrimary);
-    refreshHint();
+        : '';
+
+    applyCompatToMulti();
+    if (initPrimary) {
+      try {
+        primary.setChoiceByValue(initPrimary);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    updateCompactHint();
   });
 })();

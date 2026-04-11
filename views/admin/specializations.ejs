@@ -21,6 +21,7 @@
                 <td class="text-end">
                   <form method="POST" action="/admin/specializations/<%= s.id %>/delete" class="d-inline"
                     onsubmit="return confirm('Удалить «<%= s.name %>»?')">
+                    <%- include('../partials/csrf') %>
                     <button class="btn btn-sm btn-outline-danger" <%= parseInt(s.doctor_count) > 0 ? 'disabled' : '' %>><i class="bi bi-trash"></i></button>
                   </form>
                 </td>
@@ -35,6 +36,7 @@
     <div class="app-card app-card--static p-4 h-100">
       <h2 class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3"><i class="bi bi-plus-circle text-primary me-2"></i>Новая запись</h2>
       <form method="POST" action="/admin/specializations">
+        <%- include('../partials/csrf') %>
         <div class="mb-3">
           <label class="form-label fw-semibold small">Название</label>
           <input type="text" class="form-control" name="name" placeholder="Например, Терапевт" required>

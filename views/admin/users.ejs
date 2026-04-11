@@ -42,6 +42,7 @@
                 </a>
               <% } %>
               <form method="POST" action="/admin/users/<%= u.id %>/block" class="d-inline">
+                <%- include('../partials/csrf') %>
                 <% if(u.is_blocked){ %>
                   <button class="btn btn-sm btn-outline-success" title="Разблокировать"><i class="bi bi-unlock"></i></button>
                 <% } else { %>
@@ -51,6 +52,7 @@
               </form>
               <form method="POST" action="/admin/users/<%= u.id %>/delete" class="d-inline"
                 onsubmit="return confirm('Удалить пользователя <%= u.last_name %> <%= u.first_name %>? Это действие необратимо!')">
+                <%- include('../partials/csrf') %>
                 <button class="btn btn-sm btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
               </form>
             </td>

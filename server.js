@@ -1,7 +1,8 @@
 require('dotenv').config();
 
 const express = require('express');
-const session = require('express-session');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const { pool, testConnection, ensureDoctorSpecializationsOrWarn } = require('./db/db');
 const authRoutes = require('./routes/auth');
@@ -12,41 +13,48 @@ const profileRoutes = require('./routes/profile');
 const doctorRoutes = require('./routes/doctor');
 const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
+const { attachUser, enrichUserLocals } = require('./middleware/auth');
+const { attachCsrfToken, verifyPostCsrf } = require('./middleware/csrf');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://accounts.google.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: ["'self'", 'https://accounts.google.com', 'https://oauth2.googleapis.com'],
+        frameSrc: ["'self'", 'https://accounts.google.com'],
+      },
+    },
+  })
+);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback_secret',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false },
-}));
 
-const { getUnreadCount } = require('./utils/notifications');
+app.use(attachUser);
+app.use(enrichUserLocals);
+app.use(attachCsrfToken);
 
-app.use(async (req, res, next) => {
-  res.locals.user = req.session.user || null;
-  res.locals.unreadNotifCount = 0;
-  res.locals.currentPath = req.path || '';
-  res.locals.appMountPath = (process.env.APP_BASE_PATH || '').replace(/\/$/, '');
-  if (req.session && req.session.user) {
-    try {
-      const uRes = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.session.user.id]);
-      if (uRes.rows.length) req.session.user.avatar_path = uRes.rows[0].avatar_path;
-      res.locals.user = req.session.user;
-    } catch (_) {}
-    try {
-      res.locals.unreadNotifCount = await getUnreadCount(req.session.user.id);
-    } catch (_) {}
-  }
-  next();
+app.use((req, res, next) => {
+  if (req.method !== 'POST') return next();
+  if (typeof req.is === 'function' && req.is('multipart/form-data')) return next();
+  verifyPostCsrf(req, res, next);
 });
 
 app.use('/auth', authRoutes);
@@ -88,7 +96,7 @@ function buildDoctorTimeline(rows) {
 }
 
 app.get('/', async (req, res) => {
-  const user = req.session.user || null;
+  const user = req.user || null;
   const role = user ? user.role : 'guest';
   const viewData = {
     title: 'МедЗапись — онлайн-запись к врачу',
@@ -358,6 +366,12 @@ app.get('/test-db', async (req, res) => {
 });
 
 async function startServer() {
+  if (!process.env.JWT_ACCESS_SECRET || String(process.env.JWT_ACCESS_SECRET).length < 16) {
+    console.warn('WARNING: Set a strong JWT_ACCESS_SECRET in .env (min ~16+ characters).');
+  }
+  if (!process.env.JWT_REFRESH_SECRET || String(process.env.JWT_REFRESH_SECRET).length < 16) {
+    console.warn('WARNING: Set JWT_REFRESH_SECRET in .env — it is used to hash refresh tokens.');
+  }
   await testConnection();
   await ensureDoctorSpecializationsOrWarn(pool);
   app.listen(PORT, () => {

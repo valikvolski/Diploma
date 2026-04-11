@@ -8,13 +8,14 @@ function typeIcon(t){
     default:return '<i class="bi bi-info-circle-fill text-primary me-2"></i>';
   }
 }
-function typeBg(t, read){
-  if(!read) return 'bg-light border-start border-4 border-' + (t==='warning'?'warning':t==='success'?'success':'primary');
-  return '';
+function notifUnreadClass(read, t){
+  if (read) return '';
+  var accent = t === 'warning' ? 'warning' : t === 'success' ? 'success' : 'info';
+  return 'notification-item--unread notification-item--accent-' + accent;
 }
 %>
 <%- include('../partials/header', { title: title }) %>
-<% var dsTitle = 'Уведомления'; var dsSubtitle = 'Сообщения о записях и изменениях'; var dsIcon = 'bi-bell'; var dsActions = ''; if (notifications.some(function (n) { return !n.is_read; })) { dsActions = '<form method="POST" action="/notifications/read-all" class="d-inline m-0"><button type="submit" class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-check-all me-1"></i>Все прочитаны</button></form>'; } %>
+<% var dsTitle = 'Уведомления'; var dsSubtitle = 'Сообщения о записях и изменениях'; var dsIcon = 'bi-bell'; var dsActions = ''; if (notifications.some(function (n) { return !n.is_read; })) { dsActions = '<form method="POST" action="/notifications/read-all" class="d-inline m-0">'; if (typeof csrfToken !== 'undefined' && csrfToken) { dsActions += '<input type="hidden" name="_csrf" value="' + String(csrfToken).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '" />'; } dsActions += '<button type="submit" class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-check-all me-1"></i>Все прочитаны</button></form>'; } %>
 <%- include('../partials/ds-page-header') %>
 
 <% if (notifications.length === 0) { %>
@@ -31,7 +32,7 @@ function typeBg(t, read){
       <% if (n.date_str !== currentDate) { currentDate = n.date_str; %>
         <div class="text-muted small fw-semibold mt-3 mb-1"><%= fmtDate(n.date_str) %></div>
       <% } %>
-      <div class="card border-0 shadow-sm notification-item <%= typeBg(n.type, n.is_read) %> <%= n.is_read ? 'opacity-65' : '' %>"
+      <div class="card border-0 shadow-sm notification-item <%= notifUnreadClass(n.is_read, n.type) %> <%= n.is_read ? 'opacity-65' : '' %>"
            data-id="<%= n.id %>" data-read="<%= n.is_read %>">
         <div class="card-body py-3 px-4">
           <div class="d-flex align-items-start">
@@ -54,9 +55,21 @@ function typeBg(t, read){
 document.querySelectorAll('.notification-item[data-read="false"]').forEach(function(el) {
   el.addEventListener('click', function() {
     const id = this.dataset.id;
-    fetch('/notifications/' + id + '/read', { method: 'POST' }).then(function() {
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
+    fetch('/notifications/' + id + '/read', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrf || '', 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: '{}',
+    }).then(function() {
       el.classList.add('opacity-65');
-      el.classList.remove('bg-light', 'border-start', 'border-4');
+      el.classList.remove(
+        'notification-item--unread',
+        'notification-item--accent-info',
+        'notification-item--accent-warning',
+        'notification-item--accent-success'
+      );
       el.dataset.read = 'true';
       if (typeof updateNotificationBadge === 'function') updateNotificationBadge();
     });

@@ -164,6 +164,7 @@ function experienceLabel(n) {
 
           <!-- Форма бронирования -->
           <form id="bookingForm" method="POST" action="/appointments">
+            <%- include('../partials/csrf') %>
             <input type="hidden" name="doctor_id" value="<%= doctor.id %>">
             <input type="hidden" name="date" id="hiddenDate">
             <input type="hidden" name="time" id="hiddenTime">

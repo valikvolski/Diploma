@@ -59,6 +59,7 @@ function fmtType(r){
               <td class="text-end">
                 <form method="POST" action="/doctor/time-off/<%= e.id %>/delete" class="d-inline"
                   onsubmit="return confirm('Удалить изменение графика?')">
+                  <%- include('../partials/csrf') %>
                   <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                 </form>
               </td>
@@ -103,6 +104,7 @@ function fmtType(r){
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <form method="POST" action="/doctor/time-off" id="excForm">
+        <%- include('../partials/csrf') %>
         <div class="modal-header"><h5 class="modal-title fw-bold">Изменение графика</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
           <div class="mb-3">

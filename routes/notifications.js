@@ -17,7 +17,7 @@ router.get('/', requireAuth, async (req, res) => {
        WHERE user_id = $1
        ORDER BY created_at DESC
        LIMIT 100`,
-      [req.session.user.id]
+      [req.user.id]
     );
     res.render('notifications/list', {
       title: 'Уведомления — Запись к врачу',
@@ -35,7 +35,7 @@ router.post('/:id/read', requireAuth, async (req, res) => {
   try {
     await pool.query(
       'UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2',
-      [req.params.id, req.session.user.id]
+      [req.params.id, req.user.id]
     );
     res.json({ ok: true });
   } catch (err) {
@@ -50,7 +50,7 @@ router.post('/read-all', requireAuth, async (req, res) => {
   try {
     await pool.query(
       'UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false',
-      [req.session.user.id]
+      [req.user.id]
     );
     res.redirect('/notifications');
   } catch (err) {
@@ -63,7 +63,7 @@ router.post('/read-all', requireAuth, async (req, res) => {
 
 router.get('/api/unread-count', requireAuth, async (req, res) => {
   try {
-    const count = await getUnreadCount(req.session.user.id);
+    const count = await getUnreadCount(req.user.id);
     res.json({ count });
   } catch (err) {
     console.error(err);
