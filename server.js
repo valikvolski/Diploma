@@ -16,6 +16,7 @@ const notificationsRoutes = require('./routes/notifications');
 const { attachUser, enrichUserLocals } = require('./middleware/auth');
 const { attachCsrfToken, verifyPostCsrf } = require('./middleware/csrf');
 const { flashMiddleware } = require('./middleware/flash');
+const { getPatientProfileCompletion } = require('./utils/patientProfileCompletion');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -306,11 +307,14 @@ app.get('/', async (req, res) => {
           [user.id]
         ),
       ]);
+      const profileCompletion = await getPatientProfileCompletion(pool, user.id);
 
       viewData.patient = {
         upcomingAppointments: upcomingRes.rows,
         unreadNotifications: notifRes.rows,
         previouslyVisitedDoctors: prevDocsRes.rows,
+        profileIncomplete: !profileCompletion.isComplete,
+        profileIncompleteMessage: profileCompletion.message || 'Перед записью необходимо заполнить профиль.',
       };
     } else if (user.role === 'doctor') {
       const [todayRes, nextRes] = await Promise.all([

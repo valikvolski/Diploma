@@ -302,11 +302,16 @@ router.get('/edit', ...patientOnly, async (req, res) => {
     const profile = profileRes.rows[0] || {};
     const canEditBirthDate = !profile.birth_date;
 
-    const needPhoneBanner =
-      req.query.need_phone === '1' || patientNeedsPhoneCompletion(userData.phone);
-    const phoneBannerMessage = req.query.need_phone === '1' && req.query.warning
+    const profileIncomplete =
+      !String(userData.first_name || '').trim() ||
+      !String(userData.last_name || '').trim() ||
+      !String(userData.middle_name || '').trim() ||
+      patientNeedsPhoneCompletion(userData.phone) ||
+      !profile.birth_date;
+    const profileWarningBanner = req.query.need_profile === '1' || req.query.need_phone === '1' || profileIncomplete;
+    const profileWarningMessage = req.query.warning
       ? String(req.query.warning)
-      : 'Для записи необходимо указать номер телефона.';
+      : 'Перед записью необходимо заполнить профиль.';
     const avatarFromGoogle =
       !userData.avatar_path &&
       !!(userData.avatar_url || userData.google_picture_url);
@@ -331,12 +336,12 @@ router.get('/edit', ...patientOnly, async (req, res) => {
         avatar_path: userData.avatar_path,
         avatar_url: userData.avatar_url,
       },
-      needPhoneBanner,
-      phoneBannerMessage,
+      profileWarningBanner,
+      profileWarningMessage,
       avatarFromGoogle,
       canEditBirthDate,
       flashSuccess: req.query.success || null,
-      flashError: needPhoneBanner ? null : (req.query.error || null),
+      flashError: profileWarningBanner ? null : (req.query.error || null),
     });
   } catch (err) {
     console.error('Profile edit load error:', err);
@@ -363,8 +368,8 @@ router.post('/edit', ...patientOnly, async (req, res) => {
         phone: !phone ? 'Укажите телефон' : undefined,
       },
       flash: { type: 'danger', message: 'ФИО и телефон обязательны для заполнения' },
-      needPhoneBanner: patientNeedsPhoneCompletion(phone),
-      phoneBannerMessage: 'Для записи необходимо указать номер телефона.',
+      profileWarningBanner: patientNeedsPhoneCompletion(phone) || !String(formData.birth_date || '').trim(),
+      profileWarningMessage: 'Перед записью необходимо заполнить профиль.',
       avatarFromGoogle: !req.user.avatar_path && !!req.user.avatar_url,
       canEditBirthDate: !String(formData.birth_date || '').trim(),
     });
@@ -379,8 +384,8 @@ router.post('/edit', ...patientOnly, async (req, res) => {
       error: 'Неверный формат телефона. Пример: 375291234567',
       errors: { phone: 'Пример: 375291234567' },
       flash: { type: 'danger', message: 'Неверный формат телефона. Пример: 375291234567' },
-      needPhoneBanner: patientNeedsPhoneCompletion(phone),
-      phoneBannerMessage: 'Для записи необходимо указать номер телефона.',
+      profileWarningBanner: patientNeedsPhoneCompletion(phone) || !String(formData.birth_date || '').trim(),
+      profileWarningMessage: 'Перед записью необходимо заполнить профиль.',
       avatarFromGoogle: !req.user.avatar_path && !!req.user.avatar_url,
       canEditBirthDate: !String(formData.birth_date || '').trim(),
     });
@@ -408,8 +413,8 @@ router.post('/edit', ...patientOnly, async (req, res) => {
           error: 'Неверный формат даты рождения',
           errors: { birth_date: 'Укажите корректную дату' },
           flash: { type: 'danger', message: 'Неверный формат даты рождения' },
-          needPhoneBanner: patientNeedsPhoneCompletion(phoneNorm),
-          phoneBannerMessage: 'Для записи необходимо указать номер телефона.',
+          profileWarningBanner: patientNeedsPhoneCompletion(phoneNorm) || !birthDateToStore,
+          profileWarningMessage: 'Перед записью необходимо заполнить профиль.',
           avatarFromGoogle: !req.user.avatar_path && !!req.user.avatar_url,
           canEditBirthDate,
         });
@@ -450,8 +455,8 @@ router.post('/edit', ...patientOnly, async (req, res) => {
       error: 'Ошибка сохранения профиля',
       errors: {},
       flash: { type: 'danger', message: 'Ошибка сохранения профиля' },
-      needPhoneBanner: patientNeedsPhoneCompletion(formData.phone),
-      phoneBannerMessage: 'Для записи необходимо указать номер телефона.',
+      profileWarningBanner: patientNeedsPhoneCompletion(formData.phone) || !String(formData.birth_date || '').trim(),
+      profileWarningMessage: 'Перед записью необходимо заполнить профиль.',
       avatarFromGoogle: !req.user.avatar_path && !!req.user.avatar_url,
       canEditBirthDate: !String(formData.birth_date || '').trim(),
     });

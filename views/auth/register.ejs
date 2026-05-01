@@ -1,4 +1,5 @@
 <%- include('../partials/header', { title: 'Регистрация — МедЗапись' }) %>
+<% var birthDateMax = new Date().toISOString().slice(0, 10); %>
 
 <div class="auth-page auth-wrapper">
   <div class="auth-shell" style="max-width: 520px;">
@@ -119,6 +120,20 @@
               placeholder="Иванович"
               autocomplete="additional-name"
             />
+          </div>
+
+          <div class="mb-4">
+            <label for="birth_date" class="form-label fw-semibold">Дата рождения</label>
+            <%- include('../partials/birth-date-field', {
+              id: 'birth_date',
+              name: 'birth_date',
+              value: typeof formData !== 'undefined' ? formData.birth_date : '',
+              min: '1900-01-01',
+              max: birthDateMax,
+              required: true,
+              readonly: false,
+              editableHelpText: 'Выберите дату рождения.'
+            }) %>
           </div>
 
           <div class="mb-4">

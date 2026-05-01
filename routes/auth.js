@@ -265,8 +265,8 @@ router.get('/register', (req, res) => {
 // ─── POST /auth/register ─────────────────────────────────────────────────────
 
 router.post('/register', registerLimiter, async (req, res) => {
-  const { email, password, password_confirm, first_name, last_name, middle_name, phone } = req.body;
-  const formData = { email, first_name, last_name, middle_name, phone };
+  const { email, password, password_confirm, first_name, last_name, middle_name, phone, birth_date } = req.body;
+  const formData = { email, first_name, last_name, middle_name, phone, birth_date };
   const renderRegisterError = (message, errors = {}) =>
     res.status(400).render('auth/register', {
       error: message,
@@ -276,7 +276,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
 
-  if (!email || !password || !password_confirm || !first_name || !last_name || !middle_name || !phone) {
+  if (!email || !password || !password_confirm || !first_name || !last_name || !middle_name || !phone || !birth_date) {
     return renderRegisterError('Все поля обязательны для заполнения', {
       email: !email ? 'Укажите email' : undefined,
       password: !password ? 'Укажите пароль' : undefined,
@@ -285,6 +285,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       last_name: !last_name ? 'Укажите фамилию' : undefined,
       middle_name: !middle_name ? 'Укажите отчество' : undefined,
       phone: !phone ? 'Укажите телефон' : undefined,
+      birth_date: !birth_date ? 'Укажите дату рождения' : undefined,
     });
   }
 
@@ -313,6 +314,20 @@ router.post('/register', registerLimiter, async (req, res) => {
     });
   }
 
+  const birthDateRaw = String(birth_date || '').trim();
+  const birthDateOk = /^\d{4}-\d{2}-\d{2}$/.test(birthDateRaw) && !Number.isNaN(Date.parse(birthDateRaw));
+  if (!birthDateOk || birthDateRaw < '1900-01-01') {
+    return renderRegisterError('Укажите корректную дату рождения', {
+      birth_date: 'Неверная дата рождения',
+    });
+  }
+  const todayYmd = new Date().toISOString().slice(0, 10);
+  if (birthDateRaw > todayYmd) {
+    return renderRegisterError('Дата рождения не может быть в будущем', {
+      birth_date: 'Дата рождения не может быть в будущем',
+    });
+  }
+
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (existing.rows.length > 0) {
@@ -332,9 +347,13 @@ router.post('/register', registerLimiter, async (req, res) => {
     );
 
     const row = ins.rows[0];
-    await pool.query('INSERT INTO patient_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [
-      row.id,
-    ]);
+    await pool.query(
+      `INSERT INTO patient_profiles (user_id, birth_date)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE
+       SET birth_date = COALESCE(patient_profiles.birth_date, EXCLUDED.birth_date)`,
+      [row.id, birthDateRaw]
+    );
 
     await issueTokenCookies(pool, row, req, res);
     return res.redirect('/');
@@ -626,7 +645,7 @@ router.get('/google/callback', async (req, res) => {
 
     await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
     await issueTokenCookies(pool, user, req, res);
-    return res.redirect('/profile/edit?need_phone=1&warning=' + encodeURIComponent('Для записи необходимо указать номер телефона.'));
+    return res.redirect('/profile/edit?need_profile=1&warning=' + encodeURIComponent('Перед записью необходимо заполнить профиль.'));
   } catch (err) {
     console.error('Google OAuth error:', err);
     return res.render('auth/login', {

@@ -71,14 +71,14 @@ function experienceLabel(n) {
   </div>
 
 <% } else { %>
-  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    <% doctors.forEach(doctor => { %>
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" data-stagger-group="doctor-cards">
+    <% doctors.forEach((doctor, idx) => { %>
       <div class="col">
-        <div class="doctor-card card h-100 border-0 shadow-sm">
+        <div class="doctor-card card h-100 border-0 shadow-sm js-reveal js-stagger" data-stagger-order="<%= idx %>">
 
           <!-- Аватар и специализация -->
           <div class="doctor-card-header text-center pt-4 pb-2">
-            <div class="doctor-card-avatar-wrap mx-auto mb-3">
+            <div class="doctor-card-avatar-wrap mx-auto mb-3 doctor-card-avatar-anim">
               <%- include('../partials/user-avatar', { person: doctor, size: 'card' }) %>
             </div>
             <% const specs = Array.isArray(doctor.specializations) ? doctor.specializations : []; %>

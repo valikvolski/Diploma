@@ -27,10 +27,10 @@
           </div>
         <% } %>
 
-        <% if (typeof needPhoneBanner !== 'undefined' && needPhoneBanner) { %>
+        <% if (typeof profileWarningBanner !== 'undefined' && profileWarningBanner) { %>
           <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
             <i class="bi bi-telephone-fill flex-shrink-0 mt-1"></i>
-            <span><%= phoneBannerMessage || 'Для записи необходимо указать номер телефона.' %></span>
+            <span><%= profileWarningMessage || 'Перед записью необходимо заполнить профиль.' %></span>
           </div>
         <% } %>
 
@@ -128,17 +128,17 @@
 
           <div class="mb-4 profile-birth-field">
             <label for="birth_date" class="form-label fw-semibold">Дата рождения</label>
-            <input type="date" class="form-control" id="birth_date" name="birth_date"
-              value="<%= formData.birth_date ? String(formData.birth_date).substring(0, 10) : '' %>"
-              min="1900-01-01"
-              max="<%= birthDateMax %>"
-              <%= canEditBirthDate ? 'data-unified-calendar="1" data-uc-year-month="1"' : 'readonly aria-readonly="true"' %>
-              autocomplete="bday" />
-            <% if (canEditBirthDate) { %>
-              <div class="form-text text-muted">Укажите дату рождения для завершения профиля.</div>
-            <% } else { %>
-              <div class="form-text text-muted">Дата рождения не может быть изменена.</div>
-            <% } %>
+            <%- include('../partials/birth-date-field', {
+              id: 'birth_date',
+              name: 'birth_date',
+              value: formData.birth_date,
+              min: '1900-01-01',
+              max: birthDateMax,
+              required: false,
+              readonly: !canEditBirthDate,
+              editableHelpText: 'Укажите дату рождения для завершения профиля.',
+              helpText: 'Дата рождения не может быть изменена.'
+            }) %>
           </div>
 
           <button type="submit" class="btn btn-primary rounded-pill px-4">

@@ -45,12 +45,6 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
 <% if (roleSafe === 'guest') { %>
 <div class="home-root home-root--guest py-4 py-lg-5 bg-app" data-home-role="guest">
   <div class="container app-container">
-    <nav aria-label="Навигация" class="mb-3">
-      <ol class="breadcrumb mb-0 small">
-        <li class="breadcrumb-item active" aria-current="page">Главная</li>
-      </ol>
-    </nav>
-
     <header class="home-patient-hero guest-home-hero app-card border-0 shadow-sm p-4 p-lg-5 mb-4 mb-lg-5 js-home-hero-item">
       <span class="guest-home-hero__bg-shape guest-home-hero__bg-shape--a" aria-hidden="true"></span>
       <span class="guest-home-hero__bg-shape guest-home-hero__bg-shape--b" aria-hidden="true"></span>
@@ -268,11 +262,15 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
 <% const _todayLabel = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); %>
 <div class="home-root home-root--patient py-4 py-lg-5 bg-app" data-home-role="patient">
   <div class="container app-container">
-    <nav aria-label="Навигация" class="mb-3">
-      <ol class="breadcrumb mb-0 small">
-        <li class="breadcrumb-item active" aria-current="page">Главная</li>
-      </ol>
-    </nav>
+    <% if (patient && patient.profileIncomplete) { %>
+      <div class="alert alert-warning d-flex align-items-start gap-2 mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+        <span>
+          <%= patient.profileIncompleteMessage || 'Перед записью необходимо заполнить профиль.' %>
+          <a href="/profile/edit" class="alert-link ms-1">Заполнить профиль</a>
+        </span>
+      </div>
+    <% } %>
 
     <header class="home-patient-header app-card border-0 shadow-sm p-4 p-lg-5 mb-4 js-home-hero-item">
       <div class="row align-items-center g-4">
@@ -333,10 +331,10 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
                   <div class="text-muted"><%= _next.specialization || 'Специализация не указана' %></div>
                 </div>
                 <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                  <span class="badge rounded-pill text-bg-primary">Забронировано</span>
+                  <span class="status-pill status-pill--booked fw-normal">Забронировано</span>
                   <% if (_next.ticket_id) { %>
-                    <a href="/tickets/<%= _next.ticket_id %>" class="btn btn-primary btn-sm rounded-pill">
-                      <i class="bi bi-ticket-perforated me-1"></i>Открыть талон
+                    <a href="/tickets/<%= _next.ticket_id %>" class="status-pill status-pill--booked text-decoration-none">
+                      <i class="bi bi-ticket-perforated me-1"></i>Талон
                     </a>
                   <% } %>
                 </div>
@@ -515,35 +513,28 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
           </section>
         <% } %>
 
-        <section aria-labelledby="patient-notif-heading">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h2 id="patient-notif-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-0 js-home-reveal">Уведомления</h2>
-            <a href="/notifications" class="btn btn-sm btn-outline-primary rounded-pill js-home-reveal">Открыть все</a>
-          </div>
-          <div class="app-card border-0 shadow-sm p-4 js-home-reveal">
-            <% if (_unread > 0 && _notifPreview.length) { %>
-              <div class="d-flex align-items-center gap-2 mb-3">
-                <span class="badge rounded-pill text-bg-danger">Непрочитано: <%= _unread > 99 ? '99+' : _unread %></span>
-                <span class="small text-muted">Последние сообщения</span>
+        <section aria-labelledby="patient-health-advice-heading" class="mb-4">
+          <div class="card border-0 shadow-sm rounded-4 mb-4 js-home-reveal">
+            <div class="card-body p-4">
+              <h2 id="patient-health-advice-heading" class="h6 fw-bold mb-3">Как подготовиться к приёму</h2>
+
+              <p class="text-muted mb-3">
+                Чтобы консультация прошла максимально эффективно, заранее зафиксируйте основные жалобы: когда они начались, как часто проявляются и что усиливает или облегчает симптомы. Краткие заметки в телефоне помогут не упустить важные детали на приёме.
+              </p>
+
+              <p class="text-muted mb-3">
+                Если у вас уже есть результаты анализов, выписки или заключения предыдущих специалистов, подготовьте их заранее. Это сокращает время на уточнения и помогает врачу быстрее определить дальнейший план обследования или лечения.
+              </p>
+
+              <div class="app-card border-0 shadow-sm rounded-4 p-3 mt-3">
+                <div class="fw-semibold mb-2">Важно помнить</div>
+                <ul class="mb-0 ps-3 text-muted small">
+                  <li>Если симптомы усиливаются, не откладывайте запись и выбирайте ближайшее доступное время.</li>
+                  <li>После приёма проверьте назначения и сохраните рекомендации в личных заметках.</li>
+                  <li>Для контроля динамики состояния планируйте повторный визит заранее.</li>
+                </ul>
               </div>
-              <div class="d-flex flex-column gap-3">
-                <% _notifPreview.slice(0, 3).forEach(function(n) { %>
-                  <div class="home-notif-preview-item">
-                    <div class="fw-semibold small text-truncate" title="<%= n.title %>"><%= n.title %></div>
-                    <p class="small text-muted mb-0 home-notif-preview-item__msg"><%= n.message %></p>
-                    <div class="small text-muted mt-1"><%= fmtDateTimeShort(n.created_at) %></div>
-                  </div>
-                <% }) %>
-              </div>
-            <% } else if (_unread > 0) { %>
-              <p class="fw-semibold mb-2">У вас <%= _unread > 99 ? '99+' : _unread %> непрочитанных уведомлений</p>
-              <p class="small text-muted mb-0">Откройте центр уведомлений, чтобы прочитать сообщения.</p>
-            <% } else { %>
-              <div class="text-center py-3 home-patient-empty">
-                <div class="home-patient-empty__icon text-muted mb-2"><i class="bi bi-bell-slash"></i></div>
-                <p class="text-muted small mb-0">Новых уведомлений нет. Мы сообщим, если что-то изменится в ваших записях.</p>
-              </div>
-            <% } %>
+            </div>
           </div>
         </section>
       </div>

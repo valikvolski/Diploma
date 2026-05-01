@@ -16,9 +16,9 @@ function experienceLabel(n) {
 
   <!-- Левая колонка: аватар + мета -->
   <div class="col-lg-4">
-    <div class="card border-0 shadow-sm text-center p-4 app-card">
+    <div class="card border-0 shadow-sm text-center p-4 app-card js-reveal doctor-detail-main-card">
 
-      <div class="doctor-detail-avatar-wrap mx-auto mb-3">
+      <div class="doctor-detail-avatar-wrap mx-auto mb-3 doctor-detail-avatar-anim">
         <%- include('../partials/user-avatar', { person: doctor, size: 'detail' }) %>
       </div>
 
@@ -31,7 +31,7 @@ function experienceLabel(n) {
       <% if (dspecs.length) { %>
         <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
           <% dspecs.forEach(function(sp) { %>
-            <span class="badge spec-badge fs-6<%= sp.is_primary ? '' : ' bg-light text-dark border' %>"><%= sp.name %></span>
+            <span class="badge spec-badge spec-badge--motion fs-6<%= sp.is_primary ? '' : ' bg-light text-dark border' %>"><%= sp.name %></span>
           <% }); %>
         </div>
       <% } %>
@@ -70,11 +70,11 @@ function experienceLabel(n) {
   </div>
 
   <!-- Правая колонка: детали -->
-  <div class="col-lg-8 d-flex flex-column gap-4">
+  <div class="col-lg-8 d-flex flex-column gap-4" data-stagger-group="doctor-detail">
 
     <!-- Описание -->
     <% if (doctor.description) { %>
-      <div class="card border-0 shadow-sm p-4 app-card">
+      <div class="card border-0 shadow-sm p-4 app-card js-reveal js-stagger" data-stagger-order="0">
         <h5 class="fw-bold mb-3">
           <i class="bi bi-info-circle text-primary me-2"></i>О враче
         </h5>
@@ -84,7 +84,7 @@ function experienceLabel(n) {
 
     <!-- Образование -->
     <% if (doctor.education) { %>
-      <div class="card border-0 shadow-sm p-4 app-card">
+      <div class="card border-0 shadow-sm p-4 app-card js-reveal js-stagger" data-stagger-order="1">
         <h5 class="fw-bold mb-3">
           <i class="bi bi-mortarboard text-primary me-2"></i>Образование
         </h5>
@@ -93,7 +93,7 @@ function experienceLabel(n) {
     <% } %>
 
     <!-- Запись на приём -->
-    <div class="card border-0 shadow-sm p-4 app-card" id="bookingCard">
+    <div class="card border-0 shadow-sm p-4 app-card js-reveal js-stagger" data-stagger-order="2" id="bookingCard">
       <h5 class="fw-bold mb-3">
         <i class="bi bi-calendar2-plus text-primary me-2"></i>Запись на приём
       </h5>
@@ -156,7 +156,7 @@ function experienceLabel(n) {
         </div>
 
         <!-- Сетка слотов -->
-        <div id="slotsSection" class="d-none booking-slots-panel__state">
+        <div id="slots-section" class="d-none booking-slots-panel__state">
           <p class="form-label fw-semibold mb-2">
             <i class="bi bi-clock me-1 text-primary"></i>Выберите время
           </p>
@@ -211,7 +211,7 @@ function experienceLabel(n) {
 
   const spinner      = document.getElementById('slotsSpinner');
   const noSlotsMsg   = document.getElementById('noSlotsMsg');
-  const slotsSection = document.getElementById('slotsSection');
+  const slotsSection = document.getElementById('slots-section');
   const slotsGrid    = document.getElementById('slotsGrid');
   const hiddenDate   = document.getElementById('hiddenDate');
   const hiddenTime   = document.getElementById('hiddenTime');
@@ -431,6 +431,11 @@ function experienceLabel(n) {
     });
 
     slotsSection.classList.remove('d-none');
+    slotsSection.classList.remove('booking-slots-panel--flash');
+    requestAnimationFrame(function () {
+      slotsSection.classList.add('booking-slots-panel--flash');
+      slotsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   const now = new Date();

@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { pool } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { patientNeedsPhoneCompletion } = require('../utils/patientPhone');
+const { getPatientProfileCompletion } = require('../utils/patientProfileCompletion');
 const { notifyAppointmentCreated } = require('../utils/notifications');
 const { sendAppointmentBookedEmail } = require('../utils/mailer');
 const {
@@ -85,9 +85,12 @@ router.post(
     }
 
     try {
-      const phoneRes = await pool.query('SELECT phone FROM users WHERE id = $1', [patientId]);
-      if (patientNeedsPhoneCompletion(phoneRes.rows[0]?.phone)) {
-        return res.redirect('/profile/edit?need_phone=1&warning=' + encodeURIComponent('Перед записью заполните номер телефона.'));
+      const profileCompletion = await getPatientProfileCompletion(pool, patientId);
+      if (!profileCompletion.isComplete) {
+        return res.redirect(
+          '/profile/edit?need_profile=1&warning=' +
+            encodeURIComponent(profileCompletion.message || 'Перед записью необходимо заполнить профиль.')
+        );
       }
 
       const doctorRes = await pool.query(

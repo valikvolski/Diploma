@@ -1,0 +1,28 @@
+<%
+  const fieldId = typeof id !== 'undefined' ? id : 'birth_date';
+  const fieldName = typeof name !== 'undefined' ? name : 'birth_date';
+  const fieldValue = (typeof value !== 'undefined' && value) ? String(value).substring(0, 10) : '';
+  const fieldMin = (typeof min !== 'undefined' && min) ? min : '1900-01-01';
+  const fieldMax = (typeof max !== 'undefined' && max) ? max : new Date().toISOString().slice(0, 10);
+  const fieldRequired = typeof required !== 'undefined' ? !!required : false;
+  const fieldReadonly = typeof readonly !== 'undefined' ? !!readonly : false;
+  const fieldHelp = typeof helpText !== 'undefined' ? helpText : '';
+  const fieldEditableHelp = typeof editableHelpText !== 'undefined' ? editableHelpText : '';
+%>
+<input
+  type="date"
+  class="form-control"
+  id="<%= fieldId %>"
+  name="<%= fieldName %>"
+  value="<%= fieldValue %>"
+  min="<%= fieldMin %>"
+  max="<%= fieldMax %>"
+  <%= fieldReadonly ? 'readonly aria-readonly="true"' : 'data-unified-calendar="1" data-uc-year-month="1"' %>
+  <%= fieldRequired ? 'required' : '' %>
+  autocomplete="bday"
+/>
+<% if (fieldReadonly) { %>
+  <div class="form-text text-muted"><%= fieldHelp || 'Дата рождения не может быть изменена.' %></div>
+<% } else if (fieldEditableHelp) { %>
+  <div class="form-text text-muted"><%= fieldEditableHelp %></div>
+<% } %>
