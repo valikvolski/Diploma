@@ -9,6 +9,9 @@ const {
   getFreeSlotsForDate,
   getMonthAvailabilityMap,
   invalidateDoctorAvailabilityCache,
+  todayLocalYmd,
+  timeToMinutes,
+  currentLocalTimeMinutes,
 } = require('../utils/bookingSlots');
 
 const router = express.Router();
@@ -24,22 +27,19 @@ router.get('/api/doctors/:id/slots', async (req, res) => {
   const { date } = req.query;
 
   if (isNaN(doctorId) || !isValidDate(date)) {
-    return res.status(400).json({ error: 'Неверные параметры запроса' });
+    return res.status(400).json({ success: false, message: 'Неверные параметры запроса', errors: {} });
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const selected = new Date(date + 'T00:00:00');
-  if (selected < today) {
-    return res.json({ slots: [] });
+  if (date < todayLocalYmd()) {
+    return res.json({ success: true, slots: [] });
   }
 
   try {
     const slots = await getFreeSlotsForDate(pool, doctorId, date);
-    res.json({ slots });
+    res.json({ success: true, slots });
   } catch (err) {
     console.error('Slots error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, message: 'Ошибка сервера', errors: {} });
   }
 });
 
@@ -50,16 +50,16 @@ router.get('/api/doctors/:id/availability', async (req, res) => {
   const { month } = req.query;
 
   if (isNaN(doctorId) || !month || !/^\d{4}-\d{2}$/.test(month)) {
-    return res.status(400).json({ error: 'Укажите month=YYYY-MM' });
+    return res.status(400).json({ success: false, message: 'Укажите month=YYYY-MM', errors: {} });
   }
 
   try {
     // Не делаем 404: страница врача уже проверена; здесь только расчёт (как у /slots)
     const availability = await getMonthAvailabilityMap(pool, doctorId, month);
-    res.json(availability);
+    res.json({ success: true, availability });
   } catch (err) {
     console.error('Availability error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ success: false, message: 'Ошибка сервера', errors: {} });
   }
 });
 
@@ -77,20 +77,17 @@ router.post(
       return res.status(400).render('error', { message: 'Некорректные данные для записи' });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selected = new Date(date + 'T00:00:00');
-    if (selected < today) {
+    if (date < todayLocalYmd()) {
       return res.status(400).render('error', { message: 'Нельзя записаться на прошедшую дату' });
+    }
+    if (date === todayLocalYmd() && timeToMinutes(time) <= currentLocalTimeMinutes()) {
+      return res.status(409).render('error', { message: 'Нельзя записаться на прошедшее время.' });
     }
 
     try {
       const phoneRes = await pool.query('SELECT phone FROM users WHERE id = $1', [patientId]);
       if (patientNeedsPhoneCompletion(phoneRes.rows[0]?.phone)) {
-        return res.redirect(
-          '/profile/edit?need_phone=1&error=' +
-            encodeURIComponent('Укажите корректный телефон в профиле (пример: 375291234567), чтобы записаться к врачу.')
-        );
+        return res.redirect('/profile/edit?need_phone=1&warning=' + encodeURIComponent('Перед записью заполните номер телефона.'));
       }
 
       const doctorRes = await pool.query(

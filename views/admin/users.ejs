@@ -1,28 +1,63 @@
 <%- include('../partials/header', { title: title }) %>
 <% var dsTitle = 'Пользователи'; var dsSubtitle = 'Блокировка, роли и удаление учётных записей'; var dsIcon = 'bi-people'; %>
 <%- include('../partials/ds-page-header') %>
-<div class="d-flex flex-wrap justify-content-end mb-3">
-  <form method="GET" action="/admin/users" class="d-flex gap-2">
-    <select name="role" class="form-select form-select-sm" style="min-width: 11rem;" onchange="this.form.submit()">
-      <option value="">Все роли</option>
-      <option value="patient" <%= roleFilter==='patient'?'selected':'' %>>Пациенты</option>
-      <option value="doctor" <%= roleFilter==='doctor'?'selected':'' %>>Врачи</option>
-      <option value="admin" <%= roleFilter==='admin'?'selected':'' %>>Администраторы</option>
-    </select>
-  </form>
-</div>
 
 <% if (success) { %><div class="alert alert-success alert-dismissible fade show"><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
 <% if (error) { %><div class="alert alert-danger alert-dismissible fade show"><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
 
+<div class="card border-0 shadow-sm mb-4 rounded-4">
+  <div class="card-body p-4">
+    <form method="GET" action="/admin/users" class="row g-3 align-items-end admin-filter-form">
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">Роль</label>
+        <select name="role" class="form-select form-select-sm">
+          <option value="">Все роли</option>
+          <option value="patient" <%= filters && filters.role==='patient'?'selected':'' %>>Пациенты</option>
+          <option value="doctor" <%= filters && filters.role==='doctor'?'selected':'' %>>Врачи</option>
+          <option value="admin" <%= filters && filters.role==='admin'?'selected':'' %>>Администраторы</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold">Статус</label>
+        <select name="blocked" class="form-select form-select-sm">
+          <option value="">Все</option>
+          <option value="active" <%= filters && filters.blocked==='active'?'selected':'' %>>Активен</option>
+          <option value="blocked" <%= filters && filters.blocked==='blocked'?'selected':'' %>>Заблокирован</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Поиск</label>
+        <input type="text" name="search" class="form-control form-control-sm" placeholder="Email или ФИО" value="<%= filters && filters.search ? filters.search : '' %>">
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <input type="hidden" name="limit" value="<%= pagination && pagination.limit ? pagination.limit : 10 %>">
+        <button class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search"></i></button>
+        <a href="/admin/users" class="btn btn-outline-secondary btn-sm">Сброс</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="text-muted small mb-3">Всего записей: <strong><%= totalCount || 0 %></strong></p>
+
 <div class="app-table-wrap app-table-wrap--sticky">
   <div class="table-responsive app-table-responsive">
-    <table class="table app-table table-hover mb-0">
+    <table class="table app-table table-hover align-middle mb-0">
       <thead>
         <tr><th>#</th><th>Email</th><th>ФИО</th><th>Роль</th><th>Статус</th><th class="text-end">Действия</th></tr>
       </thead>
       <tbody>
-        <% users.forEach(function(u) { %>
+        <% if (!users || users.length === 0) { %>
+          <tr>
+            <td colspan="6" class="p-0 border-0">
+              <div class="text-center py-5 app-card app-card--static m-3">
+                <div class="empty-state__icon text-muted"><i class="bi bi-inbox"></i></div>
+                <p class="text-muted mb-0 mt-2">Пользователи не найдены</p>
+              </div>
+            </td>
+          </tr>
+        <% } %>
+        <% (users || []).forEach(function(u) { %>
           <tr class="<%= u.is_blocked ? 'table-secondary' : '' %>">
             <td><%= u.id %></td>
             <td><%= u.email %></td>
@@ -41,19 +76,20 @@
                   <i class="bi bi-person-badge"></i>
                 </a>
               <% } %>
-              <form method="POST" action="/admin/users/<%= u.id %>/block" class="d-inline">
+              <form method="POST" action="/admin/users/<%= u.id %>/block" class="d-inline js-confirm-form" data-confirm-title="<%= u.is_blocked ? 'Разблокировка пользователя' : 'Блокировка пользователя' %>" data-confirm-name="<%= u.last_name %> <%= u.first_name %>" data-confirm-action="<%= u.is_blocked ? 'Разблокировать' : 'Заблокировать' %>">
                 <%- include('../partials/csrf') %>
                 <% if(u.is_blocked){ %>
-                  <button class="btn btn-sm btn-outline-success" title="Разблокировать"><i class="bi bi-unlock"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-success js-open-confirm" title="Разблокировать"><i class="bi bi-unlock"></i></button>
                 <% } else { %>
-                  <button class="btn btn-sm btn-outline-warning" title="Заблокировать"
-                    onclick="return confirm('Заблокировать <%= u.last_name %> <%= u.first_name %>?')"><i class="bi bi-lock"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-warning js-open-confirm" title="Заблокировать"><i class="bi bi-lock"></i></button>
                 <% } %>
               </form>
-              <form method="POST" action="/admin/users/<%= u.id %>/delete" class="d-inline"
-                onsubmit="return confirm('Удалить пользователя <%= u.last_name %> <%= u.first_name %>? Это действие необратимо!')">
+              <form method="POST" action="/admin/users/<%= u.id %>/delete" class="d-inline js-confirm-form"
+                data-confirm-title="Удаление пользователя"
+                data-confirm-name="<%= u.last_name %> <%= u.first_name %>"
+                data-confirm-action="Удалить">
                 <%- include('../partials/csrf') %>
-                <button class="btn btn-sm btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-danger js-open-confirm" title="Удалить"><i class="bi bi-trash"></i></button>
               </form>
             </td>
           </tr>
@@ -63,6 +99,90 @@
   </div>
 </div>
 
-<p class="text-muted small mt-3">Всего: <strong><%= users.length %></strong></p>
+<%
+  var p = pagination || { currentPage: 1, totalPages: 1, hasPrev: false, hasNext: false, limit: 10 };
+  function usersPageUrl(pg) {
+    const qp = new URLSearchParams();
+    if (filters && filters.role) qp.set('role', filters.role);
+    if (filters && filters.blocked) qp.set('blocked', filters.blocked);
+    if (filters && filters.search) qp.set('search', filters.search);
+    qp.set('limit', String(p.limit || 10));
+    qp.set('page', String(pg));
+    return '/admin/users?' + qp.toString();
+  }
+%>
+<% if (p.totalPages > 1) { %>
+  <nav aria-label="Пагинация пользователей" class="mt-3">
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item <%= p.hasPrev ? '' : 'disabled' %>">
+        <a class="page-link" href="<%= p.hasPrev ? usersPageUrl(p.currentPage - 1) : '#' %>">Назад</a>
+      </li>
+      <% for (let i = 1; i <= p.totalPages; i++) { %>
+        <li class="page-item <%= i === p.currentPage ? 'active' : '' %>">
+          <a class="page-link" href="<%= usersPageUrl(i) %>"><%= i %></a>
+        </li>
+      <% } %>
+      <li class="page-item <%= p.hasNext ? '' : 'disabled' %>">
+        <a class="page-link" href="<%= p.hasNext ? usersPageUrl(p.currentPage + 1) : '#' %>">Вперёд</a>
+      </li>
+    </ul>
+  </nav>
+<% } %>
+
+<div class="modal fade" id="adminConfirmModal" tabindex="-1" aria-labelledby="adminConfirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="adminConfirmModalLabel">Подтверждение действия</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Вы действительно хотите выполнить действие для <strong id="adminConfirmName">этого объекта</strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-danger" id="adminConfirmSubmit">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    function initAdminConfirmModal() {
+      var modalEl = document.getElementById('adminConfirmModal');
+      if (!modalEl || !window.bootstrap) return false;
+      var modal = new bootstrap.Modal(modalEl);
+      var submitBtn = document.getElementById('adminConfirmSubmit');
+      var nameEl = document.getElementById('adminConfirmName');
+      var titleEl = document.getElementById('adminConfirmModalLabel');
+      var pendingForm = null;
+
+      document.querySelectorAll('.js-open-confirm').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var form = btn.closest('.js-confirm-form');
+          if (!form) return;
+          pendingForm = form;
+          if (nameEl) nameEl.textContent = form.getAttribute('data-confirm-name') || 'выбранного объекта';
+          if (titleEl) titleEl.textContent = form.getAttribute('data-confirm-title') || 'Подтверждение действия';
+          if (submitBtn) submitBtn.textContent = form.getAttribute('data-confirm-action') || 'Подтвердить';
+          modal.show();
+        });
+      });
+
+      if (submitBtn) {
+        submitBtn.addEventListener('click', function () {
+          if (!pendingForm) return;
+          pendingForm.submit();
+        });
+      }
+      return true;
+    }
+
+    if (!initAdminConfirmModal()) {
+      window.addEventListener('load', initAdminConfirmModal, { once: true });
+    }
+  })();
+</script>
 
 <%- include('../partials/footer') %>

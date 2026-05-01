@@ -90,7 +90,10 @@ function requireRole(allowedRoles) {
     if (allowedRoles.includes(req.user.role)) {
       return next();
     }
-    res.status(403).send('Доступ запрещён');
+    if (req.originalUrl && req.originalUrl.startsWith('/api/')) {
+      return res.status(403).json({ success: false, message: 'Доступ запрещён', errors: {} });
+    }
+    return res.status(403).render('error', { message: 'Доступ запрещён' });
   };
 }
 

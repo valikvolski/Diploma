@@ -251,9 +251,11 @@ function experienceLabel(n) {
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (!data || typeof data !== 'object') throw new Error('bad payload');
-    availabilityCache[key] = data;
-    return data;
+    if (!data || data.success !== true || !data.availability || typeof data.availability !== 'object') {
+      throw new Error('bad payload');
+    }
+    availabilityCache[key] = data.availability;
+    return data.availability;
   }
 
   function placesWordRU(n) {
@@ -391,6 +393,7 @@ function experienceLabel(n) {
       const res = await fetch(apiUrl('/api/doctors/' + DOCTOR_ID + '/slots?date=' + encodeURIComponent(date)));
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
+      if (!data || data.success !== true || !Array.isArray(data.slots)) throw new Error('Bad payload');
       renderSlots(data.slots, date);
     } catch (e) {
       noSlotsMsg.textContent = 'Ошибка загрузки расписания. Попробуйте позже.';

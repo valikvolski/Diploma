@@ -30,14 +30,7 @@
         <% if (typeof needPhoneBanner !== 'undefined' && needPhoneBanner) { %>
           <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
             <i class="bi bi-telephone-fill flex-shrink-0 mt-1"></i>
-            <span>Для записи к врачу укажите <strong>реальный</strong> номер телефона в формате <code>375XXXXXXXXX</code> (пример: <code>375291234567</code>). Заглушка из Google недостаточна.</span>
-          </div>
-        <% } %>
-
-        <% if (typeof avatarFromGoogle !== 'undefined' && avatarFromGoogle) { %>
-          <div class="alert alert-info d-flex align-items-start gap-2 py-2 small" role="status">
-            <i class="bi bi-google flex-shrink-0 mt-1"></i>
-            <span>Фото взято из профиля Google. Загрузите своё изображение ниже — оно заменит фото Google и не будет перезаписано при следующем входе.</span>
+            <span><%= phoneBannerMessage || 'Для записи необходимо указать номер телефона.' %></span>
           </div>
         <% } %>
 
@@ -139,9 +132,13 @@
               value="<%= formData.birth_date ? String(formData.birth_date).substring(0, 10) : '' %>"
               min="1900-01-01"
               max="<%= birthDateMax %>"
-              data-unified-calendar="1"
-              data-uc-year-month="1"
+              <%= canEditBirthDate ? 'data-unified-calendar="1" data-uc-year-month="1"' : 'readonly aria-readonly="true"' %>
               autocomplete="bday" />
+            <% if (canEditBirthDate) { %>
+              <div class="form-text text-muted">Укажите дату рождения для завершения профиля.</div>
+            <% } else { %>
+              <div class="form-text text-muted">Дата рождения не может быть изменена.</div>
+            <% } %>
           </div>
 
           <button type="submit" class="btn btn-primary rounded-pill px-4">

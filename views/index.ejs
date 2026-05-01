@@ -1,9 +1,16 @@
 <%
 function fmtDateShort(str) {
   if (!str) return '—';
-  const p = String(str).substring(0, 10).split('-');
-  if (p.length !== 3) return String(str);
-  return `${parseInt(p[2], 10)}.${p[1]}.${p[0]}`;
+  const raw = String(str).trim();
+  let d = null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const p = raw.split('-').map(Number);
+    d = new Date(p[0], p[1] - 1, p[2]);
+  } else {
+    d = new Date(raw);
+  }
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 function fmtDateTimeShort(dt) {
   if (dt == null || dt === '') return '—';
@@ -45,39 +52,106 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
     </nav>
 
     <header class="home-patient-hero guest-home-hero app-card border-0 shadow-sm p-4 p-lg-5 mb-4 mb-lg-5 js-home-hero-item">
+      <span class="guest-home-hero__bg-shape guest-home-hero__bg-shape--a" aria-hidden="true"></span>
+      <span class="guest-home-hero__bg-shape guest-home-hero__bg-shape--b" aria-hidden="true"></span>
       <div class="row align-items-center g-4">
-        <div class="col-lg-8">
-          <h1 class="h2 fw-bold mb-2">Запись к врачу</h1>
-          <p class="text-muted mb-0 guest-home-hero__lead">Сервис онлайн-записи в поликлинику. Выберите врача и время — без очереди в регистратуру.</p>
+        <div class="col-lg-7">
+          <h1 class="fw-bold mb-2">Онлайн‑запись к врачу</h1>
+          <p class="text-muted mb-0 guest-home-hero__lead">Сервис онлайн‑записи в поликлинику: выбор врача, даты и времени — без очереди в регистратуру.</p>
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <a href="/auth/register" class="btn btn-primary rounded-pill px-4 app-btn-lift">
+              <i class="bi bi-person-plus me-2"></i>Регистрация
+            </a>
+            <a href="/doctors" class="btn btn-outline-primary rounded-pill px-4">
+              <i class="bi bi-search me-2"></i>Выбрать врача
+            </a>
+          </div>
+          <p class="text-muted small mt-3 mb-0 guest-home-hero__lead">После авторизации доступен электронный талон (PDF), уведомления на email и история записей в личном кабинете.</p>
         </div>
-        <div class="col-lg-4 text-lg-end">
-          <div class="guest-home-hero__mark d-none d-md-inline-flex align-items-center justify-content-center rounded-4 ms-lg-auto" aria-hidden="true">
-            <i class="bi bi-heart-pulse-fill"></i>
+        <div class="col-lg-5 d-none d-lg-block">
+          <div class="ms-lg-auto guest-hero-ill" aria-hidden="true">
+            <svg viewBox="0 0 520 360" width="100%" height="auto" role="img">
+              <defs>
+                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#38bdf8" stop-opacity="0.18"/>
+                </linearGradient>
+                <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.9"/>
+                  <stop offset="1" stop-color="#0ea5e9" stop-opacity="0.9"/>
+                </linearGradient>
+              </defs>
+              <rect x="20" y="24" width="480" height="312" rx="28" fill="url(#g1)" stroke="rgba(148,163,184,0.45)"/>
+              <rect x="62" y="68" width="396" height="224" rx="22" fill="rgba(255,255,255,0.7)" stroke="rgba(148,163,184,0.55)"/>
+              <circle cx="122" cy="132" r="34" fill="url(#g2)"/>
+              <rect x="176" y="112" width="220" height="14" rx="7" fill="rgba(15,23,42,0.22)"/>
+              <rect x="176" y="140" width="180" height="12" rx="6" fill="rgba(15,23,42,0.14)"/>
+              <rect x="92" y="196" width="336" height="72" rx="18" fill="rgba(26,110,230,0.10)" stroke="rgba(26,110,230,0.22)"/>
+              <path d="M142 232h24v-16h16v16h24v16h-24v16h-16v-16h-24z" fill="rgba(26,110,230,0.85)"/>
+              <rect x="216" y="214" width="180" height="12" rx="6" fill="rgba(15,23,42,0.18)"/>
+              <rect x="216" y="238" width="150" height="10" rx="5" fill="rgba(15,23,42,0.12)"/>
+            </svg>
           </div>
         </div>
       </div>
     </header>
 
-    <section class="mb-4 mb-lg-5" aria-labelledby="guest-cta-heading">
-      <h2 id="guest-cta-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Действия</h2>
+    <section class="mb-4 mb-lg-5" aria-labelledby="guest-about-heading">
+      <div class="home-section-soft js-home-reveal">
+        <div class="home-section-soft__inner">
+          <div class="row g-3 align-items-center">
+            <div class="col-lg-8">
+              <h2 id="guest-about-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-2">О системе</h2>
+              <p class="mb-0 text-muted">
+                «МедЗапись» объединяет процессы записи к врачу, выдачи электронных талонов и уведомлений в одном веб‑приложении.
+                Расписание врача учитывается автоматически, а пациент получает актуальную информацию о своих визитах.
+              </p>
+            </div>
+            <div class="col-lg-4">
+              <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                <a href="/auth/login" class="btn btn-outline-secondary rounded-pill px-4">Войти</a>
+                <a href="/doctors" class="btn btn-outline-primary rounded-pill px-4">Каталог врачей</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4 mb-lg-5" aria-labelledby="guest-benefits-heading">
+      <h2 id="guest-benefits-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Преимущества сервиса</h2>
       <div class="row g-3" data-reveal-stagger="1">
-        <div class="col-12 col-md-4">
-          <a href="/doctors" class="home-patient-tile home-patient-tile--accent guest-home-tile js-home-stagger h-100" data-stagger-order="0">
-            <span class="home-patient-tile__icon"><i class="bi bi-search"></i></span>
-            <span class="home-patient-tile__label">Найти врача</span>
-          </a>
+        <div class="col-md-4">
+          <article class="guest-benefit-card js-home-stagger h-100" data-stagger-order="0">
+            <div class="fw-semibold mb-2"><i class="bi bi-filetype-pdf me-2"></i>Электронный талон с PDF</div>
+            <p class="small text-muted mb-0">После записи формируется электронный талон, доступный в кабинете и в письме.</p>
+          </article>
         </div>
-        <div class="col-12 col-md-4">
-          <a href="/auth/login" class="home-patient-tile guest-home-tile js-home-stagger h-100" data-stagger-order="1">
-            <span class="home-patient-tile__icon"><i class="bi bi-box-arrow-in-right"></i></span>
-            <span class="home-patient-tile__label">Войти</span>
-          </a>
+        <div class="col-md-4">
+          <article class="guest-benefit-card js-home-stagger h-100" data-stagger-order="1">
+            <div class="fw-semibold mb-2"><i class="bi bi-envelope-paper me-2"></i>Уведомления на email</div>
+            <p class="small text-muted mb-0">Подтверждение, отмена и напоминания приходят в виде понятных писем.</p>
+          </article>
         </div>
-        <div class="col-12 col-md-4">
-          <a href="/auth/register" class="home-patient-tile guest-home-tile js-home-stagger h-100" data-stagger-order="2">
-            <span class="home-patient-tile__icon"><i class="bi bi-person-plus"></i></span>
-            <span class="home-patient-tile__label">Регистрация</span>
-          </a>
+        <div class="col-md-4">
+          <article class="guest-benefit-card js-home-stagger h-100" data-stagger-order="2">
+            <div class="fw-semibold mb-2"><i class="bi bi-google me-2"></i>Google‑вход</div>
+            <p class="small text-muted mb-0">Быстрая авторизация через Google без отдельного пароля (по сценарию приложения).</p>
+          </article>
+        </div>
+      </div>
+      <div class="row g-3 mt-1" data-reveal-stagger="1">
+        <div class="col-md-6">
+          <article class="guest-benefit-card js-home-stagger h-100" data-stagger-order="3">
+            <div class="fw-semibold mb-2"><i class="bi bi-calendar2-week me-2"></i>Актуальное расписание</div>
+            <p class="small text-muted mb-0">Слоты отображаются по расписанию врача с учётом исключений и занятости.</p>
+          </article>
+        </div>
+        <div class="col-md-6">
+          <article class="guest-benefit-card js-home-stagger h-100" data-stagger-order="4">
+            <div class="fw-semibold mb-2"><i class="bi bi-bell me-2"></i>Центр уведомлений</div>
+            <p class="small text-muted mb-0">Все события по записям собраны в приложении — с отметкой прочитанного.</p>
+          </article>
         </div>
       </div>
     </section>
@@ -121,11 +195,24 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
         <% var topSpecs = guest && guest.topSpecializations ? guest.topSpecializations : []; %>
         <% if (topSpecs.length) { %>
           <% topSpecs.forEach(function(s, idx) { %>
-            <div class="col-6 col-lg-3">
-              <a href="/doctors" class="guest-top-spec-card js-home-stagger h-100 text-decoration-none" data-stagger-order="<%= idx %>">
-                <span class="guest-top-spec-card__name"><%= s.name %></span>
-                <span class="guest-top-spec-card__hint">Доступны врачи в каталоге</span>
-              </a>
+            <div class="col-md-6 col-lg-3">
+              <article class="guest-spec-card js-home-stagger" data-stagger-order="<%= idx %>">
+                <div class="d-flex align-items-start gap-3">
+                  <div class="guest-spec-card__icon"><i class="bi <%= s.icon || 'bi-heart-pulse' %>"></i></div>
+                  <div class="min-w-0">
+                    <div class="fw-bold"><%= s.name %></div>
+                    <div class="guest-spec-card__desc mt-1"><%= s.description || 'Диагностика и консультация специалистов по профилю.' %></div>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center justify-content-between mt-3">
+                  <span class="small text-muted">Врачей: <strong class="text-body"><%= typeof s.doctor_count !== 'undefined' ? s.doctor_count : '—' %></strong></span>
+                  <% if (s.id) { %>
+                    <a class="btn btn-sm btn-outline-primary rounded-pill" href="/doctors?specialization_id=<%= s.id %>">Выбрать врача</a>
+                  <% } else { %>
+                    <a class="btn btn-sm btn-outline-primary rounded-pill" href="/doctors">Выбрать врача</a>
+                  <% } %>
+                </div>
+              </article>
             </div>
           <% }) %>
         <% } else { %>
@@ -178,6 +265,7 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
 <% if (roleSafe === 'patient') { %>
 <% const _unread = typeof unreadNotifCount !== 'undefined' ? unreadNotifCount : 0; %>
 <% const _notifPreview = patient && patient.unreadNotifications ? patient.unreadNotifications : []; %>
+<% const _todayLabel = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); %>
 <div class="home-root home-root--patient py-4 py-lg-5 bg-app" data-home-role="patient">
   <div class="container app-container">
     <nav aria-label="Навигация" class="mb-3">
@@ -186,96 +274,136 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
       </ol>
     </nav>
 
-    <header class="home-patient-hero app-card border-0 shadow-sm p-4 p-lg-5 mb-4 js-home-hero-item">
-      <div class="row align-items-center g-3">
-        <div class="col">
-          <h1 class="h2 fw-bold mb-2">
-            Здравствуйте, <%= user.first_name %>! <span class="home-wave" aria-hidden="true">👋</span>
-          </h1>
-          <p class="text-muted mb-0">Запись к врачу, талоны и напоминания — в одном месте.</p>
+    <header class="home-patient-header app-card border-0 shadow-sm p-4 p-lg-5 mb-4 js-home-hero-item">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-7">
+          <h1 class="h2 fw-bold mb-1">Здравствуйте, <%= user.first_name %>!</h1>
+          <div class="text-muted">Добро пожаловать в личный кабинет онлайн‑записи</div>
+          <div class="small text-muted mt-2"><i class="bi bi-calendar3 me-2"></i><%= _todayLabel %></div>
         </div>
-        <div class="col-auto d-none d-sm-block">
-          <div class="home-patient-hero__mark d-flex align-items-center justify-content-center rounded-4">
-            <i class="bi bi-heart-pulse-fill"></i>
+        <div class="col-lg-5 d-none d-lg-block">
+          <div class="patient-hero-ill ms-lg-auto" aria-hidden="true">
+            <svg viewBox="0 0 520 360" width="100%" height="auto" role="img">
+              <defs>
+                <linearGradient id="p1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.18"/>
+                  <stop offset="1" stop-color="#38bdf8" stop-opacity="0.18"/>
+                </linearGradient>
+                <linearGradient id="p2" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.95"/>
+                  <stop offset="1" stop-color="#0ea5e9" stop-opacity="0.95"/>
+                </linearGradient>
+              </defs>
+              <rect x="28" y="28" width="464" height="304" rx="28" fill="url(#p1)" stroke="rgba(148,163,184,0.45)"/>
+              <rect x="70" y="68" width="380" height="224" rx="22" fill="rgba(255,255,255,0.7)" stroke="rgba(148,163,184,0.55)"/>
+              <circle cx="150" cy="144" r="38" fill="url(#p2)"/>
+              <path d="M150 126h10v18h18v10h-18v18h-10v-18h-18v-10h18z" fill="rgba(255,255,255,0.92)"/>
+              <rect x="214" y="120" width="192" height="14" rx="7" fill="rgba(15,23,42,0.22)"/>
+              <rect x="214" y="148" width="160" height="12" rx="6" fill="rgba(15,23,42,0.14)"/>
+              <rect x="108" y="204" width="304" height="70" rx="18" fill="rgba(26,110,230,0.10)" stroke="rgba(26,110,230,0.22)"/>
+              <rect x="132" y="226" width="132" height="12" rx="6" fill="rgba(15,23,42,0.18)"/>
+              <rect x="132" y="248" width="178" height="10" rx="5" fill="rgba(15,23,42,0.12)"/>
+              <rect x="330" y="226" width="58" height="22" rx="11" fill="rgba(26,110,230,0.85)"/>
+            </svg>
           </div>
         </div>
       </div>
     </header>
 
-    <section class="mb-4 mb-lg-5" aria-labelledby="patient-quick-heading">
-      <h2 id="patient-quick-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">
-        Быстрые действия
-      </h2>
-      <div class="row g-3" data-reveal-stagger="1">
-        <div class="col-6 col-md-3">
-          <a href="/doctors" class="home-patient-tile home-patient-tile--accent js-home-stagger h-100" data-stagger-order="0">
-            <span class="home-patient-tile__icon"><i class="bi bi-calendar-plus"></i></span>
-            <span class="home-patient-tile__label">Запись к врачу</span>
-          </a>
-        </div>
-        <div class="col-6 col-md-3">
-          <a href="/profile/appointments" class="home-patient-tile js-home-stagger h-100" data-stagger-order="1">
-            <span class="home-patient-tile__icon"><i class="bi bi-journal-text"></i></span>
-            <span class="home-patient-tile__label">Мои записи</span>
-          </a>
-        </div>
-        <div class="col-6 col-md-3">
-          <a href="/notifications" class="home-patient-tile js-home-stagger h-100 position-relative" data-stagger-order="2">
-            <% if (_unread > 0) { %>
-              <span class="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger home-patient-tile__badge"><%= _unread > 99 ? '99+' : _unread %></span>
-            <% } %>
-            <span class="home-patient-tile__icon"><i class="bi bi-bell"></i></span>
-            <span class="home-patient-tile__label">Уведомления</span>
-          </a>
-        </div>
-        <div class="col-6 col-md-3">
-          <a href="/profile/edit" class="home-patient-tile js-home-stagger h-100" data-stagger-order="3">
-            <span class="home-patient-tile__icon"><i class="bi bi-person"></i></span>
-            <span class="home-patient-tile__label">Профиль</span>
-          </a>
-        </div>
-      </div>
-    </section>
+    <% const _up = patient && patient.upcomingAppointments ? patient.upcomingAppointments : []; %>
+    <% const _next = _up && _up.length ? _up[0] : null; %>
 
     <div class="row g-4">
-      <div class="col-lg-7">
-        <h2 class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Ближайшие записи</h2>
-        <div class="app-card border-0 shadow-sm p-4 p-md-4 h-100 js-home-reveal">
-          <% if (patient && patient.upcomingAppointments && patient.upcomingAppointments.length) { %>
-            <ul class="list-unstyled mb-0 d-flex flex-column gap-3" data-reveal-stagger="1">
-              <% patient.upcomingAppointments.forEach(function(a, i) { %>
-                <li class="home-patient-appt js-home-stagger" data-stagger-order="<%= i %>">
-                  <div class="home-patient-appt__main">
-                    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
-                      <div>
-                        <div class="fw-semibold"><%= a.doctor_last_name %> <%= a.doctor_first_name %> <%= a.doctor_middle_name || '' %></div>
-                        <div class="small text-muted"><%= a.specialization || 'Специализация не указана' %></div>
+      <div class="col-lg-8">
+        <h2 class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Ближайшая запись</h2>
+        <div class="app-card border-0 shadow-sm p-4 p-lg-4 js-home-reveal">
+          <% if (_next) { %>
+            <div
+              class="patient-next-appt"
+              data-next-appointment="1"
+              data-appointment-date="<%= String(_next.appointment_date).slice(0, 10) %>"
+              data-appointment-time="<%= _next.appointment_time %>"
+              data-booked-at="<%= _next.booked_at ? new Date(_next.booked_at).toISOString() : '' %>">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div class="min-w-0">
+                  <div class="patient-next-appt__title fw-bold mb-1">
+                    <i class="bi bi-person-badge me-2 text-primary"></i>
+                    <%= _next.doctor_last_name %> <%= _next.doctor_first_name %> <%= _next.doctor_middle_name || '' %>
+                  </div>
+                  <div class="text-muted"><%= _next.specialization || 'Специализация не указана' %></div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                  <span class="badge rounded-pill text-bg-primary">Забронировано</span>
+                  <% if (_next.ticket_id) { %>
+                    <a href="/tickets/<%= _next.ticket_id %>" class="btn btn-primary btn-sm rounded-pill">
+                      <i class="bi bi-ticket-perforated me-1"></i>Открыть талон
+                    </a>
+                  <% } %>
+                </div>
+              </div>
+
+              <div class="patient-next-appt__countdown mt-3">
+                <div class="small text-muted mb-1">До приёма осталось:</div>
+                <div class="patient-next-appt__countdown-value fw-semibold" data-countdown-text>—</div>
+              </div>
+
+              <div class="progress patient-next-appt__progress mt-2" role="progressbar" aria-label="Прогресс до приёма" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar bg-primary" data-countdown-progress style="width: 0%;"></div>
+              </div>
+
+              <div class="row g-3 mt-2">
+                <div class="col-sm-6 col-lg-4">
+                  <div class="patient-next-appt__meta">
+                    <div class="small text-muted">Дата</div>
+                    <div class="fw-semibold"><i class="bi bi-calendar3 me-2 text-muted"></i><%= fmtDateShort(_next.appointment_date) %></div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                  <div class="patient-next-appt__meta">
+                    <div class="small text-muted">Время</div>
+                    <div class="fw-semibold"><i class="bi bi-clock me-2 text-muted"></i><%= _next.appointment_time %></div>
+                  </div>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                  <div class="patient-next-appt__meta">
+                    <div class="small text-muted">Кабинет</div>
+                    <div class="fw-semibold"><i class="bi bi-door-open me-2 text-muted"></i><%= _next.cabinet ? ('Каб. ' + _next.cabinet) : '—' %></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <% if (_up.length > 1) { %>
+              <div class="mt-4 pt-3 border-top">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                  <div class="small text-muted">Другие предстоящие записи</div>
+                  <a href="/profile/appointments" class="btn btn-outline-primary btn-sm rounded-pill">Все записи</a>
+                </div>
+                <div class="d-flex flex-column gap-2">
+                  <% _up.slice(1, 3).forEach(function(a) { %>
+                    <div class="patient-appt-compact">
+                      <div class="min-w-0">
+                        <div class="fw-semibold text-truncate"><%= a.doctor_last_name %> <%= a.doctor_first_name %> <%= a.doctor_middle_name || '' %></div>
+                        <div class="small text-muted text-truncate"><%= a.specialization || 'Специализация не указана' %></div>
+                      </div>
+                      <div class="patient-appt-compact__right text-nowrap small text-muted">
+                        <i class="bi bi-calendar3 me-1"></i><%= fmtDateShort(a.appointment_date) %>
+                        <span class="mx-1">·</span>
+                        <i class="bi bi-clock me-1"></i><%= a.appointment_time %>
                       </div>
                       <% if (a.ticket_id) { %>
-                        <a href="/tickets/<%= a.ticket_id %>" class="btn btn-sm btn-primary rounded-pill flex-shrink-0">
-                          <i class="bi bi-ticket-perforated me-1"></i>Талон
-                        </a>
+                        <a class="btn btn-outline-primary btn-sm rounded-pill flex-shrink-0" href="/tickets/<%= a.ticket_id %>">Талон</a>
                       <% } %>
                     </div>
-                    <div class="home-patient-appt__meta small text-muted mt-2 d-flex flex-wrap gap-3">
-                      <span><i class="bi bi-calendar3 me-1"></i><%= fmtDateShort(a.appointment_date) %></span>
-                      <span><i class="bi bi-clock me-1"></i><%= a.appointment_time %></span>
-                      <% if (a.cabinet) { %>
-                        <span><i class="bi bi-door-open me-1"></i>Каб. <%= a.cabinet %></span>
-                      <% } %>
-                    </div>
-                  </div>
-                </li>
-              <% }) %>
-            </ul>
-            <div class="mt-4 pt-3 border-top">
-              <a href="/profile/appointments" class="btn btn-outline-primary btn-sm rounded-pill">Все записи</a>
-            </div>
+                  <% }) %>
+                </div>
+              </div>
+            <% } %>
           <% } else { %>
             <div class="text-center py-4 px-2 home-patient-empty">
               <div class="home-patient-empty__icon text-muted mb-3"><i class="bi bi-calendar-heart"></i></div>
-              <h3 class="h6 fw-semibold mb-2">Пока нет предстоящих визитов</h3>
-              <p class="text-muted small mb-4 mx-auto home-patient-empty__text">Выберите врача и удобное время — талон появится здесь и в разделе «Мои записи».</p>
+              <h3 class="h6 fw-semibold mb-2">У вас нет предстоящих записей</h3>
+              <p class="text-muted small mb-4 mx-auto home-patient-empty__text">Запишитесь к врачу онлайн — после записи появится электронный талон.</p>
               <a href="/doctors" class="btn btn-primary rounded-pill px-4">
                 <i class="bi bi-calendar-plus me-2"></i>Записаться к врачу
               </a>
@@ -283,37 +411,272 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
           <% } %>
         </div>
       </div>
-      <div class="col-lg-5">
-        <h2 class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Уведомления</h2>
-        <div class="app-card border-0 shadow-sm p-4 h-100 js-home-reveal d-flex flex-column">
-          <% if (_unread > 0 && _notifPreview.length) { %>
-            <p class="small text-muted mb-3">Непрочитано: <strong class="text-body"><%= _unread > 99 ? '99+' : _unread %></strong></p>
-            <ul class="list-unstyled mb-0 flex-grow-1 d-flex flex-column gap-3">
-              <% _notifPreview.slice(0, 3).forEach(function(n) { %>
-                <li class="home-notif-preview-item">
-                  <div class="fw-semibold small text-truncate" title="<%= n.title %>"><%= n.title %></div>
-                  <p class="small text-muted mb-0 home-notif-preview-item__msg"><%= n.message %></p>
-                  <div class="small text-muted mt-1"><%= fmtDateTimeShort(n.created_at) %></div>
-                </li>
-              <% }) %>
-            </ul>
-            <a href="/notifications" class="btn btn-outline-primary rounded-pill mt-4">Открыть все</a>
-          <% } else if (_unread > 0) { %>
-            <p class="fw-semibold mb-2">У вас <%= _unread > 99 ? '99+' : _unread %> непрочитанных уведомлений</p>
-            <p class="small text-muted mb-4">Откройте центр уведомлений, чтобы прочитать сообщения.</p>
-            <a href="/notifications" class="btn btn-primary rounded-pill mt-auto">Перейти к уведомлениям</a>
-          <% } else { %>
-            <div class="text-center py-3 home-patient-empty flex-grow-1 d-flex flex-column justify-content-center">
-              <div class="home-patient-empty__icon text-muted mb-3"><i class="bi bi-bell-slash"></i></div>
-              <p class="text-muted small mb-0">Новых уведомлений нет. Мы сообщим, если что-то изменится в ваших записях.</p>
-            </div>
-            <a href="/notifications" class="btn btn-link btn-sm text-decoration-none mt-3">История уведомлений</a>
-          <% } %>
+
+      <div class="col-lg-4">
+        <section aria-labelledby="patient-notif-side-heading">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 id="patient-notif-side-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-0 js-home-reveal">Уведомления</h2>
+            <a href="/notifications" class="btn btn-sm btn-outline-primary rounded-pill js-home-reveal">Открыть все</a>
+          </div>
+          <div class="app-card border-0 shadow-sm p-4 js-home-reveal">
+            <% if (_unread > 0 && _notifPreview.length) { %>
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="badge rounded-pill text-bg-danger">Непрочитано: <%= _unread > 99 ? '99+' : _unread %></span>
+                <span class="small text-muted">Последние сообщения</span>
+              </div>
+              <div class="d-flex flex-column gap-3">
+                <% _notifPreview.slice(0, 3).forEach(function(n) { %>
+                  <div class="home-notif-preview-item">
+                    <div class="fw-semibold small text-truncate" title="<%= n.title %>"><%= n.title %></div>
+                    <p class="small text-muted mb-0 home-notif-preview-item__msg"><%= n.message %></p>
+                    <div class="small text-muted mt-1"><%= fmtDateTimeShort(n.created_at) %></div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else if (_unread > 0) { %>
+              <p class="fw-semibold mb-2">У вас <%= _unread > 99 ? '99+' : _unread %> непрочитанных уведомлений</p>
+              <p class="small text-muted mb-0">Откройте центр уведомлений, чтобы прочитать сообщения.</p>
+            <% } else { %>
+              <div class="text-center py-3 home-patient-empty">
+                <div class="home-patient-empty__icon text-muted mb-2"><i class="bi bi-bell-slash"></i></div>
+                <p class="text-muted small mb-0">Новых уведомлений нет. Мы сообщим, если что-то изменится в ваших записях.</p>
+              </div>
+            <% } %>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="mt-4 mb-4" aria-labelledby="patient-quick-actions-heading">
+      <h2 id="patient-quick-actions-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3 js-home-reveal">Быстрые действия</h2>
+      <div class="row g-3 row-cols-1 row-cols-md-3" data-reveal-stagger="1">
+        <div class="col">
+          <a href="/doctors" class="patient-action-card patient-action-card--primary js-home-stagger h-100" data-stagger-order="0">
+            <span class="patient-action-card__icon"><i class="bi bi-search"></i></span>
+            <span class="patient-action-card__body">
+              <span class="patient-action-card__title">Найти врача</span>
+              <span class="patient-action-card__desc">Подбор специалиста и свободного времени приёма.</span>
+            </span>
+          </a>
         </div>
+        <div class="col">
+          <a href="/profile/appointments" class="patient-action-card js-home-stagger h-100" data-stagger-order="1">
+            <span class="patient-action-card__icon"><i class="bi bi-journal-text"></i></span>
+            <span class="patient-action-card__body">
+              <span class="patient-action-card__title">Мои записи</span>
+              <span class="patient-action-card__desc">Просмотр, отмена и история визитов.</span>
+            </span>
+          </a>
+        </div>
+        <div class="col">
+          <a href="/profile/edit" class="patient-action-card js-home-stagger h-100" data-stagger-order="2">
+            <span class="patient-action-card__icon"><i class="bi bi-person"></i></span>
+            <span class="patient-action-card__body">
+              <span class="patient-action-card__title">Профиль</span>
+              <span class="patient-action-card__desc">Контактные данные и настройки аккаунта.</span>
+            </span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <div class="row g-4 mb-4">
+      <div class="col-lg-7">
+        <% if (patient && patient.previouslyVisitedDoctors && patient.previouslyVisitedDoctors.length) { %>
+          <% const _prev = patient.previouslyVisitedDoctors.slice(0, 2); %>
+          <% const _prevLen = _prev.length; %>
+          <section class="mb-0" aria-labelledby="patient-prevdocs-heading">
+            <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+              <div>
+                <h2 id="patient-prevdocs-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-1 js-home-reveal">Вы уже записывались к этим врачам</h2>
+                <p class="small text-muted mb-0 js-home-reveal">Можно быстро открыть карточку врача и записаться снова.</p>
+              </div>
+            </div>
+            <div class="row g-3 <%= _prevLen < 3 ? 'justify-content-center' : '' %>" data-reveal-stagger="1">
+              <% _prev.forEach(function(d, idx) { %>
+                <div class="col-md-6 <%= _prevLen === 1 ? 'col-lg-6' : (_prevLen === 2 ? 'col-lg-6' : 'col-lg-4') %>">
+                  <article class="app-card border-0 shadow-sm p-4 h-100 d-flex flex-column js-home-stagger" data-stagger-order="<%= idx %>">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                      <div class="flex-shrink-0">
+                        <%- include('partials/user-avatar', { person: d, size: 'sm' }) %>
+                      </div>
+                      <div class="patient-prev-doc-text">
+                        <div class="fw-semibold text-truncate d-block patient-prev-doc-name"><%= d.last_name %> <%= d.first_name %><% if (d.middle_name) { %> <%= d.middle_name %><% } %></div>
+                        <div class="small text-muted text-truncate"><%= d.specialization || 'Врач' %></div>
+                      </div>
+                    </div>
+                    <a href="/doctors/<%= d.id %>" class="btn btn-primary btn-sm rounded-pill mt-auto">
+                      <i class="bi bi-calendar-plus me-1"></i>Записаться снова
+                    </a>
+                  </article>
+                </div>
+              <% }) %>
+            </div>
+          </section>
+        <% } %>
+
+        <section aria-labelledby="patient-notif-heading">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 id="patient-notif-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-0 js-home-reveal">Уведомления</h2>
+            <a href="/notifications" class="btn btn-sm btn-outline-primary rounded-pill js-home-reveal">Открыть все</a>
+          </div>
+          <div class="app-card border-0 shadow-sm p-4 js-home-reveal">
+            <% if (_unread > 0 && _notifPreview.length) { %>
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="badge rounded-pill text-bg-danger">Непрочитано: <%= _unread > 99 ? '99+' : _unread %></span>
+                <span class="small text-muted">Последние сообщения</span>
+              </div>
+              <div class="d-flex flex-column gap-3">
+                <% _notifPreview.slice(0, 3).forEach(function(n) { %>
+                  <div class="home-notif-preview-item">
+                    <div class="fw-semibold small text-truncate" title="<%= n.title %>"><%= n.title %></div>
+                    <p class="small text-muted mb-0 home-notif-preview-item__msg"><%= n.message %></p>
+                    <div class="small text-muted mt-1"><%= fmtDateTimeShort(n.created_at) %></div>
+                  </div>
+                <% }) %>
+              </div>
+            <% } else if (_unread > 0) { %>
+              <p class="fw-semibold mb-2">У вас <%= _unread > 99 ? '99+' : _unread %> непрочитанных уведомлений</p>
+              <p class="small text-muted mb-0">Откройте центр уведомлений, чтобы прочитать сообщения.</p>
+            <% } else { %>
+              <div class="text-center py-3 home-patient-empty">
+                <div class="home-patient-empty__icon text-muted mb-2"><i class="bi bi-bell-slash"></i></div>
+                <p class="text-muted small mb-0">Новых уведомлений нет. Мы сообщим, если что-то изменится в ваших записях.</p>
+              </div>
+            <% } %>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-lg-5">
+        <section aria-labelledby="patient-info-heading">
+          <h2 id="patient-info-heading" class="h6 fw-bold mb-3 js-home-reveal">Забота о здоровье начинается с регулярных осмотров</h2>
+          <div class="app-card border-0 shadow-sm rounded-4 p-4 js-home-reveal">
+            <p class="text-muted mb-3">
+              Регулярные профилактические осмотры позволяют своевременно выявлять возможные отклонения и поддерживать общее состояние здоровья на должном уровне. Даже при отсутствии выраженных симптомов рекомендуется проходить консультацию врача не реже одного раза в год.
+            </p>
+
+            <p class="text-muted mb-4">
+              Использование системы «МедЗапись» позволяет быстро выбрать специалиста, подобрать удобное время приёма и получить электронный талон без необходимости личного обращения в регистратуру.
+            </p>
+
+            <article class="patient-info-card rounded-4">
+              <div class="patient-info-card__icon"><i class="bi bi-clipboard2-check"></i></div>
+              <div class="fw-bold mb-2">Перед визитом к врачу</div>
+              <ul class="mb-0 ps-3 text-muted small patient-visit-list">
+                <li>Приходите за 10–15 минут до назначенного времени.</li>
+                <li>Возьмите с собой необходимые медицинские документы.</li>
+                <li>Предъявите электронный талон на экране телефона или в распечатанном виде.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  (function () {
+    var wrap = document.querySelector('[data-next-appointment="1"]');
+    if (!wrap) return;
+    var textEl = wrap.querySelector('[data-countdown-text]');
+    var barEl = wrap.querySelector('[data-countdown-progress]');
+    var progressWrap = wrap.querySelector('.patient-next-appt__progress');
+    if (!textEl || !barEl || !progressWrap) return;
+
+    function parseDateTime(dateYmd, timeHm) {
+      if (!dateYmd || !timeHm) return null;
+      var rawDate = String(dateYmd).trim();
+      var t = String(timeHm).split(':').map(Number);
+      var hh = t[0] || 0;
+      var mm = t[1] || 0;
+
+      // 1) Основной формат: YYYY-MM-DD
+      var m1 = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m1) return new Date(Number(m1[1]), Number(m1[2]) - 1, Number(m1[3]), hh, mm, 0, 0);
+
+      // 2) Альтернативный формат: DD.MM.YYYY
+      var m2 = rawDate.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (m2) return new Date(Number(m2[3]), Number(m2[2]) - 1, Number(m2[1]), hh, mm, 0, 0);
+
+      // 3) Fallback через Date parser
+      var d = new Date(rawDate);
+      if (Number.isNaN(d.getTime())) return null;
+      d.setHours(hh, mm, 0, 0);
+      return d;
+    }
+
+    function fmtDiff(ms) {
+      if (ms <= 0) return 'Приём завершён';
+      var totalMin = Math.floor(ms / 60000);
+      var days = Math.floor(totalMin / (60 * 24));
+      var hours = Math.floor((totalMin % (60 * 24)) / 60);
+      var mins = totalMin % 60;
+      return 'До приёма осталось: ' + days + ' дн ' + hours + ' ч ' + mins + ' мин';
+    }
+
+    function updateCountdown() {
+      var apptAt = parseDateTime(wrap.getAttribute('data-appointment-date'), wrap.getAttribute('data-appointment-time'));
+      if (!apptAt) return;
+      var now = new Date();
+      var diff = apptAt.getTime() - now.getTime();
+
+      var bookedAtRaw = wrap.getAttribute('data-booked-at');
+      var bookedAt = bookedAtRaw ? new Date(bookedAtRaw) : null;
+      if (!bookedAt || Number.isNaN(bookedAt.getTime())) {
+        bookedAt = new Date(now);
+        bookedAt.setHours(0, 0, 0, 0);
+      }
+      // На случай некорректной даты бронирования в будущем.
+      if (bookedAt.getTime() > now.getTime()) {
+        bookedAt = new Date(now);
+        bookedAt.setHours(0, 0, 0, 0);
+      }
+      var total = Math.max(1, apptAt.getTime() - bookedAt.getTime());
+      var elapsed = Math.min(total, Math.max(0, now.getTime() - bookedAt.getTime()));
+      var pct = Math.round((elapsed / total) * 100);
+
+      if (diff <= 0) {
+        textEl.textContent = 'Приём завершён';
+        wrap.classList.remove('patient-next-appt--soon');
+        wrap.classList.add('patient-next-appt--past');
+        barEl.classList.remove('bg-primary', 'bg-warning');
+        barEl.classList.add('bg-secondary');
+        barEl.style.width = '100%';
+        progressWrap.setAttribute('aria-valuenow', '100');
+        return true;
+      }
+
+      if (diff <= 60 * 60 * 1000) {
+        textEl.textContent = 'Приём скоро начнётся';
+        wrap.classList.add('patient-next-appt--soon');
+        wrap.classList.remove('patient-next-appt--past');
+        barEl.classList.remove('bg-primary', 'bg-secondary');
+        barEl.classList.add('bg-warning');
+      } else {
+        textEl.textContent = fmtDiff(diff);
+        wrap.classList.remove('patient-next-appt--soon', 'patient-next-appt--past');
+        barEl.classList.remove('bg-warning', 'bg-secondary');
+        barEl.classList.add('bg-primary');
+      }
+
+      var visualPct = Math.max(0, Math.min(100, pct));
+      // Чтобы бар не выглядел "сломанный" при очень малом прогрессе.
+      if (visualPct > 0 && visualPct < 4) visualPct = 4;
+      barEl.style.width = String(visualPct) + '%';
+      progressWrap.setAttribute('aria-valuenow', String(visualPct));
+      return false;
+    }
+
+    var done = updateCountdown();
+    if (done) return;
+    var timer = window.setInterval(function () {
+      var finished = updateCountdown();
+      if (finished) window.clearInterval(timer);
+    }, 60000);
+  })();
+</script>
 <% } %>
 
 <% if (roleSafe === 'doctor') { %>
@@ -375,13 +738,24 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
       <h2 class="h6 fw-bold mb-3"><i class="bi bi-clock-history text-primary me-2"></i>Расписание на сегодня</h2>
       <% if (doctor && doctor.timeline && doctor.timeline.items && doctor.timeline.items.length) { %>
         <div class="home-timeline">
+          <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-2">
+            <div class="small text-muted">
+              Предстоящие сегодня: <strong class="text-body"><%= doctor.timeline.upcomingCount %></strong>
+              <span class="mx-2">·</span>
+              Прошедшие сегодня: <strong class="text-body"><%= doctor.timeline.pastCount %></strong>
+            </div>
+          </div>
           <div class="home-timeline__axis text-muted small mb-2 d-flex justify-content-between">
             <span><%= fmtMinClock(doctor.timeline.startMin) %></span>
             <span><%= fmtMinClock(doctor.timeline.endMin) %></span>
           </div>
           <div class="home-timeline__track">
+            <div class="home-timeline__now" style="--now:<%= doctor.timeline.nowPct %>%;" aria-hidden="true"></div>
             <% doctor.timeline.items.forEach(function(it) { %>
-              <div class="home-timeline__block" style="left:<%= it.leftPct %>%;width:<%= it.widthPct %>%;" title="<%= it.appointment_time %> · <%= it.last_name %> <%= it.first_name %>">
+              <div
+                class="home-timeline__block <%= it.isPast ? 'is-past' : '' %> <%= it.isNow ? 'is-now' : '' %> <%= it.isUpcoming ? 'is-upcoming' : '' %> lane-<%= it.lane %>"
+                style="--left:<%= it.leftPct %>%; --width:<%= it.widthPct %>%;"
+                title="<%= it.appointment_time %> · <%= it.last_name %> <%= it.first_name %>">
                 <span class="home-timeline__block-time"><%= it.appointment_time %></span>
                 <span class="home-timeline__block-name text-truncate"><%= it.last_name %> <%= it.first_name && it.first_name[0] ? it.first_name[0] + '.' : '' %></span>
               </div>

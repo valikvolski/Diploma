@@ -15,6 +15,7 @@ const adminRoutes = require('./routes/admin');
 const notificationsRoutes = require('./routes/notifications');
 const { attachUser, enrichUserLocals } = require('./middleware/auth');
 const { attachCsrfToken, verifyPostCsrf } = require('./middleware/csrf');
+const { flashMiddleware } = require('./middleware/flash');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,6 +50,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(attachUser);
 app.use(enrichUserLocals);
+app.use(flashMiddleware);
 app.use(attachCsrfToken);
 
 app.use((req, res, next) => {
@@ -70,14 +72,31 @@ function buildDoctorTimeline(rows) {
   const defaultStart = 9 * 60;
   const defaultEnd = 18 * 60;
   if (!rows || !rows.length) {
-    return { startMin: defaultStart, endMin: defaultEnd, items: [] };
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const span = defaultEnd - defaultStart;
+    const nowPct = span ? ((nowMin - defaultStart) / span) * 100 : 0;
+    return {
+      startMin: defaultStart,
+      endMin: defaultEnd,
+      nowPct: Math.max(0, Math.min(100, nowPct)),
+      pastCount: 0,
+      upcomingCount: 0,
+      items: [],
+    };
   }
   const toMin = (t) => {
     const s = String(t || '0:0');
     const [h, m] = s.split(':').map((x) => parseInt(x, 10) || 0);
     return h * 60 + m;
   };
-  const mins = rows.map((r) => toMin(r.appointment_time));
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const sorted = rows
+    .slice()
+    .sort((a, b) => toMin(a.appointment_time) - toMin(b.appointment_time));
+
+  const mins = sorted.map((r) => toMin(r.appointment_time));
   const pad = 45;
   let startMin = Math.min(...mins) - pad;
   let endMin = Math.max(...mins) + pad;
@@ -86,13 +105,53 @@ function buildDoctorTimeline(rows) {
   if (endMin <= startMin) endMin = startMin + 120;
   const span = endMin - startMin;
   const slotMin = 30;
-  const items = rows.map((r) => {
+  const nowPct = span ? ((nowMin - startMin) / span) * 100 : 0;
+  let pastCount = 0;
+  let upcomingCount = 0;
+
+  const items = sorted.map((r) => {
     const mm = toMin(r.appointment_time);
     const leftPct = span ? ((mm - startMin) / span) * 100 : 0;
     const widthPct = span ? Math.min(40, (slotMin / span) * 100) : 12;
-    return { ...r, leftPct, widthPct };
+
+    const diff = mm - nowMin;
+    const isNow = Math.abs(diff) <= 10;
+    const isPast = !isNow && mm < nowMin;
+    const isUpcoming = !isNow && mm > nowMin;
+    if (isPast) pastCount += 1;
+    if (isUpcoming || isNow) upcomingCount += 1;
+
+    return {
+      ...r,
+      leftPct,
+      widthPct,
+      isPast,
+      isNow,
+      isUpcoming,
+      _mm: mm,
+    };
   });
-  return { startMin, endMin, items };
+
+  // Защита от визуальных наложений: небольшое вертикальное «расслоение»
+  // для близких по времени слотов.
+  const minGapPct = Math.max(2.2, (slotMin / span) * 60); // адаптивно от span
+  let lastLeft = -999;
+  let lane = 0;
+  items.forEach((it) => {
+    if (it.leftPct - lastLeft < minGapPct) lane = (lane + 1) % 3;
+    else lane = 0;
+    it.lane = lane;
+    lastLeft = it.leftPct;
+  });
+
+  return {
+    startMin,
+    endMin,
+    nowPct: Math.max(0, Math.min(100, nowPct)),
+    pastCount,
+    upcomingCount,
+    items: items.map(({ _mm, ...rest }) => rest),
+  };
 }
 
 app.get('/', async (req, res) => {
@@ -115,6 +174,26 @@ app.get('/', async (req, res) => {
     { id: null, name: 'Кардиолог' },
     { id: null, name: 'Офтальмолог' },
   ];
+
+  function specCardMeta(nameRaw) {
+    const name = String(nameRaw || '').trim();
+    const lower = name.toLowerCase();
+    const base = {
+      icon: 'bi-heart-pulse',
+      description: 'Диагностика и консультация специалистов по профилю.',
+    };
+    if (lower.includes('терап')) return { icon: 'bi-clipboard2-pulse', description: 'Первичный приём, диагностика и направления к профильным специалистам.' };
+    if (lower.includes('карди')) return { icon: 'bi-heart', description: 'Диагностика и лечение заболеваний сердечно‑сосудистой системы.' };
+    if (lower.includes('невро')) return { icon: 'bi-activity', description: 'Консультации по неврологическим симптомам и состояниям.' };
+    if (lower.includes('лор') || lower.includes('отолар')) return { icon: 'bi-ear', description: 'Заболевания уха, горла и носа, рекомендации и лечение.' };
+    if (lower.includes('офталь') || lower.includes('глаз')) return { icon: 'bi-eye', description: 'Проверка зрения, консультации и диагностика заболеваний глаз.' };
+    if (lower.includes('хирург')) return { icon: 'bi-scissors', description: 'Консультации по хирургическим случаям и направления на процедуры.' };
+    if (lower.includes('стомат')) return { icon: 'bi-emoji-smile', description: 'Осмотр, профилактика и лечение заболеваний полости рта.' };
+    if (lower.includes('гинек')) return { icon: 'bi-gender-female', description: 'Профилактика и консультации по женскому здоровью.' };
+    if (lower.includes('педиатр')) return { icon: 'bi-people', description: 'Педиатрические консультации и сопровождение здоровья детей.' };
+    if (lower.includes('дермат')) return { icon: 'bi-droplet', description: 'Диагностика и лечение заболеваний кожи.' };
+    return base;
+  }
 
   try {
     if (!user) {
@@ -160,16 +239,22 @@ app.get('/', async (req, res) => {
            LIMIT 3`
         ),
       ]);
-      const topRows = topSpecsRes.rows || [];
+      const topRows = (topSpecsRes.rows || []).map((r) => ({
+        ...r,
+        ...specCardMeta(r.name),
+      }));
       viewData.guest = {
-        topSpecializations: topRows.length ? topRows.slice(0, 4) : curatedTopSpecs,
+        topSpecializations: topRows.length
+          ? topRows.slice(0, 4)
+          : curatedTopSpecs.map((r) => ({ ...r, ...specCardMeta(r.name) })),
         previewDoctors: previewDocsRes.rows,
       };
     } else if (user.role === 'patient') {
-      const [upcomingRes, notifRes] = await Promise.all([
+      const [upcomingRes, notifRes, prevDocsRes] = await Promise.all([
         pool.query(
           `SELECT a.id AS appointment_id,
-                  a.appointment_date,
+                  TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS appointment_date,
+                  a.created_at AS booked_at,
                   TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
                   d.last_name AS doctor_last_name,
                   d.first_name AS doctor_first_name,
@@ -199,11 +284,33 @@ app.get('/', async (req, res) => {
            LIMIT 5`,
           [user.id]
         ),
+        pool.query(
+          `SELECT DISTINCT ON (a.doctor_id)
+                  d.id,
+                  d.last_name,
+                  d.first_name,
+                  d.middle_name,
+                  d.avatar_path,
+                  d.avatar_url,
+                  dp.cabinet,
+                  s.name AS specialization
+           FROM appointments a
+           JOIN users d ON d.id = a.doctor_id AND d.role = 'doctor' AND d.is_blocked = false
+           LEFT JOIN doctor_profiles dp ON dp.user_id = d.id
+           LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+           LEFT JOIN specializations s ON s.id = dsp.specialization_id
+           WHERE a.patient_id = $1
+             AND a.status IN ('completed', 'cancelled', 'booked')
+           ORDER BY a.doctor_id, a.appointment_date DESC, a.appointment_time DESC
+           LIMIT 2`,
+          [user.id]
+        ),
       ]);
 
       viewData.patient = {
         upcomingAppointments: upcomingRes.rows,
         unreadNotifications: notifRes.rows,
+        previouslyVisitedDoctors: prevDocsRes.rows,
       };
     } else if (user.role === 'doctor') {
       const [todayRes, nextRes] = await Promise.all([
@@ -218,6 +325,7 @@ app.get('/', async (req, res) => {
            JOIN users p ON p.id = a.patient_id
            WHERE a.doctor_id = $1
              AND a.appointment_date = CURRENT_DATE
+             AND a.status IN ('booked', 'completed')
            ORDER BY a.appointment_time`,
           [user.id]
         ),
@@ -383,6 +491,22 @@ app.get('/test-db', async (req, res) => {
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
+});
+
+app.use((req, res) => {
+  if (req.originalUrl && req.originalUrl.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'Ресурс не найден', errors: {} });
+  }
+  return res.status(404).render('error', { message: 'Страница не найдена' });
+});
+
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err && err.stack ? err.stack : err);
+  if (res.headersSent) return;
+  if (req.originalUrl && req.originalUrl.startsWith('/api/')) {
+    return res.status(500).json({ success: false, message: 'Внутренняя ошибка сервера', errors: {} });
+  }
+  return res.status(500).render('error', { message: 'Произошла внутренняя ошибка. Попробуйте позже.' });
 });
 
 async function startServer() {

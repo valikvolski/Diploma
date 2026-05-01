@@ -1,0 +1,17 @@
+<% if (typeof flash !== 'undefined' && flash && flash.message) { %>
+  <div class="alert alert-<%= flash.type || 'info' %> alert-dismissible fade show app-alert-auto-dismiss" role="alert" data-alert-timeout="4500">
+    <div class="d-flex align-items-start gap-2">
+      <% if ((flash.type || '') === 'success') { %>
+        <i class="bi bi-check-circle-fill flex-shrink-0 mt-1"></i>
+      <% } else if ((flash.type || '') === 'danger') { %>
+        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+      <% } else if ((flash.type || '') === 'warning') { %>
+        <i class="bi bi-exclamation-circle-fill flex-shrink-0 mt-1"></i>
+      <% } else { %>
+        <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+      <% } %>
+      <span><%= flash.message %></span>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+  </div>
+<% } %>

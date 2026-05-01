@@ -26,9 +26,48 @@ function parseSpecializationIds(body) {
 
 async function loadSpecsForForms(clientOrPool) {
   const { rows } = await clientOrPool.query(
-    'SELECT id, name, compat_group FROM specializations ORDER BY name'
+    `SELECT s.id,
+            s.name,
+            COALESCE(sg.code, s.compat_group, 'therapy') AS compat_group,
+            s.specialization_group_id
+     FROM specializations s
+     LEFT JOIN specialization_groups sg ON sg.id = s.specialization_group_id
+     ORDER BY s.name`
   );
   return rows;
+}
+
+async function loadSpecializationGroups(clientOrPool) {
+  const { rows } = await clientOrPool.query(
+    `SELECT sg.id, sg.code, sg.name,
+            COUNT(s.id)::int AS specialization_count
+     FROM specialization_groups sg
+     LEFT JOIN specializations s ON s.specialization_group_id = sg.id
+     GROUP BY sg.id, sg.code, sg.name
+     ORDER BY sg.name`
+  );
+  return rows;
+}
+
+function normalizeGroupCode(name) {
+  const base = String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40);
+  return base || 'group';
+}
+
+async function makeUniqueGroupCode(clientOrPool, name) {
+  const base = normalizeGroupCode(name);
+  let attempt = base;
+  let i = 1;
+  while (true) {
+    const { rows } = await clientOrPool.query('SELECT 1 FROM specialization_groups WHERE code = $1', [attempt]);
+    if (!rows.length) return attempt;
+    i += 1;
+    attempt = `${base}_${i}`;
+  }
 }
 
 async function replaceDoctorSpecializations(client, doctorUserId, specIds, primaryId) {
@@ -51,6 +90,34 @@ async function replaceDoctorSpecializations(client, doctorUserId, specIds, prima
 const router = express.Router();
 const adminOnly = [requireAuth, requireRole(['admin'])];
 const SALT_ROUNDS = 10;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 50;
+
+function parsePagination(query) {
+  const pageRaw = parseInt(query.page, 10);
+  const limitRaw = parseInt(query.limit, 10);
+  const page = !isNaN(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+  let limit = !isNaN(limitRaw) && limitRaw > 0 ? limitRaw : DEFAULT_LIMIT;
+  if (limit > MAX_LIMIT) limit = MAX_LIMIT;
+  return { page, limit, offset: (page - 1) * limit };
+}
+
+function buildPagination(totalCount, page, limit) {
+  const totalPages = Math.max(1, Math.ceil((totalCount || 0) / limit));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  return {
+    totalCount: totalCount || 0,
+    totalPages,
+    currentPage,
+    limit,
+    hasPrev: currentPage > 1,
+    hasNext: currentPage < totalPages,
+  };
+}
+
+function escapeLike(term) {
+  return String(term).replace(/[\\%_]/g, '\\$&');
+}
 
 async function resolveDoctorUserId(inputId, clientOrPool) {
   const n = parseInt(inputId, 10);
@@ -103,30 +170,83 @@ router.get('/', ...adminOnly, async (req, res) => {
 
 router.get('/doctors', ...adminOnly, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked, u.avatar_path, u.avatar_url,
-              dp.cabinet, dp.experience_years,
-              specs.spec_list AS specializations
-       FROM users u
-       JOIN doctor_profiles dp ON u.id = dp.user_id
-       LEFT JOIN LATERAL (
-         SELECT COALESCE(
-           json_agg(
-             json_build_object('id', s.id, 'name', s.name, 'is_primary', ds.is_primary)
-             ORDER BY ds.is_primary DESC, s.name
-           ),
-           '[]'::json
-         ) AS spec_list
-         FROM doctor_specializations ds
-         JOIN specializations s ON s.id = ds.specialization_id
-         WHERE ds.doctor_user_id = u.id
-       ) specs ON true
-       WHERE u.role = 'doctor'
-       ORDER BY u.last_name`
-    );
+    const { page, limit, offset } = parsePagination(req.query);
+    const filters = {
+      specialization_id: String(req.query.specialization_id || '').trim(),
+      status: String(req.query.status || '').trim(),
+      search: String(req.query.search || '').trim(),
+      page,
+      limit,
+    };
+
+    const conditions = ["u.role = 'doctor'"];
+    const params = [];
+
+    const specId = parseInt(filters.specialization_id, 10);
+    if (!isNaN(specId)) {
+      params.push(specId);
+      conditions.push(
+        `EXISTS (
+           SELECT 1 FROM doctor_specializations dsf
+           WHERE dsf.doctor_user_id = u.id AND dsf.specialization_id = $${params.length}
+         )`
+      );
+    }
+
+    if (filters.status === 'active') conditions.push('u.is_blocked = false');
+    if (filters.status === 'blocked') conditions.push('u.is_blocked = true');
+
+    if (filters.search) {
+      params.push(`%${escapeLike(filters.search)}%`);
+      const idx = params.length;
+      conditions.push(
+        `(u.last_name ILIKE $${idx} ESCAPE '\\'
+          OR u.first_name ILIKE $${idx} ESCAPE '\\'
+          OR COALESCE(u.middle_name, '') ILIKE $${idx} ESCAPE '\\'
+          OR u.email ILIKE $${idx} ESCAPE '\\')`
+      );
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const [countRes, result, specsFilterRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int AS cnt FROM users u ${where}`, params),
+      pool.query(
+        `SELECT u.id, u.last_name, u.first_name, u.middle_name, u.email, u.phone, u.is_blocked, u.avatar_path, u.avatar_url,
+                dp.cabinet, dp.experience_years,
+                specs.spec_list AS specializations
+         FROM users u
+         JOIN doctor_profiles dp ON u.id = dp.user_id
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(
+             json_agg(
+               json_build_object('id', s.id, 'name', s.name, 'is_primary', ds.is_primary)
+               ORDER BY ds.is_primary DESC, s.name
+             ),
+             '[]'::json
+           ) AS spec_list
+           FROM doctor_specializations ds
+           JOIN specializations s ON s.id = ds.specialization_id
+           WHERE ds.doctor_user_id = u.id
+         ) specs ON true
+         ${where}
+         ORDER BY u.last_name, u.first_name
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+      pool.query('SELECT id, name FROM specializations ORDER BY name'),
+    ]);
+
+    const totalCount = countRes.rows[0] ? countRes.rows[0].cnt : 0;
+    const pagination = buildPagination(totalCount, page, limit);
+
     res.render('admin/doctors', {
       title: 'Управление врачами — Админ-панель',
       doctors: result.rows,
+      specializations: specsFilterRes.rows,
+      filters,
+      pagination,
+      totalCount,
       success: req.query.success || null,
       error: req.query.error || null,
     });
@@ -483,16 +603,63 @@ router.post('/doctors/:id/delete', ...adminOnly, async (req, res) => {
 
 router.get('/specializations', ...adminOnly, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT s.id, s.name, s.compat_group,
-              COUNT(ds.doctor_user_id) AS doctor_count
-       FROM specializations s
-       LEFT JOIN doctor_specializations ds ON ds.specialization_id = s.id
-       GROUP BY s.id, s.name, s.compat_group ORDER BY s.name`
-    );
+    const { page, limit, offset } = parsePagination(req.query);
+    const filters = {
+      group_id: String(req.query.group_id || '').trim(),
+      search: String(req.query.search || '').trim(),
+      page,
+      limit,
+    };
+
+    const conditions = [];
+    const params = [];
+    const groupId = parseInt(filters.group_id, 10);
+    if (!isNaN(groupId)) {
+      params.push(groupId);
+      conditions.push(`s.specialization_group_id = $${params.length}`);
+    }
+    if (filters.search) {
+      params.push(`%${escapeLike(filters.search)}%`);
+      conditions.push(`s.name ILIKE $${params.length} ESCAPE '\\'`);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const [countRes, result, groups] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS cnt
+         FROM specializations s
+         ${where}`,
+        params
+      ),
+      pool.query(
+        `SELECT s.id,
+                s.name,
+                s.specialization_group_id,
+                COALESCE(sg.name, '—') AS group_name,
+                COALESCE(sg.code, s.compat_group, 'therapy') AS compat_group,
+                COUNT(ds.doctor_user_id)::int AS doctor_count
+         FROM specializations s
+         LEFT JOIN specialization_groups sg ON sg.id = s.specialization_group_id
+         LEFT JOIN doctor_specializations ds ON ds.specialization_id = s.id
+         ${where}
+         GROUP BY s.id, s.name, s.specialization_group_id, sg.name, sg.code, s.compat_group
+         ORDER BY s.name
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+      loadSpecializationGroups(pool),
+    ]);
+
+    const totalCount = countRes.rows[0] ? countRes.rows[0].cnt : 0;
+    const pagination = buildPagination(totalCount, page, limit);
+
     res.render('admin/specializations', {
       title: 'Специализации — Админ-панель',
       specializations: result.rows,
+      groups,
+      filters,
+      pagination,
+      totalCount,
       success: req.query.success || null,
       error: req.query.error || null,
     });
@@ -505,14 +672,23 @@ router.get('/specializations', ...adminOnly, async (req, res) => {
 // ─── POST /admin/specializations ─────────────────────────────────────────────
 
 router.post('/specializations', ...adminOnly, async (req, res) => {
-  const { name } = req.body;
+  const { name, specialization_group_id } = req.body;
   if (!name || !name.trim()) {
     return res.redirect('/admin/specializations?error=' + encodeURIComponent('Введите название'));
   }
+  const groupId = parseInt(specialization_group_id, 10);
+  if (isNaN(groupId)) {
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выберите группу совместимости'));
+  }
   try {
+    const gRes = await pool.query('SELECT id, code FROM specialization_groups WHERE id = $1', [groupId]);
+    if (!gRes.rows.length) {
+      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выбрана несуществующая группа совместимости'));
+    }
+    const groupCode = gRes.rows[0].code;
     await pool.query(
-      'INSERT INTO specializations (name, compat_group) VALUES ($1, $2)',
-      [name.trim(), 'therapy']
+      'INSERT INTO specializations (name, compat_group, specialization_group_id) VALUES ($1, $2, $3)',
+      [name.trim(), groupCode, groupId]
     );
     res.redirect('/admin/specializations?success=' + encodeURIComponent('Специализация добавлена'));
   } catch (err) {
@@ -521,6 +697,34 @@ router.post('/specializations', ...adminOnly, async (req, res) => {
     }
     console.error(err);
     res.redirect('/admin/specializations?error=' + encodeURIComponent('Ошибка'));
+  }
+});
+
+// ─── POST /admin/specializations/:id/edit ────────────────────────────────────
+router.post('/specializations/:id/edit', ...adminOnly, async (req, res) => {
+  const specializationId = parseInt(req.params.id, 10);
+  const groupId = parseInt(req.body.specialization_group_id, 10);
+  if (isNaN(specializationId) || isNaN(groupId)) {
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Некорректные параметры изменения'));
+  }
+  try {
+    const gRes = await pool.query('SELECT id, code FROM specialization_groups WHERE id = $1', [groupId]);
+    if (!gRes.rows.length) {
+      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выбрана несуществующая группа совместимости'));
+    }
+    const upd = await pool.query(
+      `UPDATE specializations
+       SET specialization_group_id = $1, compat_group = $2
+       WHERE id = $3`,
+      [groupId, gRes.rows[0].code, specializationId]
+    );
+    if (!upd.rowCount) {
+      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Специализация не найдена'));
+    }
+    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Группа совместимости обновлена'));
+  } catch (err) {
+    console.error(err);
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Ошибка сохранения'));
   }
 });
 
@@ -543,21 +747,104 @@ router.post('/specializations/:id/delete', ...adminOnly, async (req, res) => {
   }
 });
 
+// ─── POST /admin/specialization-groups ───────────────────────────────────────
+router.post('/specialization-groups', ...adminOnly, async (req, res) => {
+  const name = String(req.body.group_name || '').trim();
+  if (!name) {
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Введите название группы совместимости'));
+  }
+  try {
+    const code = await makeUniqueGroupCode(pool, name);
+    await pool.query(
+      'INSERT INTO specialization_groups (name, code) VALUES ($1, $2)',
+      [name, code]
+    );
+    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Группа совместимости создана'));
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Такая группа уже существует'));
+    }
+    console.error(err);
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Ошибка создания группы'));
+  }
+});
+
+// ─── POST /admin/specialization-groups/:id/delete ────────────────────────────
+router.post('/specialization-groups/:id/delete', ...adminOnly, async (req, res) => {
+  const groupId = parseInt(req.params.id, 10);
+  if (isNaN(groupId)) {
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Некорректный ID группы'));
+  }
+  try {
+    const used = await pool.query(
+      'SELECT COUNT(*)::int AS cnt FROM specializations WHERE specialization_group_id = $1',
+      [groupId]
+    );
+    if (used.rows[0].cnt > 0) {
+      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Нельзя удалить группу: к ней привязаны специализации'));
+    }
+    await pool.query('DELETE FROM specialization_groups WHERE id = $1', [groupId]);
+    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Группа совместимости удалена'));
+  } catch (err) {
+    console.error(err);
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Ошибка удаления группы'));
+  }
+});
+
 // ─── GET /admin/users ────────────────────────────────────────────────────────
 
 router.get('/users', ...adminOnly, async (req, res) => {
-  const roleFilter = req.query.role || '';
+  const { page, limit, offset } = parsePagination(req.query);
+  const filters = {
+    role: String(req.query.role || '').trim(),
+    blocked: String(req.query.blocked || '').trim(),
+    search: String(req.query.search || '').trim(),
+    page,
+    limit,
+  };
   try {
     let q = 'SELECT id, email, last_name, first_name, middle_name, role, is_blocked, created_at FROM users';
+    let c = 'SELECT COUNT(*)::int AS cnt FROM users';
     const params = [];
-    if (roleFilter) { q += ' WHERE role = $1'; params.push(roleFilter); }
-    q += ' ORDER BY created_at DESC';
+    const cond = [];
 
-    const result = await pool.query(q, params);
+    if (filters.role) {
+      params.push(filters.role);
+      cond.push(`role = $${params.length}`);
+    }
+    if (filters.blocked === 'active') cond.push('is_blocked = false');
+    if (filters.blocked === 'blocked') cond.push('is_blocked = true');
+    if (filters.search) {
+      params.push(`%${escapeLike(filters.search)}%`);
+      const idx = params.length;
+      cond.push(
+        `(email ILIKE $${idx} ESCAPE '\\'
+          OR last_name ILIKE $${idx} ESCAPE '\\'
+          OR first_name ILIKE $${idx} ESCAPE '\\'
+          OR COALESCE(middle_name, '') ILIKE $${idx} ESCAPE '\\')`
+      );
+    }
+
+    if (cond.length) {
+      const where = ` WHERE ${cond.join(' AND ')}`;
+      q += where;
+      c += where;
+    }
+    q += ` ORDER BY created_at DESC, id DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+
+    const [countRes, result] = await Promise.all([
+      pool.query(c, params),
+      pool.query(q, [...params, limit, offset]),
+    ]);
+    const totalCount = countRes.rows[0] ? countRes.rows[0].cnt : 0;
+    const pagination = buildPagination(totalCount, page, limit);
+
     res.render('admin/users', {
       title: 'Пользователи — Админ-панель',
       users: result.rows,
-      roleFilter,
+      filters,
+      pagination,
+      totalCount,
       success: req.query.success || null,
       error: req.query.error || null,
     });
@@ -683,7 +970,8 @@ router.post('/users/:id/delete', ...adminOnly, async (req, res) => {
 // ─── GET /admin/appointments ─────────────────────────────────────────────────
 
 router.get('/appointments', ...adminOnly, async (req, res) => {
-  const { date_from, date_to, status, doctor_id } = req.query;
+  const { page, limit, offset } = parsePagination(req.query);
+  const { date_from, date_to, status, doctor_id, patient_search } = req.query;
   try {
     const conditions = [];
     const params = [];
@@ -691,11 +979,33 @@ router.get('/appointments', ...adminOnly, async (req, res) => {
     if (date_from) { params.push(date_from); conditions.push(`a.appointment_date >= $${params.length}`); }
     if (date_to)   { params.push(date_to);   conditions.push(`a.appointment_date <= $${params.length}`); }
     if (status)    { params.push(status);     conditions.push(`a.status = $${params.length}`); }
-    if (doctor_id) { params.push(doctor_id);  conditions.push(`a.doctor_id = $${params.length}`); }
+    if (doctor_id && !isNaN(parseInt(doctor_id, 10))) {
+      params.push(parseInt(doctor_id, 10));
+      conditions.push(`a.doctor_id = $${params.length}`);
+    }
+    if (patient_search && String(patient_search).trim()) {
+      params.push(`%${escapeLike(String(patient_search).trim())}%`);
+      const idx = params.length;
+      conditions.push(
+        `(p.last_name ILIKE $${idx} ESCAPE '\\'
+          OR p.first_name ILIKE $${idx} ESCAPE '\\'
+          OR COALESCE(p.middle_name, '') ILIKE $${idx} ESCAPE '\\'
+          OR p.email ILIKE $${idx} ESCAPE '\\')`
+      );
+    }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    const result = await pool.query(
+    const [countRes, result, doctorsRes] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*)::int AS cnt
+         FROM appointments a
+         JOIN users p ON a.patient_id = p.id
+         JOIN users d ON a.doctor_id = d.id
+         ${where}`,
+        params
+      ),
+      pool.query(
       `SELECT a.id, TO_CHAR(a.appointment_date,'YYYY-MM-DD') AS appointment_date,
               TO_CHAR(a.appointment_time,'HH24:MI') AS appointment_time, a.status,
               p.last_name AS p_last, p.first_name AS p_first,
@@ -709,16 +1019,30 @@ router.get('/appointments', ...adminOnly, async (req, res) => {
        LEFT JOIN specializations s ON s.id = dsp.specialization_id
        ${where}
        ORDER BY a.appointment_date DESC, a.appointment_time DESC
-       LIMIT 200`, params
-    );
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, limit, offset]
+      ),
+      pool.query("SELECT id, last_name, first_name FROM users WHERE role='doctor' ORDER BY last_name"),
+    ]);
 
-    const doctorsRes = await pool.query("SELECT id, last_name, first_name FROM users WHERE role='doctor' ORDER BY last_name");
+    const totalCount = countRes.rows[0] ? countRes.rows[0].cnt : 0;
+    const pagination = buildPagination(totalCount, page, limit);
 
     res.render('admin/appointments', {
       title: 'Все записи — Админ-панель',
       appointments: result.rows,
       doctors: doctorsRes.rows,
-      filters: { date_from: date_from||'', date_to: date_to||'', status: status||'', doctor_id: doctor_id||'' },
+      filters: {
+        date_from: date_from || '',
+        date_to: date_to || '',
+        status: status || '',
+        doctor_id: doctor_id || '',
+        patient_search: patient_search || '',
+        page,
+        limit,
+      },
+      totalCount,
+      pagination,
     });
   } catch (err) {
     console.error(err);

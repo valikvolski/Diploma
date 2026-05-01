@@ -49,6 +49,11 @@ function todayLocalYmd() {
   return ymd(n.getFullYear(), n.getMonth() + 1, n.getDate());
 }
 
+function currentLocalTimeMinutes() {
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes();
+}
+
 /**
  * Свободные слоты на дату (пустой массив если нет расписания / исключение / прошлое).
  */
@@ -102,7 +107,12 @@ async function getFreeSlotsForDate(pool, doctorId, dateStr, todayYmd = null) {
     [doctorId, dateStr]
   );
   const bookedSet = new Set(bookedRes.rows.map(r => normalizeTime(r.appointment_time)));
-  return allSlots.filter(s => !bookedSet.has(s));
+  let freeSlots = allSlots.filter(s => !bookedSet.has(s));
+  if (dateStr === today) {
+    const nowMin = currentLocalTimeMinutes();
+    freeSlots = freeSlots.filter((s) => timeToMinutes(s) > nowMin);
+  }
+  return freeSlots;
 }
 
 const availabilityCache = new Map();
@@ -221,7 +231,12 @@ async function getMonthAvailabilityMap(pool, doctorId, yearMonth, { bypassCache 
     }
     const allSlots = generateSlots(startTime, endTime, slotDuration);
     const taken = bookedByDate.get(ds) || new Set();
-    const free = allSlots.filter(s => !taken.has(s)).length;
+    let freeSlots = allSlots.filter((s) => !taken.has(s));
+    if (ds === today) {
+      const nowMin = currentLocalTimeMinutes();
+      freeSlots = freeSlots.filter((s) => timeToMinutes(s) > nowMin);
+    }
+    const free = freeSlots.length;
     out[ds] = free;
   }
 
@@ -238,4 +253,5 @@ module.exports = {
   getMonthAvailabilityMap,
   invalidateDoctorAvailabilityCache,
   todayLocalYmd,
+  currentLocalTimeMinutes,
 };

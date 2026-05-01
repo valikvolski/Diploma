@@ -14,6 +14,20 @@ function statusBadge(s) {
     default:          return '<span class="status-pill status-pill--cancelled">' + s + '</span>';
   }
 }
+var activeTabName = activeTab || 'upcoming';
+var pf = pastFilters || { search: '', doctor_id: '', specialization_id: '' };
+var pfo = pastFilterOptions || { doctors: [], specializations: [] };
+var pp = pastPagination || { currentPage: 1, limit: 6, totalCount: 0, totalPages: 1, hasPrev: false, hasNext: false };
+function pastPageUrl(pg) {
+  const qp = new URLSearchParams();
+  qp.set('tab', 'past');
+  qp.set('past_page', String(pg));
+  qp.set('past_limit', String(pp.limit || 6));
+  if (pf.search) qp.set('past_search', pf.search);
+  if (pf.doctor_id) qp.set('past_doctor_id', pf.doctor_id);
+  if (pf.specialization_id) qp.set('past_specialization_id', pf.specialization_id);
+  return '/profile/appointments?' + qp.toString();
+}
 %>
 <%- include('../partials/header', { title: title }) %>
 <% var dsTitle = 'Мои записи'; var dsSubtitle = 'Предстоящие и прошедшие приёмы, талоны и отмена записи'; var dsIcon = 'bi-journal-text'; var dsActions = '<a href="/profile/edit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-pencil me-1"></i>Профиль</a><a href="/doctors" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-plus-circle me-1"></i>Новая запись</a>'; %>
@@ -36,7 +50,7 @@ function statusBadge(s) {
 <!-- Навигационные табы -->
 <ul class="nav nav-tabs mb-4" role="tablist">
   <li class="nav-item">
-    <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#upcoming" type="button">
+    <button class="nav-link <%= activeTabName === 'upcoming' ? 'active' : '' %> fw-semibold" data-bs-toggle="tab" data-bs-target="#upcoming" type="button">
       <i class="bi bi-calendar-check me-1"></i>Предстоящие
       <% if (upcoming.length) { %>
         <span class="badge bg-primary ms-1"><%= upcoming.length %></span>
@@ -44,10 +58,10 @@ function statusBadge(s) {
     </button>
   </li>
   <li class="nav-item">
-    <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#pastTab" type="button">
+    <button class="nav-link <%= activeTabName === 'past' ? 'active' : '' %> fw-semibold" data-bs-toggle="tab" data-bs-target="#pastTab" type="button">
       <i class="bi bi-clock-history me-1"></i>Прошедшие
-      <% if (past.length) { %>
-        <span class="badge bg-secondary ms-1"><%= past.length %></span>
+      <% if (pp.totalCount) { %>
+        <span class="badge bg-secondary ms-1"><%= pp.totalCount %></span>
       <% } %>
     </button>
   </li>
@@ -56,7 +70,7 @@ function statusBadge(s) {
 <div class="tab-content">
 
   <!-- Предстоящие -->
-  <div class="tab-pane fade show active" id="upcoming">
+  <div class="tab-pane fade <%= activeTabName === 'upcoming' ? 'show active' : '' %>" id="upcoming">
     <% if (upcoming.length === 0) { %>
       <div class="empty-state text-center">
         <div class="empty-state__icon text-muted"><i class="bi bi-calendar-x"></i></div>
@@ -92,7 +106,7 @@ function statusBadge(s) {
                 </div>
 
                 <div class="d-flex gap-2 flex-wrap">
-                  <% if (a.ticket_id) { %>
+                  <% if (a.ticket_id && a.status !== 'cancelled') { %>
                     <a href="/tickets/<%= a.ticket_id %>" class="btn btn-outline-primary btn-sm">
                       <i class="bi bi-ticket-perforated me-1"></i>Талон
                     </a>
@@ -117,7 +131,44 @@ function statusBadge(s) {
   </div>
 
   <!-- Прошедшие -->
-  <div class="tab-pane fade" id="pastTab">
+  <div class="tab-pane fade <%= activeTabName === 'past' ? 'show active' : '' %>" id="pastTab">
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-body p-3 p-md-4">
+        <form method="GET" action="/profile/appointments" class="row g-3 align-items-end admin-filter-form">
+          <input type="hidden" name="tab" value="past" />
+          <input type="hidden" name="past_limit" value="<%= pp.limit || 6 %>" />
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Поиск</label>
+            <input type="text" class="form-control form-control-sm" name="past_search" value="<%= pf.search || '' %>" placeholder="ФИО врача или специализация" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Врач</label>
+            <select class="form-select form-select-sm" name="past_doctor_id">
+              <option value="">Все врачи</option>
+              <% (pfo.doctors || []).forEach(function(d){ %>
+                <option value="<%= d.id %>" <%= String(pf.doctor_id || '') === String(d.id) ? 'selected' : '' %>>
+                  <%= d.last_name %> <%= d.first_name %> <%= d.middle_name || '' %>
+                </option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Специализация</label>
+            <select class="form-select form-select-sm" name="past_specialization_id">
+              <option value="">Все специализации</option>
+              <% (pfo.specializations || []).forEach(function(s){ %>
+                <option value="<%= s.id %>" <%= String(pf.specialization_id || '') === String(s.id) ? 'selected' : '' %>><%= s.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Применить</button>
+            <a href="/profile/appointments?tab=past" class="btn btn-outline-secondary btn-sm">Сброс</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <% if (past.length === 0) { %>
       <div class="empty-state text-center">
         <div class="empty-state__icon text-muted"><i class="bi bi-clock-history"></i></div>
@@ -149,7 +200,7 @@ function statusBadge(s) {
                   <% } %>
                 </div>
 
-                <% if (a.ticket_id) { %>
+                <% if (a.ticket_id && a.status !== 'cancelled') { %>
                   <a href="/tickets/<%= a.ticket_id %>" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-ticket-perforated me-1"></i>Посмотреть талон
                   </a>
@@ -159,6 +210,23 @@ function statusBadge(s) {
           </div>
         <% }) %>
       </div>
+      <% if (pp.totalPages > 1) { %>
+        <nav aria-label="Пагинация прошедших записей" class="mt-3">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item <%= pp.hasPrev ? '' : 'disabled' %>">
+              <a class="page-link" href="<%= pp.hasPrev ? pastPageUrl(pp.currentPage - 1) : '#' %>">Назад</a>
+            </li>
+            <% for (let i = 1; i <= pp.totalPages; i++) { %>
+              <li class="page-item <%= i === pp.currentPage ? 'active' : '' %>">
+                <a class="page-link" href="<%= pastPageUrl(i) %>"><%= i %></a>
+              </li>
+            <% } %>
+            <li class="page-item <%= pp.hasNext ? '' : 'disabled' %>">
+              <a class="page-link" href="<%= pp.hasNext ? pastPageUrl(pp.currentPage + 1) : '#' %>">Вперёд</a>
+            </li>
+          </ul>
+        </nav>
+      <% } %>
     <% } %>
   </div>
 

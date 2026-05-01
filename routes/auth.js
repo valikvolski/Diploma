@@ -267,55 +267,57 @@ router.get('/register', (req, res) => {
 router.post('/register', registerLimiter, async (req, res) => {
   const { email, password, password_confirm, first_name, last_name, middle_name, phone } = req.body;
   const formData = { email, first_name, last_name, middle_name, phone };
-
-  if (!email || !password || !password_confirm || !first_name || !last_name || !middle_name || !phone) {
-    return res.render('auth/register', {
-      error: 'Все поля обязательны для заполнения',
+  const renderRegisterError = (message, errors = {}) =>
+    res.status(400).render('auth/register', {
+      error: message,
+      errors,
+      flash: { type: 'danger', message },
       formData,
       googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    });
+
+  if (!email || !password || !password_confirm || !first_name || !last_name || !middle_name || !phone) {
+    return renderRegisterError('Все поля обязательны для заполнения', {
+      email: !email ? 'Укажите email' : undefined,
+      password: !password ? 'Укажите пароль' : undefined,
+      password_confirm: !password_confirm ? 'Подтвердите пароль' : undefined,
+      first_name: !first_name ? 'Укажите имя' : undefined,
+      last_name: !last_name ? 'Укажите фамилию' : undefined,
+      middle_name: !middle_name ? 'Укажите отчество' : undefined,
+      phone: !phone ? 'Укажите телефон' : undefined,
     });
   }
 
   if (!validateEmail(email)) {
-    return res.render('auth/register', {
-      error: 'Введите корректный адрес электронной почты',
-      formData,
-      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    return renderRegisterError('Введите корректный адрес электронной почты', {
+      email: 'Некорректный email',
     });
   }
 
   if (password.length < 6) {
-    return res.render('auth/register', {
-      error: 'Пароль должен содержать не менее 6 символов',
-      formData,
-      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    return renderRegisterError('Пароль должен содержать не менее 6 символов', {
+      password: 'Минимум 6 символов',
     });
   }
 
   if (password !== password_confirm) {
-    return res.render('auth/register', {
-      error: 'Пароли не совпадают',
-      formData,
-      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    return renderRegisterError('Пароли не совпадают', {
+      password_confirm: 'Пароли не совпадают',
     });
   }
 
   const phoneNorm = normalizeBelarusPhone(phone);
   if (!phoneNorm) {
-    return res.render('auth/register', {
-      error: 'Неверный формат телефона. Пример: 375291234567',
-      formData,
-      googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    return renderRegisterError('Неверный формат телефона. Пример: 375291234567', {
+      phone: 'Пример: 375291234567',
     });
   }
 
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
     if (existing.rows.length > 0) {
-      return res.render('auth/register', {
-        error: 'Пользователь с таким email уже зарегистрирован',
-        formData,
-        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+      return renderRegisterError('Пользователь с таким email уже зарегистрирован', {
+        email: 'Email уже используется',
       });
     }
 
@@ -338,8 +340,10 @@ router.post('/register', registerLimiter, async (req, res) => {
     return res.redirect('/');
   } catch (err) {
     console.error('Registration error:', err);
-    res.render('auth/register', {
+    res.status(500).render('auth/register', {
       error: 'Произошла ошибка при регистрации. Попробуйте позже.',
+      errors: {},
+      flash: { type: 'danger', message: 'Произошла ошибка при регистрации. Попробуйте позже.' },
       formData,
       googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
     });
@@ -377,13 +381,20 @@ router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   const loginForm = { email: email || '' };
   const next = safeNextPath(req.body.next || req.query.next);
-
-  if (!email || !password) {
-    return res.render('auth/login', {
-      error: 'Введите email и пароль',
+  const renderLoginError = (message, errors = {}) =>
+    res.status(400).render('auth/login', {
+      error: message,
+      errors,
+      flash: { type: 'danger', message },
       formData: loginForm,
       next,
       googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
+    });
+
+  if (!email || !password) {
+    return renderLoginError('Введите email и пароль', {
+      email: !email ? 'Укажите email' : undefined,
+      password: !password ? 'Укажите пароль' : undefined,
     });
   }
 
@@ -395,43 +406,24 @@ router.post('/login', loginLimiter, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.render('auth/login', {
-        error: 'Неверный email или пароль',
-        formData: loginForm,
-        next,
-        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
-      });
+      return renderLoginError('Неверный email или пароль');
     }
 
     const user = result.rows[0];
 
     if (user.is_blocked) {
-      return res.render('auth/login', {
-        error: 'Ваш аккаунт заблокирован. Обратитесь к администратору.',
-        formData: loginForm,
-        next,
-        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
-      });
+      return renderLoginError('Ваш аккаунт заблокирован. Обратитесь к администратору.');
     }
 
     if (!user.password_hash) {
-      return res.render('auth/login', {
-        error:
-          'Пароль для этого аккаунта ещё не задан. Войдите через Google или установите пароль через «Забыли пароль?».',
-        formData: loginForm,
-        next,
-        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
-      });
+      return renderLoginError(
+        'Пароль для этого аккаунта ещё не задан. Войдите через Google или установите пароль через «Забыли пароль?».'
+      );
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
-      return res.render('auth/login', {
-        error: 'Неверный email или пароль',
-        formData: loginForm,
-        next,
-        googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
-      });
+      return renderLoginError('Неверный email или пароль');
     }
 
     await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
@@ -439,8 +431,10 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.redirect(next);
   } catch (err) {
     console.error('Login error:', err);
-    res.render('auth/login', {
+    res.status(500).render('auth/login', {
       error: 'Произошла ошибка. Попробуйте позже.',
+      errors: {},
+      flash: { type: 'danger', message: 'Произошла ошибка. Попробуйте позже.' },
       formData: loginForm,
       next,
       googleAuthEnabled: !!process.env.GOOGLE_CLIENT_ID,
@@ -632,10 +626,7 @@ router.get('/google/callback', async (req, res) => {
 
     await revokeRefreshByRaw(pool, req.cookies && req.cookies.refresh_token);
     await issueTokenCookies(pool, user, req, res);
-    return res.redirect(
-      '/profile/edit?need_phone=1&success=' +
-        encodeURIComponent('Укажите номер телефона (пример: 375291234567) — он нужен для записи к врачу.')
-    );
+    return res.redirect('/profile/edit?need_phone=1&warning=' + encodeURIComponent('Для записи необходимо указать номер телефона.'));
   } catch (err) {
     console.error('Google OAuth error:', err);
     return res.render('auth/login', {

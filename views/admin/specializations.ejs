@@ -5,24 +5,118 @@
 <% if (success) { %><div class="alert alert-success alert-dismissible fade show"><%= success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
 <% if (error) { %><div class="alert alert-danger alert-dismissible fade show"><%= error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div><% } %>
 
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <h2 class="h6 fw-semibold mb-3">Добавить группу совместимости</h2>
+        <form method="POST" action="/admin/specialization-groups">
+          <%- include('../partials/csrf') %>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Название группы</label>
+            <input type="text" class="form-control" name="group_name" placeholder="Например, Консультативные профили" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 rounded-pill">Создать группу</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body p-4">
+        <h2 class="h6 fw-semibold mb-3">Добавить специализацию</h2>
+        <form method="POST" action="/admin/specializations">
+          <%- include('../partials/csrf') %>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Название</label>
+            <input type="text" class="form-control" name="name" placeholder="Например, Терапевт" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Группа совместимости</label>
+            <select class="form-select" name="specialization_group_id" required>
+              <option value="">Выберите группу</option>
+              <% groups.forEach(function(g) { %>
+                <option value="<%= g.id %>"><%= g.name %></option>
+              <% }) %>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 rounded-pill">Добавить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4 rounded-4">
+  <div class="card-body p-4">
+    <form method="GET" action="/admin/specializations" class="row g-3 align-items-end admin-filter-form">
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Группа</label>
+        <select name="group_id" class="form-select form-select-sm">
+          <option value="">Все группы</option>
+          <% (groups || []).forEach(function(g){ %>
+            <option value="<%= g.id %>" <%= String(filters && filters.group_id || '') === String(g.id) ? 'selected' : '' %>><%= g.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label small fw-semibold">Поиск по названию</label>
+        <input type="text" name="search" class="form-control form-control-sm" value="<%= filters && filters.search ? filters.search : '' %>" placeholder="Например, Терапевт">
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <input type="hidden" name="limit" value="<%= pagination && pagination.limit ? pagination.limit : 10 %>">
+        <button class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search me-1"></i>Найти</button>
+        <a href="/admin/specializations" class="btn btn-outline-secondary btn-sm">Сброс</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="text-muted small mb-3">Всего записей: <strong><%= totalCount || 0 %></strong></p>
+
 <div class="row g-4">
-  <div class="col-md-8">
+  <div class="col-12">
     <div class="app-table-wrap app-table-wrap--sticky">
       <div class="table-responsive app-table-responsive">
-        <table class="table app-table table-hover mb-0">
+        <table class="table app-table table-hover align-middle mb-0">
           <thead><tr><th>#</th><th>Название</th><th>Группа совместимости</th><th>Врачей</th><th class="text-end">Действие</th></tr></thead>
           <tbody>
-            <% specializations.forEach(function(s) { %>
+            <% if (!specializations || specializations.length === 0) { %>
+              <tr>
+                <td colspan="5" class="p-0 border-0">
+                  <div class="text-center py-5 app-card app-card--static m-3">
+                    <div class="empty-state__icon text-muted"><i class="bi bi-inbox"></i></div>
+                    <p class="text-muted mb-0 mt-2">Специализации не найдены</p>
+                  </div>
+                </td>
+              </tr>
+            <% } %>
+            <% (specializations || []).forEach(function(s) { %>
               <tr>
                 <td><%= s.id %></td>
                 <td class="fw-semibold"><%= s.name %></td>
-                <td><code class="small"><%= s.compat_group || 'therapy' %></code></td>
+                <td>
+                  <span class="badge rounded-pill text-bg-primary"><%= s.group_name %></span>
+                </td>
                 <td><span class="badge app-count-badge"><%= s.doctor_count %></span></td>
                 <td class="text-end">
-                  <form method="POST" action="/admin/specializations/<%= s.id %>/delete" class="d-inline"
-                    onsubmit="return confirm('Удалить «<%= s.name %>»?')">
+                  <form method="POST" action="/admin/specializations/<%= s.id %>/edit" class="d-inline-flex align-items-center gap-1 me-1">
                     <%- include('../partials/csrf') %>
-                    <button class="btn btn-sm btn-outline-danger" <%= parseInt(s.doctor_count) > 0 ? 'disabled' : '' %>><i class="bi bi-trash"></i></button>
+                    <select class="form-select form-select-sm" name="specialization_group_id" required style="min-width: 170px;">
+                      <% groups.forEach(function(g) { %>
+                        <option value="<%= g.id %>" <%= Number(s.specialization_group_id) === Number(g.id) ? 'selected' : '' %>><%= g.name %></option>
+                      <% }) %>
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Сохранить группу">
+                      <i class="bi bi-check2"></i>
+                    </button>
+                  </form>
+                  <form method="POST" action="/admin/specializations/<%= s.id %>/delete" class="d-inline js-confirm-form"
+                    data-confirm-title="Удаление специализации"
+                    data-confirm-name="«<%= s.name %>»"
+                    data-confirm-action="Удалить">
+                    <%- include('../partials/csrf') %>
+                    <button type="button" class="btn btn-sm btn-outline-danger js-open-confirm" <%= parseInt(s.doctor_count) > 0 ? 'disabled' : '' %>><i class="bi bi-trash"></i></button>
                   </form>
                 </td>
               </tr>
@@ -31,20 +125,117 @@
         </table>
       </div>
     </div>
+    <%
+      var p = pagination || { currentPage: 1, totalPages: 1, hasPrev: false, hasNext: false, limit: 10 };
+      function specsPageUrl(pg) {
+        const qp = new URLSearchParams();
+        if (filters && filters.group_id) qp.set('group_id', filters.group_id);
+        if (filters && filters.search) qp.set('search', filters.search);
+        qp.set('limit', String(p.limit || 10));
+        qp.set('page', String(pg));
+        return '/admin/specializations?' + qp.toString();
+      }
+    %>
+    <% if (p.totalPages > 1) { %>
+      <nav aria-label="Пагинация специализаций" class="mt-3">
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item <%= p.hasPrev ? '' : 'disabled' %>">
+            <a class="page-link" href="<%= p.hasPrev ? specsPageUrl(p.currentPage - 1) : '#' %>">Назад</a>
+          </li>
+          <% for (let i = 1; i <= p.totalPages; i++) { %>
+            <li class="page-item <%= i === p.currentPage ? 'active' : '' %>">
+              <a class="page-link" href="<%= specsPageUrl(i) %>"><%= i %></a>
+            </li>
+          <% } %>
+          <li class="page-item <%= p.hasNext ? '' : 'disabled' %>">
+            <a class="page-link" href="<%= p.hasNext ? specsPageUrl(p.currentPage + 1) : '#' %>">Вперёд</a>
+          </li>
+        </ul>
+      </nav>
+    <% } %>
   </div>
-  <div class="col-md-4">
-    <div class="app-card app-card--static p-4 h-100">
-      <h2 class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-3"><i class="bi bi-plus-circle text-primary me-2"></i>Новая запись</h2>
-      <form method="POST" action="/admin/specializations">
-        <%- include('../partials/csrf') %>
-        <div class="mb-3">
-          <label class="form-label fw-semibold small">Название</label>
-          <input type="text" class="form-control" name="name" placeholder="Например, Терапевт" required>
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="h6 fw-semibold mb-3">Группы совместимости</h2>
+        <div class="d-grid gap-2">
+          <% groups.forEach(function(g) { %>
+            <div class="d-flex justify-content-between align-items-center gap-2">
+              <span class="badge rounded-pill text-bg-secondary"><%= g.name %></span>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge app-count-badge" title="Специализаций в группе"><%= g.specialization_count %></span>
+                <form method="POST" action="/admin/specialization-groups/<%= g.id %>/delete" class="d-inline js-confirm-form"
+                  data-confirm-title="Удаление группы совместимости"
+                  data-confirm-name="«<%= g.name %>»"
+                  data-confirm-action="Удалить">
+                  <%- include('../partials/csrf') %>
+                  <button type="button" class="btn btn-sm btn-outline-danger js-open-confirm" <%= Number(g.specialization_count) > 0 ? 'disabled' : '' %>>
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
         </div>
-        <button type="submit" class="btn btn-primary w-100 rounded-pill"><i class="bi bi-plus-circle me-1"></i>Добавить</button>
-      </form>
+      </div>
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="adminConfirmModal" tabindex="-1" aria-labelledby="adminConfirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="adminConfirmModalLabel">Подтверждение действия</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Вы действительно хотите выполнить действие для <strong id="adminConfirmName">этого объекта</strong>?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-danger" id="adminConfirmSubmit">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    function initAdminConfirmModal() {
+      var modalEl = document.getElementById('adminConfirmModal');
+      if (!modalEl || !window.bootstrap) return false;
+      var modal = new bootstrap.Modal(modalEl);
+      var submitBtn = document.getElementById('adminConfirmSubmit');
+      var nameEl = document.getElementById('adminConfirmName');
+      var titleEl = document.getElementById('adminConfirmModalLabel');
+      var pendingForm = null;
+
+      document.querySelectorAll('.js-open-confirm').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var form = btn.closest('.js-confirm-form');
+          if (!form) return;
+          pendingForm = form;
+          if (nameEl) nameEl.textContent = form.getAttribute('data-confirm-name') || 'выбранного объекта';
+          if (titleEl) titleEl.textContent = form.getAttribute('data-confirm-title') || 'Подтверждение действия';
+          if (submitBtn) submitBtn.textContent = form.getAttribute('data-confirm-action') || 'Подтвердить';
+          modal.show();
+        });
+      });
+
+      if (submitBtn) {
+        submitBtn.addEventListener('click', function () {
+          if (!pendingForm) return;
+          pendingForm.submit();
+        });
+      }
+      return true;
+    }
+
+    if (!initAdminConfirmModal()) {
+      window.addEventListener('load', initAdminConfirmModal, { once: true });
+    }
+  })();
+</script>
 
 <%- include('../partials/footer') %>

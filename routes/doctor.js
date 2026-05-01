@@ -374,11 +374,28 @@ router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
 
   try {
     const check = await pool.query(
-      'SELECT doctor_id, appointment_date FROM appointments WHERE id = $1',
+      `SELECT
+         doctor_id,
+         appointment_date,
+         appointment_time,
+         status AS current_status,
+         (
+           appointment_date < CURRENT_DATE
+           OR (appointment_date = CURRENT_DATE AND appointment_time <= CURRENT_TIME)
+         ) AS can_complete_now
+       FROM appointments
+       WHERE id = $1`,
       [apptId]
     );
     if (check.rows.length === 0 || check.rows[0].doctor_id !== req.user.id) {
       return res.status(403).render('error', { message: 'Доступ запрещён' });
+    }
+    const appt = check.rows[0];
+    if (status === 'completed' && !appt.can_complete_now) {
+      const dateParam = redirect_date || new Date().toISOString().split('T')[0];
+      return res.redirect(
+        `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Нельзя принять талон раньше времени приёма.')
+      );
     }
 
     await pool.query('UPDATE appointments SET status = $1 WHERE id = $2', [status, apptId]);

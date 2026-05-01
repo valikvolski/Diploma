@@ -37,10 +37,10 @@ router.post('/:id/read', requireAuth, async (req, res) => {
       'UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
     );
-    res.json({ ok: true });
+    res.json({ success: true, message: 'Уведомление отмечено прочитанным' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ ok: false });
+    res.status(500).json({ success: false, message: 'Ошибка обработки запроса', errors: {} });
   }
 });
 
@@ -64,10 +64,10 @@ router.post('/read-all', requireAuth, async (req, res) => {
 router.get('/api/unread-count', requireAuth, async (req, res) => {
   try {
     const count = await getUnreadCount(req.user.id);
-    res.json({ count });
+    res.json({ success: true, count });
   } catch (err) {
     console.error(err);
-    res.json({ count: 0 });
+    res.json({ success: false, message: 'Ошибка загрузки счётчика', errors: {}, count: 0 });
   }
 });
 
