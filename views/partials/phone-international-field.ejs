@@ -1,0 +1,30 @@
+<%
+  var _prefix = typeof phoneFieldId !== 'undefined' ? phoneFieldId : 'phone';
+  var _raw = typeof phoneValue !== 'undefined' ? String(phoneValue || '').trim() : '';
+  var _digits = _raw.replace(/\D/g, '');
+  var _req = typeof phoneRequired !== 'undefined' ? phoneRequired : true;
+  var _mb = typeof phoneBlockClass !== 'undefined' ? phoneBlockClass : 'mb-3';
+%>
+<div class="<%= _mb %>" data-phone-intl="1" data-phone-prefix="<%= _prefix %>">
+  <label for="<%= _prefix %>_local" class="form-label fw-semibold">Телефон</label>
+  <input type="hidden" name="phone" id="<%= _prefix %>_full" value="<%= _digits %>" autocomplete="off" />
+  <div class="input-group ds-input-group phone-intl-input-group">
+    <select class="form-select phone-intl-cc flex-shrink-0" id="<%= _prefix %>_cc" aria-label="Код страны">
+      <option value="375" selected>🇧🇾&#160;+375</option>
+      <option value="7">🇷🇺&#160;+7</option>
+      <option value="380">🇺🇦&#160;+380</option>
+      <option value="48">🇵🇱&#160;+48</option>
+      <option value="370">🇱🇹&#160;+370</option>
+      <option value="371">🇱🇻&#160;+371</option>
+    </select>
+    <input
+      type="tel"
+      class="form-control phone-intl-local"
+      id="<%= _prefix %>_local"
+      autocomplete="tel-national"
+      inputmode="numeric"
+      placeholder="(29) 123-45-67"
+      <%= _req ? 'required' : '' %>
+    />
+  </div>
+</div>

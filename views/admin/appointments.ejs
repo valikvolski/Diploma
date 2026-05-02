@@ -47,9 +47,9 @@ function statusBadge(s){
         <label class="form-label small fw-semibold">Пациент</label>
         <input type="text" class="form-control form-control-sm" name="patient_search" value="<%= filters.patient_search || '' %>" placeholder="ФИО или email">
       </div>
-      <div class="col-12 d-flex gap-2 justify-content-end">
+      <div class="col-12 d-flex gap-2 admin-filter-actions justify-content-end flex-wrap">
         <input type="hidden" name="limit" value="<%= pagination && pagination.limit ? pagination.limit : 10 %>">
-        <button class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Найти</button>
+        <button type="submit" class="btn btn-primary btn-sm px-3 text-nowrap"><i class="bi bi-search me-1"></i>Найти</button>
         <a href="/admin/appointments" class="btn btn-outline-secondary btn-sm">Сброс</a>
       </div>
     </form>
@@ -62,7 +62,7 @@ function statusBadge(s){
   <div class="table-responsive app-table-responsive">
     <table class="table app-table table-hover align-middle mb-0">
       <thead>
-        <tr><th>#</th><th>Дата</th><th>Время</th><th>Пациент</th><th>Врач</th><th>Специализация</th><th>Статус</th></tr>
+        <tr><th class="nowrap-heading">#</th><th>Дата</th><th class="nowrap-heading">Время</th><th>Пациент</th><th>Врач</th><th>Специализация</th><th>Статус</th></tr>
       </thead>
       <tbody>
         <% if(appointments.length===0){ %>
@@ -79,7 +79,9 @@ function statusBadge(s){
           <tr>
             <td><%= a.id %></td>
             <td><%= fmtDate(a.appointment_date) %></td>
-            <td class="fw-semibold"><%= a.appointment_time %></td>
+            <% var _tRaw = a.appointment_time != null ? String(a.appointment_time).trim() : ''; %>
+            <% var _tDisp = _tRaw ? _tRaw.substring(0, 5) : '—'; %>
+            <td class="fw-semibold text-nowrap"><%= _tDisp %></td>
             <td><%= a.p_last %> <%= a.p_first %></td>
             <td><%= a.d_last %> <%= a.d_first %></td>
             <td><% if(a.specialization){%><span class="badge spec-badge"><%= a.specialization %></span><%}else{%>—<%}%></td>

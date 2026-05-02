@@ -47,31 +47,33 @@ function statusBadge(s){
     <div class="table-responsive app-table-responsive">
       <table class="table app-table table-hover mb-0">
         <thead>
-          <tr><th>Время</th><th>Пациент</th><th>Телефон</th><th>Статус</th><th class="text-end">Действия</th></tr>
+          <tr><th class="nowrap-heading">Время</th><th>Пациент</th><th>Телефон</th><th>Статус</th><th class="text-end nowrap-heading">Действия</th></tr>
         </thead>
         <tbody>
           <% appointments.forEach(function(a) { %>
             <tr>
-              <td class="fw-bold"><%= a.appointment_time %></td>
+              <td class="fw-bold text-nowrap"><%= a.appointment_time && String(a.appointment_time).trim() ? String(a.appointment_time).substring(0, 5) : '—' %></td>
               <td><%= a.last_name %> <%= a.first_name %> <%= a.middle_name %></td>
               <td><%= a.phone || '—' %></td>
               <td><%- statusBadge(a.status) %></td>
-              <td class="text-end">
+              <td class="text-end align-middle">
+                <div class="app-table-actions">
                 <% if (a.status === 'booked') { %>
-                  <form method="POST" action="/doctor/appointments/<%= a.appointment_id %>/status" class="d-inline">
+                  <form method="POST" action="/doctor/appointments/<%= a.appointment_id %>/status" class="mb-0">
                     <%- include('../partials/csrf') %>
                     <input type="hidden" name="status" value="completed">
                     <input type="hidden" name="redirect_date" value="<%= selectedDate %>">
-                    <button class="btn btn-sm btn-outline-success" title="Принят"><i class="bi bi-check-lg"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-success" title="Принят"><i class="bi bi-check-lg"></i></button>
                   </form>
-                  <form method="POST" action="/doctor/appointments/<%= a.appointment_id %>/status" class="d-inline"
+                  <form method="POST" action="/doctor/appointments/<%= a.appointment_id %>/status" class="mb-0"
                     onsubmit="return confirm('Отменить запись?')">
                     <%- include('../partials/csrf') %>
                     <input type="hidden" name="status" value="cancelled">
                     <input type="hidden" name="redirect_date" value="<%= selectedDate %>">
-                    <button class="btn btn-sm btn-outline-danger" title="Отменить"><i class="bi bi-x-lg"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Отменить"><i class="bi bi-x-lg"></i></button>
                   </form>
                 <% } %>
+                </div>
               </td>
             </tr>
           <% }) %>

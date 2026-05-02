@@ -3,6 +3,19 @@
 
   function setFieldState(field) {
     if (!field || field.disabled || field.type === 'hidden') return;
+    if (field.hasAttribute('data-validation-toast-only')) {
+      var validToast = field.checkValidity();
+      var nonEmpty = String(field.value || '').trim() !== '';
+      field.classList.toggle('is-valid', validToast && nonEmpty);
+      field.classList.toggle('is-invalid', !validToast);
+      var fb = field.nextElementSibling;
+      while (fb && fb.classList && fb.classList.contains('invalid-feedback')) {
+        var next = fb.nextElementSibling;
+        fb.remove();
+        fb = next;
+      }
+      return;
+    }
     var valid = field.checkValidity();
     field.classList.toggle('is-valid', valid && String(field.value || '').trim() !== '');
     field.classList.toggle('is-invalid', !valid);

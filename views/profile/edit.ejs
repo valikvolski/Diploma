@@ -37,18 +37,58 @@
         <% if (typeof avatarUser !== 'undefined' && avatarUser) { %>
         <div class="profile-avatar-panel app-card border-0 shadow-sm p-3 p-md-4 mb-4">
           <h2 class="h6 fw-bold mb-3">Фото профиля</h2>
-          <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-3">
-            <%- include('../partials/user-avatar', { person: avatarUser, size: 'profile' }) %>
-            <div class="flex-grow-1 w-100" style="min-width: 0;">
-              <p class="small text-muted mb-2">JPG, PNG или WebP, до 2 МБ. Изображение будет обрезано до квадрата.</p>
-              <div class="d-flex flex-wrap gap-2 align-items-center">
-                <form method="POST" action="/profile/avatar" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
-                  <%- include('../partials/csrf') %>
-                  <input type="file" name="avatar" class="form-control form-control-sm" style="max-width: 220px;" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required />
-                  <button type="submit" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-upload me-1"></i>Загрузить</button>
-                </form>
+          <div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-start gap-3 gap-md-4">
+            <div
+              class="profile-avatar-preview-wrap text-center text-md-start flex-shrink-0 position-relative"
+              data-profile-avatar-upload
+            >
+              <button
+                type="button"
+                class="btn btn-link p-0 border-0 profile-avatar-change-hitarea text-decoration-none"
+                id="profileAvatarChangeTrigger"
+                aria-label="Сменить фото профиля"
+              >
+                <span class="d-inline-block position-relative">
+                  <%- include('../partials/user-avatar', { person: avatarUser, size: 'profile' }) %>
+                  <span
+                    class="profile-avatar-upload-spinner position-absolute top-50 start-50 translate-middle d-none"
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Загрузка"
+                  >
+                    <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+                  </span>
+                </span>
+              </button>
+              <input
+                type="file"
+                id="profileAvatarFile"
+                name="avatar"
+                class="d-none"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                autocomplete="off"
+                aria-hidden="true"
+                tabindex="-1"
+              />
+            </div>
+            <div class="flex-grow-1 w-100 d-flex flex-column justify-content-center" style="min-width: 0;">
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <button type="button" class="btn btn-primary btn-sm rounded-pill mb-0" id="profileAvatarChangeBtn">
+                  <i class="bi bi-camera me-1"></i>Сменить фото
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-link btn-sm text-body-secondary p-1 rounded-circle profile-avatar-info-btn"
+                  id="avatarUploadHint"
+                  data-bs-toggle="tooltip"
+                  data-bs-placement="top"
+                  data-bs-title="Допустимые форматы: JPG, PNG, WebP. Максимум 2 МБ. Фото будет обрезано до квадрата."
+                  aria-label="Справка по загрузке фото"
+                >
+                  <i class="bi bi-info-circle fs-5" aria-hidden="true"></i>
+                </button>
                 <% if (avatarUser.avatar_path) { %>
-                <form method="POST" action="/profile/avatar/remove" class="d-inline" onsubmit="return confirm('Удалить фото профиля?');">
+                <form method="POST" action="/profile/avatar/remove" class="d-inline mb-0" onsubmit="return confirm('Удалить фото профиля?');">
                   <%- include('../partials/csrf') %>
                   <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-trash me-1"></i>Удалить</button>
                 </form>
@@ -109,22 +149,11 @@
             <textarea class="form-control" id="address" name="address" rows="2" placeholder="Необязательно"><%= formData.address || '' %></textarea>
           </div>
 
-          <div class="mb-3">
-            <label for="phone" class="form-label fw-semibold">Телефон</label>
-            <div class="input-group ds-input-group">
-              <span class="input-group-text"><i class="bi bi-phone"></i></span>
-              <input type="tel" class="form-control" id="phone" name="phone"
-                data-phone-by="1"
-                value="<%= String(formData.phone || '').replace(/^\+/, '') %>"
-                pattern="\+?375[0-9]{9}|[0-9]{9}"
-                placeholder="375291234567"
-                inputmode="tel"
-                autocomplete="tel"
-                maxlength="12"
-                required />
-            </div>
-            <div class="form-text">Пример: 375291234567</div>
-          </div>
+          <%- include('../partials/phone-international-field', {
+            phoneFieldId: 'phone',
+            phoneValue: formData.phone,
+            phoneRequired: true
+          }) %>
 
           <div class="mb-4 profile-birth-field">
             <label for="birth_date" class="form-label fw-semibold">Дата рождения</label>
@@ -200,7 +229,29 @@
   </div>
 </div>
 
-<script src="/js/phone-belarus.js"></script>
+<script src="/js/phone-international.js"></script>
 <script src="/js/auth-forms.js"></script>
 <script src="/js/profile-password-modal.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var hint = document.getElementById('avatarUploadHint');
+  if (hint && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+    new bootstrap.Tooltip(hint, { container: 'body' });
+  }
+  var file = document.getElementById('profileAvatarFile');
+  var btn = document.getElementById('profileAvatarChangeBtn');
+  var hit = document.getElementById('profileAvatarChangeTrigger');
+  function pick() {
+    if (file) file.click();
+  }
+  if (btn && file) btn.addEventListener('click', pick);
+  if (hit && file) {
+    hit.addEventListener('click', function (e) {
+      e.preventDefault();
+      pick();
+    });
+  }
+});
+</script>
 <%- include('../partials/footer') %>
+<script src="/js/profile-avatar-auto.js"></script>

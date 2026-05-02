@@ -16,7 +16,9 @@
             <label class="form-label fw-semibold">Название группы</label>
             <input type="text" class="form-control" name="group_name" placeholder="Например, Консультативные профили" required>
           </div>
-          <button type="submit" class="btn btn-primary w-100 rounded-pill">Создать группу</button>
+          <div class="admin-spec-card-actions pt-1">
+          <button type="submit" class="btn btn-primary rounded-pill px-4">Создать группу</button>
+          </div>
         </form>
       </div>
     </div>
@@ -40,7 +42,9 @@
               <% }) %>
             </select>
           </div>
-          <button type="submit" class="btn btn-primary w-100 rounded-pill">Добавить</button>
+          <div class="admin-spec-card-actions pt-1">
+          <button type="submit" class="btn btn-primary rounded-pill px-4">Добавить</button>
+          </div>
         </form>
       </div>
     </div>
@@ -63,9 +67,9 @@
         <label class="form-label small fw-semibold">Поиск по названию</label>
         <input type="text" name="search" class="form-control form-control-sm" value="<%= filters && filters.search ? filters.search : '' %>" placeholder="Например, Терапевт">
       </div>
-      <div class="col-md-3 d-flex gap-2">
+      <div class="col-md-3 d-flex admin-filter-actions flex-wrap justify-content-start justify-content-md-end">
         <input type="hidden" name="limit" value="<%= pagination && pagination.limit ? pagination.limit : 10 %>">
-        <button class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search me-1"></i>Найти</button>
+        <button type="submit" class="btn btn-primary btn-sm px-3 text-nowrap"><i class="bi bi-search me-1"></i>Найти</button>
         <a href="/admin/specializations" class="btn btn-outline-secondary btn-sm">Сброс</a>
       </div>
     </form>
@@ -79,7 +83,7 @@
     <div class="app-table-wrap app-table-wrap--sticky">
       <div class="table-responsive app-table-responsive">
         <table class="table app-table table-hover align-middle mb-0">
-          <thead><tr><th>#</th><th>Название</th><th>Группа совместимости</th><th>Врачей</th><th class="text-end">Действие</th></tr></thead>
+          <thead><tr><th class="nowrap-heading">#</th><th>Название</th><th>Группа совместимости</th><th class="nowrap-heading text-end">Врачей</th><th class="text-end nowrap-heading">Действие</th></tr></thead>
           <tbody>
             <% if (!specializations || specializations.length === 0) { %>
               <tr>
@@ -98,26 +102,28 @@
                 <td>
                   <span class="badge rounded-pill text-bg-primary"><%= s.group_name %></span>
                 </td>
-                <td><span class="badge app-count-badge"><%= s.doctor_count %></span></td>
-                <td class="text-end">
-                  <form method="POST" action="/admin/specializations/<%= s.id %>/edit" class="d-inline-flex align-items-center gap-1 me-1">
+                <td class="text-end"><span class="badge app-count-badge"><%= s.doctor_count %></span></td>
+                <td class="text-end spec-actions-cell align-middle">
+                  <div class="app-table-actions spec-actions-inner">
+                  <form method="POST" action="/admin/specializations/<%= s.id %>/edit" class="mb-0 align-items-center">
                     <%- include('../partials/csrf') %>
-                    <select class="form-select form-select-sm" name="specialization_group_id" required style="min-width: 170px;">
+                    <select class="form-select form-select-sm" name="specialization_group_id" required aria-label="Группа для «<%= s.name %>»">
                       <% groups.forEach(function(g) { %>
                         <option value="<%= g.id %>" <%= Number(s.specialization_group_id) === Number(g.id) ? 'selected' : '' %>><%= g.name %></option>
                       <% }) %>
                     </select>
-                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Сохранить группу">
+                    <button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0" title="Сохранить группу">
                       <i class="bi bi-check2"></i>
                     </button>
                   </form>
-                  <form method="POST" action="/admin/specializations/<%= s.id %>/delete" class="d-inline js-confirm-form"
+                  <form method="POST" action="/admin/specializations/<%= s.id %>/delete" class="mb-0 js-confirm-form"
                     data-confirm-title="Удаление специализации"
                     data-confirm-name="«<%= s.name %>»"
                     data-confirm-action="Удалить">
                     <%- include('../partials/csrf') %>
-                    <button type="button" class="btn btn-sm btn-outline-danger js-open-confirm" <%= parseInt(s.doctor_count) > 0 ? 'disabled' : '' %>><i class="bi bi-trash"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger js-open-confirm flex-shrink-0" <%= parseInt(s.doctor_count) > 0 ? 'disabled' : '' %>><i class="bi bi-trash"></i></button>
                   </form>
+                  </div>
                 </td>
               </tr>
             <% }) %>

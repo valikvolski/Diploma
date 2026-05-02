@@ -62,29 +62,21 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
           </div>
           <p class="text-muted small mt-3 mb-0 guest-home-hero__lead">После авторизации доступен электронный талон (PDF), уведомления на email и история записей в личном кабинете.</p>
         </div>
-        <div class="col-lg-5 d-none d-lg-block">
-          <div class="ms-lg-auto guest-hero-ill" aria-hidden="true">
-            <svg viewBox="0 0 520 360" width="100%" height="auto" role="img">
-              <defs>
-                <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.18"/>
-                  <stop offset="1" stop-color="#38bdf8" stop-opacity="0.18"/>
-                </linearGradient>
-                <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.9"/>
-                  <stop offset="1" stop-color="#0ea5e9" stop-opacity="0.9"/>
-                </linearGradient>
-              </defs>
-              <rect x="20" y="24" width="480" height="312" rx="28" fill="url(#g1)" stroke="rgba(148,163,184,0.45)"/>
-              <rect x="62" y="68" width="396" height="224" rx="22" fill="rgba(255,255,255,0.7)" stroke="rgba(148,163,184,0.55)"/>
-              <circle cx="122" cy="132" r="34" fill="url(#g2)"/>
-              <rect x="176" y="112" width="220" height="14" rx="7" fill="rgba(15,23,42,0.22)"/>
-              <rect x="176" y="140" width="180" height="12" rx="6" fill="rgba(15,23,42,0.14)"/>
-              <rect x="92" y="196" width="336" height="72" rx="18" fill="rgba(26,110,230,0.10)" stroke="rgba(26,110,230,0.22)"/>
-              <path d="M142 232h24v-16h16v16h24v16h-24v16h-16v-16h-24z" fill="rgba(26,110,230,0.85)"/>
-              <rect x="216" y="214" width="180" height="12" rx="6" fill="rgba(15,23,42,0.18)"/>
-              <rect x="216" y="238" width="150" height="10" rx="5" fill="rgba(15,23,42,0.12)"/>
-            </svg>
+        <div class="col-lg-5 d-none d-lg-flex align-items-center justify-content-center">
+          <div class="guest-hero-ill" aria-hidden="true">
+            <div class="home-hero-visual home-hero-visual--guest">
+              <div class="home-hero-visual__glass"></div>
+              <div class="home-hero-visual__plate">
+                <div class="home-hero-visual__top">
+                  <div class="home-hero-visual__avatar home-hero-visual__avatar--add"></div>
+                  <div class="home-hero-visual__bars"><span></span><span></span></div>
+                </div>
+                <div class="home-hero-visual__foot">
+                  <div class="home-hero-visual__foot-left"><span></span><span></span></div>
+                  <div class="home-hero-visual__cta"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -279,30 +271,21 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
           <div class="text-muted">Добро пожаловать в личный кабинет онлайн‑записи</div>
           <div class="small text-muted mt-2"><i class="bi bi-calendar3 me-2"></i><%= _todayLabel %></div>
         </div>
-        <div class="col-lg-5 d-none d-lg-block">
-          <div class="patient-hero-ill ms-lg-auto" aria-hidden="true">
-            <svg viewBox="0 0 520 360" width="100%" height="auto" role="img">
-              <defs>
-                <linearGradient id="p1" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.18"/>
-                  <stop offset="1" stop-color="#38bdf8" stop-opacity="0.18"/>
-                </linearGradient>
-                <linearGradient id="p2" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#1a6ee6" stop-opacity="0.95"/>
-                  <stop offset="1" stop-color="#0ea5e9" stop-opacity="0.95"/>
-                </linearGradient>
-              </defs>
-              <rect x="28" y="28" width="464" height="304" rx="28" fill="url(#p1)" stroke="rgba(148,163,184,0.45)"/>
-              <rect x="70" y="68" width="380" height="224" rx="22" fill="rgba(255,255,255,0.7)" stroke="rgba(148,163,184,0.55)"/>
-              <circle cx="150" cy="144" r="38" fill="url(#p2)"/>
-              <path d="M150 126h10v18h18v10h-18v18h-10v-18h-18v-10h18z" fill="rgba(255,255,255,0.92)"/>
-              <rect x="214" y="120" width="192" height="14" rx="7" fill="rgba(15,23,42,0.22)"/>
-              <rect x="214" y="148" width="160" height="12" rx="6" fill="rgba(15,23,42,0.14)"/>
-              <rect x="108" y="204" width="304" height="70" rx="18" fill="rgba(26,110,230,0.10)" stroke="rgba(26,110,230,0.22)"/>
-              <rect x="132" y="226" width="132" height="12" rx="6" fill="rgba(15,23,42,0.18)"/>
-              <rect x="132" y="248" width="178" height="10" rx="5" fill="rgba(15,23,42,0.12)"/>
-              <rect x="330" y="226" width="58" height="22" rx="11" fill="rgba(26,110,230,0.85)"/>
-            </svg>
+        <div class="col-lg-5 d-none d-lg-flex align-items-center justify-content-center">
+          <div class="patient-hero-ill" aria-hidden="true">
+            <div class="home-hero-visual home-hero-visual--patient">
+              <div class="home-hero-visual__glass"></div>
+              <div class="home-hero-visual__plate">
+                <div class="home-hero-visual__top">
+                  <div class="home-hero-visual__avatar home-hero-visual__avatar--medic"></div>
+                  <div class="home-hero-visual__bars"><span></span><span></span></div>
+                </div>
+                <div class="home-hero-visual__foot">
+                  <div class="home-hero-visual__foot-left"><span></span><span></span></div>
+                  <div class="home-hero-visual__cta"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

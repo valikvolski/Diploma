@@ -309,8 +309,8 @@ router.post('/register', registerLimiter, async (req, res) => {
 
   const phoneNorm = normalizeBelarusPhone(phone);
   if (!phoneNorm) {
-    return renderRegisterError('Неверный формат телефона. Пример: 375291234567', {
-      phone: 'Пример: 375291234567',
+    return renderRegisterError('Неверный формат телефона. Укажите код страны и номер полностью.', {
+      phone: 'Проверьте код страны и длину номера.',
     });
   }
 

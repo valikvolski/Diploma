@@ -50,6 +50,7 @@
                 minlength="6"
                 placeholder="Не менее 6 символов"
                 autocomplete="new-password"
+                data-validation-toast-only="1"
               />
               <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-pressed="false">
                 <i class="bi bi-eye"></i>
@@ -71,12 +72,12 @@
                 minlength="6"
                 placeholder="Повторите пароль"
                 autocomplete="new-password"
+                data-validation-toast-only="1"
               />
               <button class="btn btn-outline-secondary" type="button" id="toggleConfirm" aria-pressed="false">
                 <i class="bi bi-eye"></i>
               </button>
             </div>
-            <div id="confirmFeedback" class="form-text"></div>
           </div>
 
           <div class="row g-3 mb-3">
@@ -136,27 +137,12 @@
             }) %>
           </div>
 
-          <div class="mb-4">
-            <label for="phone" class="form-label fw-semibold">Телефон</label>
-            <div class="input-group ds-input-group">
-              <span class="input-group-text"><i class="bi bi-phone"></i></span>
-              <input
-                type="tel"
-                class="form-control"
-                id="phone"
-                name="phone"
-                data-phone-by="1"
-                value="<%= typeof formData !== 'undefined' ? String(formData.phone || '').replace(/^\+/, '') : '' %>"
-                required
-                pattern="\+?375[0-9]{9}|[0-9]{9}"
-                placeholder="375291234567"
-                inputmode="tel"
-                autocomplete="tel"
-                maxlength="12"
-              />
-            </div>
-            <div class="form-text">Пример: 375291234567</div>
-          </div>
+          <%- include('../partials/phone-international-field', {
+            phoneFieldId: 'phone',
+            phoneValue: typeof formData !== 'undefined' ? formData.phone : '',
+            phoneRequired: true,
+            phoneBlockClass: 'mb-4'
+          }) %>
 
           <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-semibold" id="submitBtn">
             <i class="bi bi-person-check me-2"></i>Создать аккаунт
@@ -184,6 +170,6 @@
   </div>
 </div>
 
-<script src="/js/phone-belarus.js"></script>
+<script src="/js/phone-international.js"></script>
 <script src="/js/auth-forms.js"></script>
 <%- include('../partials/footer') %>

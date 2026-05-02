@@ -1,6 +1,6 @@
 /**
  * Auth: password visibility toggles, register helpers (strength, confirm match).
- * Телефон (375…): /js/phone-belarus.js + data-phone-by="1"
+ * Телефон: /js/phone-international.js (регистрация, профиль, форма врача в админке).
  */
 (function () {
   'use strict';
@@ -33,27 +33,21 @@
     var regForm = document.getElementById('registerForm');
     var passwordInput = document.getElementById('password');
     var confirmInput = document.getElementById('password_confirm');
-    var confirmFeedback = document.getElementById('confirmFeedback');
     var strengthEl = document.getElementById('passwordStrength');
 
     if (regForm) {
       function checkPasswords() {
-        if (!confirmInput || !confirmFeedback) return;
+        if (!confirmInput) return;
         if (!confirmInput.value) {
-          confirmFeedback.textContent = '';
           confirmInput.classList.remove('is-invalid', 'is-valid');
           return;
         }
         if (passwordInput && passwordInput.value === confirmInput.value) {
           confirmInput.classList.remove('is-invalid');
           confirmInput.classList.add('is-valid');
-          confirmFeedback.className = 'form-text text-success';
-          confirmFeedback.textContent = 'Пароли совпадают';
         } else {
           confirmInput.classList.remove('is-valid');
           confirmInput.classList.add('is-invalid');
-          confirmFeedback.className = 'form-text text-danger';
-          confirmFeedback.textContent = 'Пароли не совпадают';
         }
       }
 
@@ -62,6 +56,28 @@
         confirmInput.addEventListener('input', checkPasswords);
       }
 
+      regForm.addEventListener(
+        'submit',
+        function (e) {
+          var pwd = passwordInput ? passwordInput.value : '';
+          var c = confirmInput ? confirmInput.value : '';
+          if (!passwordInput || pwd.length < 6) {
+            e.preventDefault();
+            if (window.showAppToast) {
+              window.showAppToast('Пароль должен содержать минимум 6 символов', 'danger');
+            }
+            return;
+          }
+          if (pwd !== c) {
+            e.preventDefault();
+            if (window.showAppToast) {
+              window.showAppToast('Пароли не совпадают', 'danger');
+            }
+          }
+        },
+        false
+      );
+
       if (passwordInput && strengthEl) {
         passwordInput.addEventListener('input', function () {
           var len = this.value.length;
@@ -69,11 +85,27 @@
             strengthEl.innerHTML = '';
             return;
           }
-          var html = '';
-          if (len < 6) html = '<small class="text-danger">Минимум 6 символов</small>';
-          else if (len < 10) html = '<small class="text-warning">Средняя длина</small>';
-          else html = '<small class="text-success">Хорошая длина</small>';
-          strengthEl.innerHTML = html;
+          var pct;
+          var barClass;
+          if (len < 6) {
+            pct = Math.max(8, Math.round((len / 6) * 33));
+            barClass = 'bg-danger';
+          } else if (len < 10) {
+            pct = 66;
+            barClass = 'bg-warning';
+          } else {
+            pct = 100;
+            barClass = 'bg-success';
+          }
+          strengthEl.innerHTML =
+            '<div class="progress password-strength-progress mt-1" style="height:6px" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' +
+            pct +
+            '">' +
+            '<div class="progress-bar ' +
+            barClass +
+            '" style="width:' +
+            pct +
+            '%"></div></div>';
         });
       }
     }

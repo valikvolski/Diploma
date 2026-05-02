@@ -34,9 +34,9 @@
         <label class="form-label small fw-semibold">Поиск</label>
         <input type="text" name="search" class="form-control form-control-sm" placeholder="ФИО или email" value="<%= filters && filters.search ? filters.search : '' %>">
       </div>
-      <div class="col-md-3 d-flex gap-2">
+      <div class="col-md-3 d-flex admin-filter-actions flex-wrap justify-content-start justify-content-md-end">
         <input type="hidden" name="limit" value="<%= pagination && pagination.limit ? pagination.limit : 10 %>">
-        <button type="submit" class="btn btn-primary btn-sm flex-fill"><i class="bi bi-search me-1"></i>Найти</button>
+        <button type="submit" class="btn btn-primary btn-sm px-3 text-nowrap"><i class="bi bi-search me-1"></i>Найти</button>
         <a href="/admin/doctors" class="btn btn-outline-secondary btn-sm">Сброс</a>
       </div>
     </form>
@@ -49,7 +49,7 @@
   <div class="table-responsive app-table-responsive">
     <table class="table app-table table-hover align-middle mb-0">
       <thead>
-        <tr><th class="text-center" style="width:52px"></th><th>#</th><th>ФИО</th><th>Специализация</th><th>Кабинет</th><th>Стаж</th><th>Статус</th><th class="text-end">Действия</th></tr>
+        <tr><th class="text-center nowrap-heading" aria-label="Фото"></th><th class="nowrap-heading">#</th><th>ФИО</th><th>Специализация</th><th>Кабинет</th><th>Стаж</th><th>Статус</th><th class="text-end nowrap-heading">Действия</th></tr>
       </thead>
       <tbody>
         <% if (!doctors || doctors.length === 0) { %>
@@ -85,15 +85,17 @@
             <td>
               <% if(d.is_blocked){%><span class="status-pill status-pill--blocked"><i class="bi bi-lock-fill"></i>Заблокирован</span><%}else{%><span class="status-pill status-pill--active"><i class="bi bi-check-circle"></i>Активен</span><%}%>
             </td>
-            <td class="text-end">
+            <td class="text-end align-middle">
+              <div class="app-table-actions">
               <a href="/admin/doctors/<%= d.id %>/edit" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
-              <form method="POST" action="/admin/doctors/<%= d.id %>/delete" class="d-inline js-confirm-form"
+              <form method="POST" action="/admin/doctors/<%= d.id %>/delete" class="mb-0 js-confirm-form"
                 data-confirm-title="Удаление врача"
                 data-confirm-name="<%= d.last_name %> <%= d.first_name %> <%= d.middle_name || '' %>"
                 data-confirm-action="Удалить">
                 <%- include('../partials/csrf') %>
                 <button type="button" class="btn btn-sm btn-outline-danger js-open-confirm"><i class="bi bi-trash"></i></button>
               </form>
+              </div>
             </td>
           </tr>
         <% }) %>

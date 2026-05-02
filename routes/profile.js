@@ -24,6 +24,13 @@ const router = express.Router();
 const patientOnly = [requireAuth, requireRole(['patient'])];
 const SALT_ROUNDS = 10;
 
+function wantsProfileAvatarJson(req) {
+  return (
+    req.get('X-Requested-With') === 'XMLHttpRequest' ||
+    (req.get('Accept') || '').includes('application/json')
+  );
+}
+
 function parsePositiveInt(value, fallback, max = 100) {
   const n = parseInt(value, 10);
   if (!Number.isFinite(n) || n <= 0) return fallback;
@@ -381,9 +388,9 @@ router.post('/edit', ...patientOnly, async (req, res) => {
       title: 'Редактировать профиль — Запись к врачу',
       formData,
       avatarUser: avatarUserForEdit(req.user, formData),
-      error: 'Неверный формат телефона. Пример: 375291234567',
-      errors: { phone: 'Пример: 375291234567' },
-      flash: { type: 'danger', message: 'Неверный формат телефона. Пример: 375291234567' },
+      error: 'Неверный формат телефона. Укажите код страны и номер полностью (например +375291234567).',
+      errors: { phone: 'Проверьте код страны и длину номера.' },
+      flash: { type: 'danger', message: 'Неверный формат телефона. Укажите код страны и номер полностью.' },
       profileWarningBanner: patientNeedsPhoneCompletion(phone) || !String(formData.birth_date || '').trim(),
       profileWarningMessage: 'Перед записью необходимо заполнить профиль.',
       avatarFromGoogle: !req.user.avatar_path && !!req.user.avatar_url,
@@ -466,9 +473,10 @@ router.post('/edit', ...patientOnly, async (req, res) => {
 // ─── POST /profile/avatar ────────────────────────────────────────────────────
 
 router.post('/avatar', ...patientOnly, (req, res, next) => {
+  const useJson = wantsProfileAvatarJson(req);
   uploadAvatar(req, res, async (err) => {
     const editPath = '/profile/edit';
-    if (redirectMulterAvatarError(err, res, editPath)) return;
+    if (redirectMulterAvatarError(err, res, editPath, { useJson })) return;
     if (err) return next(err);
     if (!verifyCsrfFromRequest(req)) {
       if (req.file?.path) {
@@ -476,11 +484,17 @@ router.post('/avatar', ...patientOnly, (req, res, next) => {
           await fs.unlink(req.file.path);
         } catch (_) {}
       }
+      if (useJson) {
+        return res.status(403).json({ ok: false, error: 'csrf' });
+      }
       return res.status(403).render('error', {
         message: 'Запрос отклонён (защита CSRF). Обновите страницу и попробуйте снова.',
       });
     }
     if (!req.file) {
+      if (useJson) {
+        return res.status(400).json({ ok: false, error: 'Выберите файл изображения' });
+      }
       return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
     }
     try {
@@ -489,12 +503,23 @@ router.post('/avatar', ...patientOnly, (req, res, next) => {
       const oldPath = prev.rows[0]?.avatar_path;
       await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, req.user.id]);
       await unlinkDbPath(oldPath);
+      const avatarUrl = `/${String(rel).replace(/^\/+/, '')}`;
+      if (useJson) {
+        return res.json({
+          ok: true,
+          avatarUrl,
+          message: 'Фото профиля обновлено',
+        });
+      }
       res.redirect(`${editPath}?success=${encodeURIComponent('Фото профиля обновлено')}`);
     } catch (e) {
       console.error('Profile avatar error:', e);
       try {
         await fs.unlink(req.file.path);
       } catch (_) {}
+      if (useJson) {
+        return res.status(500).json({ ok: false, error: 'Не удалось обработать изображение' });
+      }
       res.redirect(`${editPath}?error=${encodeURIComponent('Не удалось обработать изображение')}`);
     }
   });

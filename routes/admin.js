@@ -292,7 +292,7 @@ router.post('/doctors', ...adminOnly, async (req, res) => {
   const phoneNormCreate = normalizeBelarusPhone(phone);
   if (!phoneNormCreate) {
     return res.redirect(
-      '/admin/doctors/new?error=' + encodeURIComponent('Неверный формат телефона. Пример: 375291234567')
+      '/admin/doctors/new?error=' + encodeURIComponent('Неверный формат телефона. Укажите номер с кодом страны.')
     );
   }
 
@@ -410,7 +410,7 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
   const phoneNormEdit = normalizeBelarusPhone(phone);
   if (!phoneNormEdit) {
     return res.redirect(
-      `/admin/doctors/${rawId}/edit?error=` + encodeURIComponent('Неверный формат телефона. Пример: 375291234567')
+      `/admin/doctors/${rawId}/edit?error=` + encodeURIComponent('Неверный формат телефона. Укажите номер с кодом страны.')
     );
   }
 

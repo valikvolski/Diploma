@@ -499,11 +499,11 @@ a:hover { color: var(--app-primary-dark); }
   box-shadow: var(--shadow-sm);
 }
 
-.table-responsive.app-table-responsive { margin-bottom: 0; }
-
-.table.app-table {
+.table-responsive.app-table-responsive {
   margin-bottom: 0;
-  vertical-align: middle;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-inline: 2px;
 }
 
 .table.app-table thead th {
@@ -514,6 +514,12 @@ a:hover { color: var(--app-primary-dark); }
   color: var(--app-muted);
   background: var(--app-gray-100);
   border-bottom: 1px solid var(--app-gray-200);
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+/* Узкий столбец: одна строка в шапке (не ломает сетку строк данных */
+.table.app-table thead th.nowrap-heading {
   white-space: nowrap;
 }
 
@@ -522,12 +528,90 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 .table.app-table tbody tr:hover {
-  background: #f8fafc;
+  background: rgba(26, 110, 230, 0.06);
+}
+
+.table.app-table tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 rgba(26, 110, 230, 0.4);
 }
 
 .table.app-table td,
 .table.app-table th {
   padding: 0.85rem 1rem;
+}
+
+.table.app-table {
+  width: 100%;
+  margin-bottom: 0;
+  vertical-align: middle;
+}
+
+.app-table-responsive > .table.app-table {
+  min-width: 640px;
+}
+
+/* Явная минимальная ширина колонки «Действия» у специализаций (+ скролл у обёртки) */
+.spec-actions-cell {
+  vertical-align: middle;
+  width: 1%;
+  min-width: 17.5rem;
+  max-width: 22rem;
+}
+
+/* Ряд действий: без растягивания кнопок на всю ширину */
+.app-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+}
+
+.table.app-table .app-table-actions .btn.btn-sm {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 2.25rem;
+}
+
+.table.app-table .app-table-actions .form-select.form-select-sm {
+  max-width: 11.5rem;
+  min-width: 7rem;
+  flex: 1 1 7rem;
+}
+
+.table.app-table .app-table-actions form {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block: 0;
+}
+
+.spec-actions-inner {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+}
+
+.spec-actions-inner .form-select.form-select-sm {
+  max-width: 10rem;
+  min-width: 5.5rem;
+}
+
+@media (max-width: 991.98px) {
+  .spec-actions-inner {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .app-table-actions {
+    justify-content: flex-start;
+  }
+
+  .spec-actions-inner {
+    justify-content: flex-start;
+  }
 }
 
 @media (min-width: 768px) {
@@ -536,6 +620,7 @@ a:hover { color: var(--app-primary-dark); }
     top: 0;
     z-index: 2;
     box-shadow: 0 1px 0 var(--app-gray-200);
+    background-clip: padding-box;
   }
 }
 
@@ -1061,6 +1146,80 @@ a:hover { color: var(--app-primary-dark); }
 .ds-input-group .btn-outline-secondary {
   border-color: var(--app-gray-200);
   color: var(--app-gray-600);
+}
+
+/* Телефон: код страны + номер как единое поле */
+.app-toast-container {
+  z-index: 1090;
+  pointer-events: none;
+}
+
+.app-toast-container .toast {
+  pointer-events: auto;
+}
+
+.app-toast-icon {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.phone-intl-input-group .phone-intl-cc {
+  max-width: 7.35rem;
+  min-width: 6.75rem;
+  flex-shrink: 0;
+  padding-left: 0.5rem;
+  padding-right: 0.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.phone-intl-input-group .phone-intl-local {
+  min-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-avatar-preview-wrap--loading .user-avatar {
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.profile-avatar-change-hitarea {
+  cursor: pointer;
+  color: inherit;
+  border-radius: var(--radius-sm);
+}
+
+.profile-avatar-change-hitarea:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.35);
+}
+
+.profile-avatar-info-btn {
+  line-height: 1;
+}
+
+.profile-avatar-info-btn:focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+@media (max-width: 575.98px) {
+  .phone-intl-input-group {
+    flex-wrap: wrap;
+  }
+
+  .phone-intl-input-group .phone-intl-cc {
+    max-width: 100%;
+    width: 100%;
+    border-radius: var(--radius-sm) !important;
+  }
+
+  .phone-intl-input-group .phone-intl-local {
+    border-radius: var(--radius-sm) !important;
+  }
 }
 
 .form-label.fw-semibold {
@@ -2661,8 +2820,13 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 .patient-hero-ill {
-  width: min(360px, 100%);
-  max-width: 360px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: min(380px, 100%);
+  max-width: 380px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .patient-action-card {
@@ -2988,8 +3152,237 @@ a:hover { color: var(--app-primary-dark); }
 }
 
 .guest-hero-ill {
-  width: min(360px, 100%);
-  max-width: 360px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: min(380px, 100%);
+  max-width: 380px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+/* Декоративный блок героя (вместо SVG — стабильно в Chrome, как на макетах) */
+.home-hero-visual {
+  position: relative;
+  width: min(380px, 100%);
+  max-width: 380px;
+  height: clamp(250px, 28vw, 302px);
+  margin-inline: auto;
+  isolation: isolate;
+  border-radius: 28px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.home-hero-visual--guest {
+  background:
+    radial-gradient(circle at 92% 8%, rgba(56, 189, 248, 0.4) 0%, transparent 42%),
+    radial-gradient(circle at 10% 92%, rgba(96, 165, 250, 0.38) 0%, transparent 45%),
+    linear-gradient(152deg, #eff6ff 0%, #e0f2fe 52%, #f8fafc 100%);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+}
+
+.home-hero-visual--patient {
+  background:
+    radial-gradient(circle at 84% 10%, rgba(59, 130, 246, 0.2) 0%, transparent 40%),
+    radial-gradient(circle at 14% 90%, rgba(14, 165, 233, 0.16) 0%, transparent 44%),
+    linear-gradient(160deg, #f8fafc 0%, #eff6ff 45%, #e0f2fe 100%);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.home-hero-visual__glass {
+  position: absolute;
+  inset: 9% 6% 10%;
+  z-index: 1;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 20px 48px rgba(15, 23, 42, 0.06);
+}
+
+.home-hero-visual__plate {
+  position: absolute;
+  z-index: 2;
+  inset: 11% 8% 10%;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.98);
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  padding: 1rem 1.05rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.home-hero-visual__top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.home-hero-visual__avatar {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a6ee6 0%, #0ea5e9 100%);
+  box-shadow: 0 10px 22px rgba(26, 110, 230, 0.32);
+}
+
+/* Пациент: крест как на макете */
+.home-hero-visual__avatar--medic {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.home-hero-visual__avatar--medic::before,
+.home-hero-visual__avatar--medic::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 2px;
+}
+
+.home-hero-visual__avatar--medic::before {
+  width: 24px;
+  height: 4px;
+}
+
+.home-hero-visual__avatar--medic::after {
+  width: 4px;
+  height: 24px;
+}
+
+/* Гость: символ «добавить» в круге */
+.home-hero-visual__avatar--add {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.home-hero-visual__avatar--add::before,
+.home-hero-visual__avatar--add::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 2px;
+}
+
+.home-hero-visual__avatar--add::before {
+  width: 22px;
+  height: 3px;
+}
+
+.home-hero-visual__avatar--add::after {
+  width: 3px;
+  height: 22px;
+}
+
+.home-hero-visual__bars {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.52rem;
+  justify-content: center;
+}
+
+.home-hero-visual__bars span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.home-hero-visual__bars span:first-child {
+  width: 100%;
+}
+
+.home-hero-visual__bars span:last-child {
+  width: 72%;
+}
+
+.home-hero-visual__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0.45rem 0.65rem;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(26, 110, 230, 0.1) 0%, rgba(14, 165, 233, 0.08) 100%);
+  border: 1px solid rgba(26, 110, 230, 0.15);
+}
+
+.home-hero-visual__foot-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.home-hero-visual__foot-left span {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.16);
+}
+
+.home-hero-visual__foot-left span:first-child {
+  width: clamp(72px, 40%, 120px);
+}
+
+.home-hero-visual__foot-left span:last-child {
+  width: clamp(92px, 55%, 150px);
+}
+
+.home-hero-visual__cta {
+  flex: 0 0 auto;
+  width: 58px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1a6ee6 0%, #0d6dfd 100%);
+  box-shadow: 0 4px 14px rgba(26, 110, 230, 0.35);
+}
+
+[data-app-theme="dark"] .home-hero-visual--guest,
+[data-app-theme="dark"] .home-hero-visual--patient {
+  background:
+    radial-gradient(circle at 88% 6%, rgba(56, 189, 248, 0.2) 0%, transparent 40%),
+    radial-gradient(circle at 14% 94%, rgba(59, 130, 246, 0.15) 0%, transparent 38%),
+    linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  border-color: rgba(71, 85, 105, 0.5);
+}
+
+[data-app-theme="dark"] .home-hero-visual__glass {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-app-theme="dark"] .home-hero-visual__plate {
+  background: rgba(30, 41, 59, 0.94);
+  border-color: rgba(71, 85, 105, 0.7);
+}
+
+[data-app-theme="dark"] .home-hero-visual__bars span,
+[data-app-theme="dark"] .home-hero-visual__foot-left span {
+  background: rgba(226, 232, 240, 0.2);
+}
+
+[data-app-theme="dark"] .home-hero-visual__foot {
+  background: rgba(26, 110, 230, 0.12);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+@media (max-width: 991.98px) {
+  .home-hero-visual {
+    height: min(268px, 58vw);
+  }
 }
 
 .guest-spec-card {
@@ -4300,29 +4693,6 @@ html[data-theme="dark"] {
   50% { box-shadow: 0 10px 24px rgba(22, 163, 74, 0.5); }
 }
 
-.table.app-table tbody tr {
-  position: relative;
-}
-
-.table.app-table tbody tr::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  background: rgba(26, 110, 230, 0.4);
-  transition: width 0.16s ease;
-}
-
-.table.app-table tbody tr:hover::before {
-  width: 3px;
-}
-
-.table.app-table tbody tr:hover {
-  background: rgba(26, 110, 230, 0.045);
-}
-
 .table.app-table .btn {
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -4462,25 +4832,11 @@ html[data-theme="dark"] {
   }
 }
 
-.doctor-patients-page,
-.doctor-patients-page .app-card,
-.doctor-patients-page .app-table-wrap,
-.doctor-patients-page .table-responsive {
-  overflow: visible !important;
-}
-
-.doctor-patients-page .uc-field { position: relative; }
-
-.doctor-patients-page .uc-popup {
-  z-index: 1080;
-  left: 0;
-  right: auto;
-}
-
 @media (max-width: 576px) {
   .doctor-patients-page .uc-popup {
     width: min(92vw, 320px);
     left: 0;
+    right: auto;
   }
 }
 
@@ -4496,6 +4852,25 @@ html[data-theme="dark"] {
 .admin-filter-form .form-control,
 .admin-filter-form .form-select {
   min-height: calc(1.5em + 0.5rem + 2px);
+}
+
+.admin-filter-actions {
+  gap: 0.5rem;
+}
+
+.admin-filter-actions .btn.btn-sm {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 2.5rem;
+}
+
+.admin-spec-card-actions .btn {
+  width: auto;
+}
+
+.doctor-patients-page form[action="/doctor/patients"] .uc-field {
+  position: relative;
+  z-index: 20;
 }
 
 .pagination .page-link {

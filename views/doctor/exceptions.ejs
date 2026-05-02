@@ -46,8 +46,8 @@ function fmtType(r){
             <th>Период</th>
             <th>Тип</th>
             <th>Причина</th>
-            <th>Время</th>
-            <th class="text-end">Действия</th>
+            <th class="nowrap-heading">Время работы</th>
+            <th class="text-end nowrap-heading">Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -56,13 +56,15 @@ function fmtType(r){
               <td class="fw-semibold"><%= fmtPeriod(e) %></td>
               <td><span class="badge app-count-badge"><%= fmtType(e) %></span></td>
               <td><%= e.reason || '—' %></td>
-              <td><%= fmtTime(e) %></td>
-              <td class="text-end">
-                <form method="POST" action="/doctor/time-off/<%= e.id %>/delete" class="d-inline"
-                  onsubmit="return confirm('Удалить изменение графика?')">
-                  <%- include('../partials/csrf') %>
-                  <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                </form>
+              <td class="text-nowrap"><%= fmtTime(e) %></td>
+              <td class="text-end align-middle">
+                <div class="app-table-actions">
+                  <form method="POST" action="/doctor/time-off/<%= e.id %>/delete" class="mb-0"
+                    onsubmit="return confirm('Удалить изменение графика?')">
+                    <%- include('../partials/csrf') %>
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                  </form>
+                </div>
               </td>
             </tr>
           <% }) %>
@@ -77,14 +79,14 @@ function fmtType(r){
   <div class="app-table-wrap app-table-wrap--sticky mb-4 time-off-past-wrap">
     <div class="table-responsive app-table-responsive">
       <table class="table app-table table-hover mb-0">
-        <thead><tr><th>Период</th><th>Тип</th><th>Причина</th><th>Время</th></tr></thead>
+        <thead><tr><th>Период</th><th>Тип</th><th>Причина</th><th class="nowrap-heading">Время работы</th></tr></thead>
         <tbody>
           <% past.forEach(function(e) { %>
             <tr>
               <td><%= fmtPeriod(e) %></td>
               <td><%= fmtType(e) %></td>
               <td><%= e.reason || '—' %></td>
-              <td><%= fmtTime(e) %></td>
+              <td class="text-nowrap"><%= fmtTime(e) %></td>
             </tr>
           <% }) %>
         </tbody>
