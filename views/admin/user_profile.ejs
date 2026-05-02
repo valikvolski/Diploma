@@ -68,6 +68,28 @@
       <% } %>
     </div>
 
+    <!-- КАРТОЧКА ПОЛЬЗОВАТЕЛЯ (ПЕРЕМЕСТИЛИ СЮДА) -->
+    <div class="row g-4 align-items-start mb-4">
+      <div class="col-auto">
+        <%- include('../partials/user-avatar', { person: dp, size: 'profile' }) %>
+      </div>
+      <div class="col">
+        <h2 class="h5 fw-bold mb-3"><%= tu.last_name %> <%= tu.first_name %> <%= tu.middle_name || '' %></h2>
+        <dl class="row mb-0 small">
+          <dt class="col-sm-4 text-muted">Email</dt>
+          <dd class="col-sm-8"><%= tu.email %></dd>
+          <dt class="col-sm-4 text-muted">Телефон</dt>
+          <dd class="col-sm-8 font-monospace"><%= tu.phoneMasked %></dd>
+          <dt class="col-sm-4 text-muted">Роль</dt>
+          <dd class="col-sm-8">
+            <% if (tu.role === 'admin') { %><span class="badge bg-dark">Админ</span><% } else if (tu.role === 'doctor') { %><span class="badge bg-primary">Врач</span><% } else { %><span class="badge bg-info text-dark">Пациент</span><% } %>
+            <% if (tu.is_blocked) { %><span class="badge bg-secondary ms-1">Заблокирован</span><% } %>
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- ТАБЫ -->
     <ul class="nav nav-tabs mb-4" id="adminUserProfileTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <a class="nav-link <%= tabInfoActive ? 'active' : '' %>" id="tab-info-btn" href="<%= profilePathBase %><%= uProfileQs({ tab: 'info' }) %>" role="tab" aria-controls="tab-info" aria-selected="<%= tabInfoActive ? 'true' : 'false' %>">Данные</a>
@@ -200,26 +222,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div class="row g-4 align-items-start">
-          <div class="col-auto">
-            <%- include('../partials/user-avatar', { person: dp, size: 'profile' }) %>
-          </div>
-          <div class="col">
-            <h2 class="h5 fw-bold mb-3"><%= tu.last_name %> <%= tu.first_name %> <%= tu.middle_name || '' %></h2>
-            <dl class="row mb-0 small">
-              <dt class="col-sm-4 text-muted">Email</dt>
-              <dd class="col-sm-8"><%= tu.email %></dd>
-              <dt class="col-sm-4 text-muted">Телефон</dt>
-              <dd class="col-sm-8 font-monospace"><%= tu.phoneMasked %></dd>
-              <dt class="col-sm-4 text-muted">Роль</dt>
-              <dd class="col-sm-8">
-                <% if (tu.role === 'admin') { %><span class="badge bg-dark">Админ</span><% } else if (tu.role === 'doctor') { %><span class="badge bg-primary">Врач</span><% } else { %><span class="badge bg-info text-dark">Пациент</span><% } %>
-                <% if (tu.is_blocked) { %><span class="badge bg-secondary ms-1">Заблокирован</span><% } %>
-              </dd>
-            </dl>
           </div>
         </div>
       </div>
