@@ -1148,6 +1148,63 @@ a:hover { color: var(--app-primary-dark); }
   color: var(--app-gray-600);
 }
 
+/* Регистрация: компактная подсказка над полем */
+.register-mini-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--bs-danger);
+  background: rgba(var(--bs-danger-rgb), 0.08);
+  border: 1px solid rgba(var(--bs-danger-rgb), 0.22);
+  border-radius: var(--radius-sm, 0.375rem);
+}
+
+.register-mini-hint__icon {
+  flex-shrink: 0;
+  margin-top: 0.06rem;
+  opacity: 0.88;
+  font-size: 0.95rem;
+}
+
+.register-match-msg {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--bs-danger);
+  padding-left: 0.125rem;
+}
+
+[data-app-theme='dark'] .register-mini-hint {
+  background: rgba(var(--bs-danger-rgb), 0.12);
+  border-color: rgba(var(--bs-danger-rgb), 0.35);
+}
+
+/* Админ: телефон на всю ширину карточки, ровный ряд с селектом кода */
+.admin-phone-intl-wrap .phone-intl-input-group {
+  width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.admin-phone-intl-wrap .phone-intl-cc {
+  flex: 0 0 auto;
+}
+
+.admin-phone-intl-wrap .phone-intl-local {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 575.98px) {
+  .admin-phone-intl-wrap .phone-intl-input-group {
+    flex-wrap: wrap;
+  }
+}
+
 /* Телефон: код страны + номер как единое поле */
 .app-toast-container {
   z-index: 1090;

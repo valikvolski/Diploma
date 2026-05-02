@@ -36,18 +36,30 @@
     var strengthEl = document.getElementById('passwordStrength');
 
     if (regForm) {
+      var mismatchMsg = document.getElementById('passwordMismatchMsg');
+
       function checkPasswords() {
         if (!confirmInput) return;
         if (!confirmInput.value) {
-          confirmInput.classList.remove('is-invalid', 'is-valid');
+          confirmInput.classList.remove('is-invalid');
+          if (mismatchMsg) {
+            mismatchMsg.classList.add('d-none');
+            mismatchMsg.textContent = '';
+          }
           return;
         }
         if (passwordInput && passwordInput.value === confirmInput.value) {
           confirmInput.classList.remove('is-invalid');
-          confirmInput.classList.add('is-valid');
+          if (mismatchMsg) {
+            mismatchMsg.classList.add('d-none');
+            mismatchMsg.textContent = '';
+          }
         } else {
-          confirmInput.classList.remove('is-valid');
           confirmInput.classList.add('is-invalid');
+          if (mismatchMsg) {
+            mismatchMsg.textContent = 'Пароли не совпадают';
+            mismatchMsg.classList.remove('d-none');
+          }
         }
       }
 
@@ -55,28 +67,6 @@
         passwordInput.addEventListener('input', checkPasswords);
         confirmInput.addEventListener('input', checkPasswords);
       }
-
-      regForm.addEventListener(
-        'submit',
-        function (e) {
-          var pwd = passwordInput ? passwordInput.value : '';
-          var c = confirmInput ? confirmInput.value : '';
-          if (!passwordInput || pwd.length < 6) {
-            e.preventDefault();
-            if (window.showAppToast) {
-              window.showAppToast('Пароль должен содержать минимум 6 символов', 'danger');
-            }
-            return;
-          }
-          if (pwd !== c) {
-            e.preventDefault();
-            if (window.showAppToast) {
-              window.showAppToast('Пароли не совпадают', 'danger');
-            }
-          }
-        },
-        false
-      );
 
       if (passwordInput && strengthEl) {
         passwordInput.addEventListener('input', function () {

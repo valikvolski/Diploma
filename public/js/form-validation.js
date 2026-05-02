@@ -1,6 +1,12 @@
 (function () {
   'use strict';
 
+  function suppressValidationSuccess(field) {
+    if (!field) return;
+    var form = field.closest('form[data-no-validation-success]');
+    if (form) field.classList.remove('is-valid');
+  }
+
   function setFieldState(field) {
     if (!field || field.disabled || field.type === 'hidden') return;
     if (field.hasAttribute('data-validation-toast-only')) {
@@ -8,6 +14,7 @@
       var nonEmpty = String(field.value || '').trim() !== '';
       field.classList.toggle('is-valid', validToast && nonEmpty);
       field.classList.toggle('is-invalid', !validToast);
+      suppressValidationSuccess(field);
       var fb = field.nextElementSibling;
       while (fb && fb.classList && fb.classList.contains('invalid-feedback')) {
         var next = fb.nextElementSibling;
@@ -19,6 +26,7 @@
     var valid = field.checkValidity();
     field.classList.toggle('is-valid', valid && String(field.value || '').trim() !== '');
     field.classList.toggle('is-invalid', !valid);
+    suppressValidationSuccess(field);
     var feedback = field.nextElementSibling;
     if (!feedback || !feedback.classList || !feedback.classList.contains('invalid-feedback')) {
       feedback = document.createElement('div');
@@ -32,6 +40,7 @@
 
   function bindForm(form) {
     if (!form) return;
+    if (form.id === 'registerForm') return;
     form.setAttribute('novalidate', 'novalidate');
 
     form.addEventListener('submit', function (event) {

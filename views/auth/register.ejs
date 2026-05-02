@@ -20,7 +20,7 @@
 
         <form method="POST" action="/auth/register" novalidate id="registerForm" class="mt-2">
 
-          <div class="mb-3">
+          <div class="mb-3 register-field-anchor">
             <label for="email" class="form-label fw-semibold">Электронная почта</label>
             <div class="input-group ds-input-group">
               <span class="input-group-text"><i class="bi bi-envelope"></i></span>
@@ -37,7 +37,7 @@
             </div>
           </div>
 
-          <div class="mb-3">
+          <div class="mb-3 register-field-anchor">
             <label for="password" class="form-label fw-semibold">Пароль</label>
             <div class="input-group ds-input-group">
               <span class="input-group-text"><i class="bi bi-key"></i></span>
@@ -50,7 +50,6 @@
                 minlength="6"
                 placeholder="Не менее 6 символов"
                 autocomplete="new-password"
-                data-validation-toast-only="1"
               />
               <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-pressed="false">
                 <i class="bi bi-eye"></i>
@@ -59,7 +58,7 @@
             <div id="passwordStrength" class="mt-1"></div>
           </div>
 
-          <div class="mb-3">
+          <div class="mb-3 register-field-anchor">
             <label for="password_confirm" class="form-label fw-semibold">Подтвердите пароль</label>
             <div class="input-group ds-input-group">
               <span class="input-group-text"><i class="bi bi-shield-check"></i></span>
@@ -72,16 +71,16 @@
                 minlength="6"
                 placeholder="Повторите пароль"
                 autocomplete="new-password"
-                data-validation-toast-only="1"
               />
               <button class="btn btn-outline-secondary" type="button" id="toggleConfirm" aria-pressed="false">
                 <i class="bi bi-eye"></i>
               </button>
             </div>
+            <p id="passwordMismatchMsg" class="register-match-msg d-none mb-0 mt-2" role="alert"></p>
           </div>
 
           <div class="row g-3 mb-3">
-            <div class="col-md-6">
+            <div class="col-md-6 register-field-anchor">
               <label for="last_name" class="form-label fw-semibold">Фамилия</label>
               <input
                 type="text"
@@ -94,7 +93,7 @@
                 autocomplete="family-name"
               />
             </div>
-            <div class="col-md-6">
+            <div class="col-md-6 register-field-anchor">
               <label for="first_name" class="form-label fw-semibold">Имя</label>
               <input
                 type="text"
@@ -109,7 +108,7 @@
             </div>
           </div>
 
-          <div class="mb-3">
+          <div class="mb-3 register-field-anchor">
             <label for="middle_name" class="form-label fw-semibold">Отчество</label>
             <input
               type="text"
@@ -123,7 +122,7 @@
             />
           </div>
 
-          <div class="mb-4">
+          <div class="mb-4 register-field-anchor">
             <label for="birth_date" class="form-label fw-semibold">Дата рождения</label>
             <%- include('../partials/birth-date-field', {
               id: 'birth_date',
@@ -141,7 +140,7 @@
             phoneFieldId: 'phone',
             phoneValue: typeof formData !== 'undefined' ? formData.phone : '',
             phoneRequired: true,
-            phoneBlockClass: 'mb-4'
+            phoneBlockClass: 'mb-4 register-field-anchor'
           }) %>
 
           <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-semibold" id="submitBtn">
@@ -173,3 +172,4 @@
 <script src="/js/phone-international.js"></script>
 <script src="/js/auth-forms.js"></script>
 <%- include('../partials/footer') %>
+<script src="/js/register-validation.js"></script>

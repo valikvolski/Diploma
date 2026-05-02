@@ -47,7 +47,7 @@
       initialPrimary: prim != null ? String(prim) : ''
     }) %></script>
 
-    <form method="POST" action="<%= doctor ? '/admin/doctors/' + doctor.id + '/edit' : '/admin/doctors' %>">
+    <form method="POST" action="<%= doctor ? '/admin/doctors/' + doctor.id + '/edit' : '/admin/doctors' %>" data-no-validation-success="1">
       <%- include('../partials/csrf') %>
     <% if (doctor) { %>
       <input type="hidden" name="user_id" value="<%= doctor.id %>">
@@ -88,12 +88,12 @@
       </div>
 
       <div class="row g-3 mb-3">
-        <div class="col-md-6">
+        <div class="col-12 admin-doctor-phone-field">
           <%- include('../partials/phone-international-field', {
             phoneFieldId: 'admin_doctor_phone',
             phoneValue: doctor ? doctor.phone : '',
             phoneRequired: true,
-            phoneBlockClass: 'mb-0'
+            phoneBlockClass: 'mb-0 admin-phone-intl-wrap'
           }) %>
         </div>
       </div>
