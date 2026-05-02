@@ -72,11 +72,9 @@
             </td>
             <td class="text-end align-middle">
               <div class="app-table-actions">
-              <% if (u.role === 'patient') { %>
-                <a href="/admin/users/<%= u.id %>/change-role" class="btn btn-sm btn-outline-primary" title="Сделать врачом">
-                  <i class="bi bi-person-badge"></i>
-                </a>
-              <% } %>
+              <a href="/admin/users/<%= u.id %>" class="btn btn-sm btn-outline-primary" title="Просмотреть профиль">
+                <i class="bi bi-person-lines-fill"></i>
+              </a>
               <form method="POST" action="/admin/users/<%= u.id %>/block" class="mb-0 js-confirm-form" data-confirm-title="<%= u.is_blocked ? 'Разблокировка пользователя' : 'Блокировка пользователя' %>" data-confirm-name="<%= u.last_name %> <%= u.first_name %>" data-confirm-action="<%= u.is_blocked ? 'Разблокировать' : 'Заблокировать' %>">
                 <%- include('../partials/csrf') %>
                 <% if(u.is_blocked){ %>

@@ -8,6 +8,7 @@ const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middlewar
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
 const { patientNeedsPhoneCompletion, normalizeBelarusPhone } = require('../utils/patientPhone');
 const { verifyCsrfFromRequest } = require('../middleware/csrf');
+const { insertAuditLog, ACTION: AUDIT_ACTION } = require('../utils/auditLog');
 const { sendAppointmentCancelledEmail, sendProfilePasswordChangeCodeEmail, sendPasswordChangedNoticeEmail } = require('../utils/mailer');
 const {
   PURPOSE_PROFILE_CHANGE,
@@ -533,6 +534,12 @@ router.post('/avatar/remove', ...patientOnly, async (req, res) => {
     const oldPath = prev.rows[0]?.avatar_path;
     await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [req.user.id]);
     await unlinkDbPath(oldPath);
+    await insertAuditLog(pool, {
+      userId: req.user.id,
+      actionType: AUDIT_ACTION.AVATAR_UPDATE,
+      oldValue: oldPath || '',
+      newValue: '',
+    });
     res.redirect('/profile/edit?success=' + encodeURIComponent('Фото профиля удалено'));
   } catch (e) {
     console.error('Profile avatar remove error:', e);

@@ -1,0 +1,410 @@
+<%- include('../partials/header', { title: title }) %>
+<% 
+  function fmtDt(dt) {
+    if (dt == null || dt === '') return '—';
+    var d = new Date(dt);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  function fmtDateShort(str) {
+    if (!str) return '—';
+    var raw = String(str).trim();
+    var d = null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      var p = raw.split('-').map(Number);
+      d = new Date(p[0], p[1] - 1, p[2]);
+    } else { d = new Date(raw); }
+    if (isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function auditImgUrl(path) {
+    if (path == null || String(path).trim() === '') return null;
+    var p = String(path).trim();
+    if (p.indexOf('http://') === 0 || p.indexOf('https://') === 0) return p;
+    return '/' + p.replace(/^\/+/, '');
+  }
+  var tu = typeof targetUser !== 'undefined' ? targetUser : {};
+  var dp = typeof displayPerson !== 'undefined' ? displayPerson : {};
+  var apP = typeof appointmentsAsPatient !== 'undefined' ? appointmentsAsPatient : { completed: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } }, cancelled: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } }, booked: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } } };
+  var apD = typeof appointmentsAsDoctor !== 'undefined' ? appointmentsAsDoctor : { completed: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } }, cancelled: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } }, booked: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } } };
+  var audits = typeof auditRows !== 'undefined' ? auditRows : [];
+  var auditPg = typeof auditPagination !== 'undefined' && auditPagination ? auditPagination : { totalCount: 0, totalPages: 1, currentPage: 1, limit: 15, hasPrev: false, hasNext: false };
+  var an = typeof analytics !== 'undefined' && analytics ? analytics : { appointmentCounts: { total: 0, completed: 0, cancelled: 0, upcoming: 0 }, accountAgeDays: null, mostVisited: null, favoriteSlot: null, avgGapDays: null, profileCompletion: null, authStats: null, chartPayload: null, scope: 'patient' };
+  var acts = typeof activityItems !== 'undefined' ? activityItems : [];
+  var actPg = typeof activityPagination !== 'undefined' && activityPagination ? activityPagination : { totalCount: 0, totalPages: 1, currentPage: 1, limit: 20, hasPrev: false, hasNext: false };
+  var pq = typeof profileQuery !== 'undefined' && profileQuery ? profileQuery : { tab: '', ppc: 1, ppn: 1, ppb: 1, dpc: 1, dpn: 1, dpb: 1, apage: 1, actpage: 1 };
+  function uProfileQs(overrides) {
+    var m = { tab: pq.tab || '', ppc: +pq.ppc || 1, ppn: +pq.ppn || 1, ppb: +pq.ppb || 1, dpc: +pq.dpc || 1, dpn: +pq.dpn || 1, dpb: +pq.dpb || 1, apage: +pq.apage || 1, actpage: +pq.actpage || 1 };
+    if (overrides) for (var k in overrides) { if (Object.prototype.hasOwnProperty.call(overrides, k)) m[k] = overrides[k]; }
+    var pairs = [];
+    if (m.tab) pairs.push('tab=' + encodeURIComponent(String(m.tab)));
+    ['ppc','ppn','ppb','dpc','dpn','dpb','apage','actpage'].forEach(function (k) {
+      var v = parseInt(m[k], 10); if (!Number.isFinite(v) || v < 1) v = 1;
+      if (v > 1) pairs.push(k + '=' + v);
+    });
+    return pairs.length ? ('?' + pairs.join('&')) : '';
+  }
+  var profilePathBase = '/admin/users/' + tu.id;
+  var tabSel = String(pq.tab || '').toLowerCase();
+  var tabInfoActive = !tabSel || tabSel === 'info';
+  var tabApptsActive = tabSel === 'appts';
+  var tabActivityActive = tabSel === 'activity';
+%>
+<% var dsTitle = 'Профиль пользователя'; var dsSubtitle = '#' + tu.id + ' · ' + (tu.email || ''); var dsIcon = 'bi-person-badge'; var dsBackHref = '/admin/users'; var dsBackLabel = 'К списку пользователей'; %>
+<%- include('../partials/ds-page-header') %>
+
+<div class="app-card app-narrow-card app-card--static border-0 shadow-sm" style="max-width: 900px;">
+  <div class="p-4 p-md-5">
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      <% if (tu.role === 'patient') { %>
+        <a href="/admin/users/<%= tu.id %>/change-role" class="btn btn-outline-primary btn-sm rounded-pill">
+          <i class="bi bi-person-badge me-1"></i>Назначить врачом
+        </a>
+      <% } %>
+      <% if (tu.role === 'doctor') { %>
+        <a href="/admin/doctors/<%= tu.id %>/edit" class="btn btn-outline-secondary btn-sm rounded-pill">
+          <i class="bi bi-pencil-square me-1"></i>Карточка врача
+        </a>
+      <% } %>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="adminUserProfileTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <a class="nav-link <%= tabInfoActive ? 'active' : '' %>" id="tab-info-btn" href="<%= profilePathBase %><%= uProfileQs({ tab: 'info' }) %>" role="tab" aria-controls="tab-info" aria-selected="<%= tabInfoActive ? 'true' : 'false' %>">Данные</a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link <%= tabApptsActive ? 'active' : '' %>" id="tab-appts-btn" href="<%= profilePathBase %><%= uProfileQs({ tab: 'appts' }) %>" role="tab" aria-controls="tab-appts" aria-selected="<%= tabApptsActive ? 'true' : 'false' %>">Записи</a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link <%= tabActivityActive ? 'active' : '' %>" id="tab-activity-btn" href="<%= profilePathBase %><%= uProfileQs({ tab: 'activity' }) %>" role="tab" aria-controls="tab-activity" aria-selected="<%= tabActivityActive ? 'true' : 'false' %>">Активность</a>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade <%= tabInfoActive ? 'show active' : '' %>" id="tab-info" role="tabpanel" aria-labelledby="tab-info-btn">
+        <div class="mb-4">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h3 class="h6 fw-bold text-muted text-uppercase mb-0"><i class="bi bi-graph-up me-2"></i>Аналитика</h3>
+            <% if (an.accountAgeDays != null) { %>
+              <span class="badge bg-light text-muted border">Аккаунту <%= an.accountAgeDays %> дн.</span>
+            <% } %>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <div class="d-flex align-items-start justify-content-between gap-2 mb-3">
+                    <div class="fw-semibold"><i class="bi bi-calendar2-check me-2 text-primary"></i>Записи</div>
+                    <span class="badge bg-light text-muted border">всего <%= an.appointmentCounts.total || 0 %></span>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="p-2 rounded-3 bg-success bg-opacity-10">
+                        <div class="small text-muted">Завершено</div>
+                        <div class="h5 mb-0 text-success"><%= an.appointmentCounts.completed || 0 %></div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="p-2 rounded-3 bg-danger bg-opacity-10">
+                        <div class="small text-muted">Отменено</div>
+                        <div class="h5 mb-0 text-danger"><%= an.appointmentCounts.cancelled || 0 %></div>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <div class="p-2 rounded-3 bg-primary bg-opacity-10">
+                        <div class="small text-muted">Предстоящие</div>
+                        <div class="h5 mb-0 text-primary"><%= an.appointmentCounts.upcoming || 0 %></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-3" style="height: 180px;">
+                    <canvas id="admin-user-chart-status" aria-label="Статусы записей" role="img"></canvas>
+                  </div>
+                  <% if (an.chartPayload) { %>
+                    <script id="admin-user-chart-json" type="application/json"><%- JSON.stringify(an.chartPayload) %></script>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <div class="fw-semibold mb-3"><i class="bi bi-person-lines-fill me-2 text-info"></i>Профиль и активность</div>
+
+                  <div class="row g-2">
+                    <div class="col-12">
+                      <% if (an.profileCompletion) { %>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <div class="small text-muted">Заполненность профиля</div>
+                          <div class="small fw-semibold"><%= an.profileCompletion.percent %>%</div>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                          <div class="progress-bar <%= an.profileCompletion.percent >= 80 ? 'bg-success' : (an.profileCompletion.percent >= 50 ? 'bg-warning' : 'bg-danger') %>" role="progressbar" style="width: <%= an.profileCompletion.percent %>%"></div>
+                        </div>
+                        <% if (an.profileCompletion.missing && an.profileCompletion.missing.length) { %>
+                          <div class="small text-muted mt-2">Не заполнено: <%= an.profileCompletion.missing.join(', ') %></div>
+                        <% } %>
+                      <% } else { %>
+                        <p class="small text-muted mb-0">Заполненность профиля недоступна для этой роли.</p>
+                      <% } %>
+                    </div>
+
+                    <div class="col-12 mt-2">
+                      <div class="row g-2">
+                        <div class="col-6">
+                          <div class="p-2 rounded-3 bg-light border">
+                            <div class="small text-muted">Последний вход</div>
+                            <div class="fw-semibold small"><%= an.authStats && an.authStats.lastLogin ? fmtDt(an.authStats.lastLogin) : '—' %></div>
+                          </div>
+                        </div>
+                        <div class="col-6">
+                          <div class="p-2 rounded-3 bg-light border">
+                            <div class="small text-muted">Сессий (оценка)</div>
+                            <div class="fw-semibold"><%= an.authStats ? (an.authStats.sessions || 0) : '—' %></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <% if (an.scope === 'patient') { %>
+                      <div class="col-12 mt-2">
+                        <div class="p-3 rounded-3 border bg-white">
+                          <div class="d-flex flex-wrap gap-2 justify-content-between align-items-start">
+                            <div>
+                              <div class="small text-muted">Чаще всего записывается к</div>
+                              <div class="fw-semibold">
+                                <%= an.mostVisited ? an.mostVisited.name : '—' %>
+                              </div>
+                              <% if (an.mostVisited && an.mostVisited.specialization) { %>
+                                <div class="small text-muted"><%= an.mostVisited.specialization %></div>
+                              <% } %>
+                            </div>
+                            <% if (an.mostVisited) { %>
+                              <span class="badge bg-light text-muted border"><%= an.mostVisited.count %> раз</span>
+                            <% } %>
+                          </div>
+                          <div class="mt-2 d-flex flex-wrap gap-2">
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                              <i class="bi bi-clock me-1"></i><%= an.favoriteSlot ? an.favoriteSlot.label : 'Время: —' %>
+                            </span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border">
+                              <i class="bi bi-arrow-left-right me-1"></i>средний интервал: <%= (an.avgGapDays != null && isFinite(an.avgGapDays)) ? (Math.round(an.avgGapDays * 10) / 10) : '—' %> дн.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4 align-items-start">
+          <div class="col-auto">
+            <%- include('../partials/user-avatar', { person: dp, size: 'profile' }) %>
+          </div>
+          <div class="col">
+            <h2 class="h5 fw-bold mb-3"><%= tu.last_name %> <%= tu.first_name %> <%= tu.middle_name || '' %></h2>
+            <dl class="row mb-0 small">
+              <dt class="col-sm-4 text-muted">Email</dt>
+              <dd class="col-sm-8"><%= tu.email %></dd>
+              <dt class="col-sm-4 text-muted">Телефон</dt>
+              <dd class="col-sm-8 font-monospace"><%= tu.phoneMasked %></dd>
+              <dt class="col-sm-4 text-muted">Роль</dt>
+              <dd class="col-sm-8">
+                <% if (tu.role === 'admin') { %><span class="badge bg-dark">Админ</span><% } else if (tu.role === 'doctor') { %><span class="badge bg-primary">Врач</span><% } else { %><span class="badge bg-info text-dark">Пациент</span><% } %>
+                <% if (tu.is_blocked) { %><span class="badge bg-secondary ms-1">Заблокирован</span><% } %>
+              </dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade <%= tabApptsActive ? 'show active' : '' %>" id="tab-appts" role="tabpanel" aria-labelledby="tab-appts-btn">
+        <% function apptPersonName(a, kind) { return kind === 'doctor' ? ((a.patient_last_name || '') + ' ' + (a.patient_first_name || '')).trim() : ((a.doctor_last_name || '') + ' ' + (a.doctor_first_name || '')).trim(); } %>
+        <% function renderApptCard(opts) { var title = opts.title; var icon = opts.icon; var color = opts.color; var bucket = opts.bucket; var kind = opts.kind; var pageKey = opts.pageKey; var label = opts.label; %>
+          <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+              <div class="card-body d-flex flex-column">
+                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                  <div class="fw-semibold text-<%= color %>">
+                    <% if (icon) { %><i class="bi <%= icon %> me-1"></i><% } %><%= title %>
+                  </div>
+                  <% if (bucket && bucket.pagination && bucket.pagination.totalCount) { %>
+                    <span class="badge bg-light text-muted border"><%= bucket.pagination.totalCount %></span>
+                  <% } %>
+                </div>
+                <% if (!bucket || !bucket.rows || !bucket.rows.length) { %>
+                  <p class="small text-muted mb-0">Нет</p>
+                <% } else { %>
+                  <ul class="list-group list-group-flush small mb-0">
+                    <% bucket.rows.forEach(function(a) { %>
+                      <li class="list-group-item px-0 py-2">
+                        <div class="d-flex justify-content-between gap-2">
+                          <div class="fw-semibold"><%= fmtDateShort(a.appointment_date) %></div>
+                          <div class="text-muted font-monospace"><%= a.appointment_time %></div>
+                        </div>
+                        <div class="text-muted"><%= apptPersonName(a, kind) %></div>
+                      </li>
+                    <% }) %>
+                  </ul>
+                <% } %>
+                <% var pg = bucket && bucket.pagination ? bucket.pagination : null; if (pg && pg.totalPages > 1) { %>
+                  <nav class="mt-auto pt-2" aria-label="Страницы <%= label %>">
+                    <ul class="pagination pagination-sm mb-0 justify-content-between align-items-center flex-nowrap gap-1">
+                      <li class="page-item <%= pg.hasPrev ? '' : 'disabled' %>">
+                        <a class="page-link py-1 px-2" href="<%= profilePathBase %><%= uProfileQs(Object.assign({ tab: 'appts' }, (function(){ var o = {}; o[pageKey] = pg.hasPrev ? pg.currentPage - 1 : 1; return o; })())) %>">Назад</a>
+                      </li>
+                      <li class="page-item disabled flex-shrink-0"><span class="page-link py-1 px-2 border-0 bg-transparent small text-muted">стр. <%= pg.currentPage %> / <%= pg.totalPages %></span></li>
+                      <li class="page-item <%= pg.hasNext ? '' : 'disabled' %>">
+                        <a class="page-link py-1 px-2" href="<%= profilePathBase %><%= uProfileQs(Object.assign({ tab: 'appts' }, (function(){ var o = {}; o[pageKey] = pg.hasNext ? pg.currentPage + 1 : pg.currentPage; return o; })())) %>">Вперёд</a>
+                      </li>
+                    </ul>
+                  </nav>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        <% } %>
+
+        <% if (tu.role === 'patient') { %>
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h3 class="h6 fw-bold text-muted text-uppercase mb-0">Записи пациента</h3>
+          </div>
+          <div class="row g-3">
+            <% renderApptCard({ title: 'Завершённые', icon: 'bi-check2-circle', color: 'success', bucket: apP.completed, kind: 'patient', pageKey: 'ppc', label: 'завершённых записей пациента' }); %>
+            <% renderApptCard({ title: 'Отменённые', icon: 'bi-x-circle', color: 'danger', bucket: apP.cancelled, kind: 'patient', pageKey: 'ppn', label: 'отменённых записей пациента' }); %>
+            <% renderApptCard({ title: 'Предстоящие', icon: 'bi-calendar-check', color: 'primary', bucket: apP.booked, kind: 'patient', pageKey: 'ppb', label: 'предстоящих записей пациента' }); %>
+          </div>
+        <% } else if (tu.role === 'doctor') { %>
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <h3 class="h6 fw-bold text-muted text-uppercase mb-0">Приёмы врача</h3>
+          </div>
+          <div class="row g-3">
+            <% renderApptCard({ title: 'Завершённые', icon: 'bi-check2-circle', color: 'success', bucket: apD.completed, kind: 'doctor', pageKey: 'dpc', label: 'завершённых приёмов врача' }); %>
+            <% renderApptCard({ title: 'Отменённые', icon: 'bi-x-circle', color: 'danger', bucket: apD.cancelled, kind: 'doctor', pageKey: 'dpn', label: 'отменённых приёмов врача' }); %>
+            <% renderApptCard({ title: 'Предстоящие', icon: 'bi-calendar-check', color: 'primary', bucket: apD.booked, kind: 'doctor', pageKey: 'dpb', label: 'предстоящих приёмов врача' }); %>
+          </div>
+        <% } else { %>
+          <p class="small text-muted mb-0">Для этой роли записи не отображаются.</p>
+        <% } %>
+      </div>
+
+      <div class="tab-pane fade <%= tabActivityActive ? 'show active' : '' %>" id="tab-activity" role="tabpanel" aria-labelledby="tab-activity-btn">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <h3 class="h6 fw-bold text-muted text-uppercase mb-0"><i class="bi bi-clock-history me-2"></i>Лента событий</h3>
+          <% if (actPg.totalCount > 0) { %>
+            <% var actFrom = (actPg.currentPage - 1) * actPg.limit + 1; var actTo = Math.min(actPg.currentPage * actPg.limit, actPg.totalCount); %>
+            <span class="badge bg-light text-muted border"><%= actFrom %>–<%= actTo %> из <%= actPg.totalCount %></span>
+          <% } %>
+        </div>
+
+        <% function eventMeta(e) { return e && e.meta ? String(e.meta) : ''; } %>
+        <% function eventIcon(e) { 
+             if (!e) return { icon: 'bi-dot', color: 'secondary', title: 'Событие' };
+             if (e.kind === 'registration') return { icon: 'bi-person-plus', color: 'primary', title: 'Регистрация' };
+             if (e.kind === 'appointment') {
+               var t = String(e.title || '').toLowerCase();
+               if (t.indexOf('отмен') >= 0) return { icon: 'bi-x-circle', color: 'danger', title: 'Отмена' };
+               if (t.indexOf('заверш') >= 0) return { icon: 'bi-check2-circle', color: 'success', title: 'Завершено' };
+               return { icon: 'bi-calendar-check', color: 'primary', title: 'Запись' };
+             }
+             if (e.kind === 'audit') {
+               if (e.title === 'password_change') return { icon: 'bi-key', color: 'warning', title: 'Пароль' };
+               if (e.title === 'avatar_update') return { icon: 'bi-image', color: 'info', title: 'Аватар' };
+               return { icon: 'bi-shield-check', color: 'secondary', title: 'Изменение' };
+             }
+             return { icon: 'bi-dot', color: 'secondary', title: 'Событие' };
+           } %>
+        <% function eventTitle(e) {
+             if (!e) return 'Событие';
+             if (e.kind === 'registration') return 'Регистрация аккаунта';
+             if (e.kind === 'appointment') return e.title || 'Запись';
+             if (e.kind === 'audit') {
+               if (e.title === 'password_change') return 'Смена пароля';
+               if (e.title === 'avatar_update') return 'Изменение фото профиля';
+               return String(e.title || 'Изменение');
+             }
+             return String(e.title || 'Событие');
+           } %>
+
+        <div class="position-relative">
+          <div class="border-start border-2 position-absolute top-0 bottom-0 start-0 ms-3" style="opacity:.25;"></div>
+          <div class="d-flex flex-column gap-3">
+            <% acts.forEach(function(e) { var ic = eventIcon(e); %>
+              <div class="d-flex align-items-start gap-3">
+                <div class="flex-shrink-0">
+                  <div class="rounded-circle bg-<%= ic.color %> bg-opacity-10 border border-<%= ic.color %>-subtle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                    <i class="bi <%= ic.icon %> text-<%= ic.color %>"></i>
+                  </div>
+                </div>
+                <div class="card border-0 shadow-sm flex-grow-1">
+                  <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <div>
+                        <div class="fw-semibold"><%= eventTitle(e) %></div>
+                        <div class="small text-muted"><%= fmtDt(e.at) %></div>
+                      </div>
+                      <span class="badge bg-light text-muted border"><%= (e.kind || '').toString() %></span>
+                    </div>
+
+                    <% if (eventMeta(e)) { %>
+                      <div class="small text-muted mt-2"><%= eventMeta(e) %></div>
+                    <% } %>
+
+                    <% if (e.kind === 'audit' && e.title === 'avatar_update') { %>
+                      <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
+                        <% var beforeU = auditImgUrl(e.old_value); var afterU = auditImgUrl(e.new_value); %>
+                        <% if (beforeU) { %>
+                          <div class="text-center">
+                            <div class="small text-muted mb-1">Было</div>
+                            <img src="<%= beforeU %>" alt="" class="rounded border" width="56" height="56" style="object-fit:cover;" loading="lazy" />
+                          </div>
+                        <% } %>
+                        <% if (afterU) { %>
+                          <div class="text-center">
+                            <div class="small text-muted mb-1">Стало</div>
+                            <img src="<%= afterU %>" alt="" class="rounded border" width="56" height="56" style="object-fit:cover;" loading="lazy" />
+                          </div>
+                        <% } %>
+                        <% if (!beforeU && !afterU) { %>
+                          <span class="small text-muted">Аватар удалён или данные не сохранены</span>
+                        <% } %>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+
+        <% if (actPg.totalPages > 1) { %>
+          <nav class="mt-4" aria-label="Страницы ленты событий">
+            <ul class="pagination pagination-sm mb-0 justify-content-center gap-2 flex-wrap">
+              <li class="page-item <%= actPg.hasPrev ? '' : 'disabled' %>">
+                <a class="page-link" href="<%= profilePathBase %><%= uProfileQs({ tab: 'activity', actpage: actPg.hasPrev ? actPg.currentPage - 1 : 1 }) %>">Назад</a>
+              </li>
+              <li class="page-item disabled">
+                <span class="page-link bg-transparent border-0 text-muted">стр. <%= actPg.currentPage %> / <%= actPg.totalPages %></span>
+              </li>
+              <li class="page-item <%= actPg.hasNext ? '' : 'disabled' %>">
+                <a class="page-link" href="<%= profilePathBase %><%= uProfileQs({ tab: 'activity', actpage: actPg.hasNext ? actPg.currentPage + 1 : actPg.currentPage }) %>">Вперёд</a>
+              </li>
+            </ul>
+          </nav>
+        <% } %>
+
+        <% if (!acts || !acts.length) { %>
+          <p class="small text-muted mt-2 mb-0">Пока нет событий. Записи и изменения профиля появятся здесь автоматически.</p>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

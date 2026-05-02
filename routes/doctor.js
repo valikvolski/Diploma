@@ -5,6 +5,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadAvatar, unlinkDbPath, finalizeTempToWebp } = require('../middleware/avatarUpload');
 const { redirectMulterAvatarError } = require('../utils/avatarErrors');
 const { verifyCsrfFromRequest } = require('../middleware/csrf');
+const { insertAuditLog, ACTION: AUDIT_ACTION } = require('../utils/auditLog');
 const { notifyAppointmentCancelled } = require('../utils/notifications');
 const { sendDoctorUnavailableCancelEmail } = require('../utils/mailer');
 const { invalidateDoctorAvailabilityCache } = require('../utils/bookingSlots');
@@ -462,6 +463,12 @@ router.post('/avatar/remove', ...docOnly, async (req, res) => {
     const oldPath = prev.rows[0]?.avatar_path;
     await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [uid]);
     await unlinkDbPath(oldPath);
+    await insertAuditLog(pool, {
+      userId: uid,
+      actionType: AUDIT_ACTION.AVATAR_UPDATE,
+      oldValue: oldPath || '',
+      newValue: '',
+    });
     res.redirect('/doctor/schedule?success=' + encodeURIComponent('Фото профиля удалено'));
   } catch (e) {
     console.error('Doctor avatar remove error:', e);

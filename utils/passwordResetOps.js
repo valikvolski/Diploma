@@ -4,6 +4,7 @@ const {
   generateSixDigitCode,
   normalizeSixDigitCode,
 } = require('./passwordResetCode');
+const { insertAuditLog, ACTION } = require('./auditLog');
 
 const PURPOSE_FORGOT = 'forgot_password';
 const PURPOSE_PROFILE_CHANGE = 'password_change';
@@ -155,6 +156,13 @@ async function verifyPurposeCodeAndSetPassword(pool, { userId, purpose, codeRaw,
   } finally {
     client.release();
   }
+
+  await insertAuditLog(pool, {
+    userId,
+    actionType: ACTION.PASSWORD_CHANGE,
+    oldValue: null,
+    newValue: null,
+  });
 
   return { ok: true };
 }

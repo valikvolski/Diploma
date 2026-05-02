@@ -55,6 +55,8 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(403).render('error', { message: 'Доступ запрещён' });
     }
 
+    res.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    res.set('Vary', 'Cookie');
     res.render('tickets/show', {
       title: `Талон ${ticket.ticket_number} — Запись к врачу`,
       ticket,

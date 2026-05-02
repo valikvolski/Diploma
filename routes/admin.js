@@ -11,6 +11,8 @@ const {
   resolvePrimarySpecializationId,
 } = require('../utils/specializationCompat');
 const { normalizeBelarusPhone } = require('../utils/patientPhone');
+const { maskPhoneForAdmin } = require('../utils/adminPhoneMask');
+const { insertAuditLog, ACTION: AUDIT_ACTION } = require('../utils/auditLog');
 
 function parseSpecializationIds(body) {
   const raw =
@@ -113,6 +115,124 @@ function buildPagination(totalCount, page, limit) {
     hasPrev: currentPage > 1,
     hasNext: currentPage < totalPages,
   };
+}
+
+const USER_PROFILE_APPT_PAGE_SIZE = 10;
+const USER_PROFILE_AUDIT_PAGE_SIZE = 15;
+const USER_PROFILE_ACTIVITY_PAGE_SIZE = 20;
+const USER_PROFILE_MAX_PAGE = 500;
+
+function clampProfilePage(raw) {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, USER_PROFILE_MAX_PAGE);
+}
+
+function daysBetween(a, b) {
+  const ms = Math.abs(a.getTime() - b.getTime());
+  return ms / (1000 * 60 * 60 * 24);
+}
+
+const APPT_FIELDS_PATIENT = `a.id,
+              TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS appointment_date,
+              TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
+              a.status,
+              d.last_name AS doctor_last_name,
+              d.first_name AS doctor_first_name,
+              d.middle_name AS doctor_middle_name`;
+
+const APPT_FIELDS_DOCTOR = `a.id,
+                    TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS appointment_date,
+                    TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
+                    a.status,
+                    p.last_name AS patient_last_name,
+                    p.first_name AS patient_first_name,
+                    p.middle_name AS patient_middle_name`;
+
+async function fetchPatientApptBucket(pool, patientUserId, status, page, upcoming) {
+  const limit = USER_PROFILE_APPT_PAGE_SIZE;
+  if (upcoming) {
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM appointments a
+       WHERE a.patient_id = $1 AND a.status = 'booked'
+         AND (a.appointment_date + a.appointment_time) > NOW()`,
+      [patientUserId]
+    );
+    const total = countRes.rows[0].c;
+    const pg = buildPagination(total, page, limit);
+    const offset = (pg.currentPage - 1) * limit;
+    const listRes = await pool.query(
+      `SELECT ${APPT_FIELDS_PATIENT}
+       FROM appointments a
+       JOIN users d ON d.id = a.doctor_id
+       WHERE a.patient_id = $1 AND a.status = 'booked'
+         AND (a.appointment_date + a.appointment_time) > NOW()
+       ORDER BY (a.appointment_date + a.appointment_time) ASC
+       LIMIT $2 OFFSET $3`,
+      [patientUserId, limit, offset]
+    );
+    return { rows: listRes.rows, pagination: pg };
+  }
+  const countRes = await pool.query(
+    `SELECT COUNT(*)::int AS c FROM appointments a WHERE a.patient_id = $1 AND a.status = $2`,
+    [patientUserId, status]
+  );
+  const total = countRes.rows[0].c;
+  const pg = buildPagination(total, page, limit);
+  const offset = (pg.currentPage - 1) * limit;
+  const listRes = await pool.query(
+    `SELECT ${APPT_FIELDS_PATIENT}
+     FROM appointments a
+     JOIN users d ON d.id = a.doctor_id
+     WHERE a.patient_id = $1 AND a.status = $2
+     ORDER BY a.appointment_date DESC, a.appointment_time DESC
+     LIMIT $3 OFFSET $4`,
+    [patientUserId, status, limit, offset]
+  );
+  return { rows: listRes.rows, pagination: pg };
+}
+
+async function fetchDoctorApptBucket(pool, doctorUserId, status, page, upcoming) {
+  const limit = USER_PROFILE_APPT_PAGE_SIZE;
+  if (upcoming) {
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM appointments a
+       WHERE a.doctor_id = $1 AND a.status = 'booked'
+         AND (a.appointment_date + a.appointment_time) > NOW()`,
+      [doctorUserId]
+    );
+    const total = countRes.rows[0].c;
+    const pg = buildPagination(total, page, limit);
+    const offset = (pg.currentPage - 1) * limit;
+    const listRes = await pool.query(
+      `SELECT ${APPT_FIELDS_DOCTOR}
+       FROM appointments a
+       JOIN users p ON p.id = a.patient_id
+       WHERE a.doctor_id = $1 AND a.status = 'booked'
+         AND (a.appointment_date + a.appointment_time) > NOW()
+       ORDER BY (a.appointment_date + a.appointment_time) ASC
+       LIMIT $2 OFFSET $3`,
+      [doctorUserId, limit, offset]
+    );
+    return { rows: listRes.rows, pagination: pg };
+  }
+  const countRes = await pool.query(
+    `SELECT COUNT(*)::int AS c FROM appointments a WHERE a.doctor_id = $1 AND a.status = $2`,
+    [doctorUserId, status]
+  );
+  const total = countRes.rows[0].c;
+  const pg = buildPagination(total, page, limit);
+  const offset = (pg.currentPage - 1) * limit;
+  const listRes = await pool.query(
+    `SELECT ${APPT_FIELDS_DOCTOR}
+     FROM appointments a
+     JOIN users p ON p.id = a.patient_id
+     WHERE a.doctor_id = $1 AND a.status = $2
+     ORDER BY a.appointment_date DESC, a.appointment_time DESC
+     LIMIT $3 OFFSET $4`,
+    [doctorUserId, status, limit, offset]
+  );
+  return { rows: listRes.rows, pagination: pg };
 }
 
 function escapeLike(term) {
@@ -462,6 +582,12 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
            WHERE id=$8 AND role='doctor'`,
           [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), phoneNormEdit, is_blocked === 'true', hash, doctorId]
         );
+        await insertAuditLog(client, {
+          userId: doctorId,
+          actionType: AUDIT_ACTION.PASSWORD_CHANGE,
+          oldValue: null,
+          newValue: null,
+        });
       } else {
         await client.query(
           `UPDATE users
@@ -542,6 +668,12 @@ router.post('/doctors/:id/avatar', ...adminOnly, (req, res, next) => {
         'doctor',
       ]);
       await unlinkDbPath(oldPath);
+      await insertAuditLog(pool, {
+        userId: resolvedDoctorId,
+        actionType: AUDIT_ACTION.AVATAR_UPDATE,
+        oldValue: oldPath || '',
+        newValue: rel || '',
+      });
       res.redirect(`${editPath}?success=` + encodeURIComponent('Фото врача обновлено'));
     } catch (e) {
       console.error('Admin doctor avatar error:', e);
@@ -562,6 +694,12 @@ router.post('/doctors/:id/avatar/remove', ...adminOnly, async (req, res) => {
     const oldPath = prev.rows[0]?.avatar_path;
     await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [resolvedDoctorId]);
     await unlinkDbPath(oldPath);
+    await insertAuditLog(pool, {
+      userId: resolvedDoctorId,
+      actionType: AUDIT_ACTION.AVATAR_UPDATE,
+      oldValue: oldPath || '',
+      newValue: '',
+    });
     res.redirect(
       `/admin/doctors/${resolvedDoctorId}/edit?success=` + encodeURIComponent('Фото врача удалено')
     );
@@ -939,6 +1077,382 @@ router.post('/users/:id/change-role', ...adminOnly, async (req, res) => {
   } catch (err) {
     console.error('Change role error:', err);
     res.redirect('/admin/users?error=' + encodeURIComponent('Ошибка изменения роли'));
+  }
+});
+
+// ─── GET /admin/users/:id (карточка пользователя) ─────────────────────────────
+
+router.get('/users/:id', ...adminOnly, async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  if (isNaN(userId) || userId < 1) {
+    return res.status(404).render('error', { message: 'Пользователь не найден' });
+  }
+  try {
+    const uRes = await pool.query(
+      `SELECT id, email, first_name, last_name, middle_name, role, phone, avatar_path, avatar_url, is_blocked, created_at
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (!uRes.rows.length) {
+      return res.status(404).render('error', { message: 'Пользователь не найден' });
+    }
+    const u = uRes.rows[0];
+    const phoneMasked = maskPhoneForAdmin(u.phone);
+
+    const tabRaw = String(req.query.tab || '').trim().toLowerCase();
+    const profileTab = ['info', 'appts', 'activity'].includes(tabRaw) ? tabRaw : '';
+
+    const profileQuery = {
+      tab: profileTab,
+      ppc: clampProfilePage(req.query.ppc),
+      ppn: clampProfilePage(req.query.ppn),
+      ppb: clampProfilePage(req.query.ppb),
+      dpc: clampProfilePage(req.query.dpc),
+      dpn: clampProfilePage(req.query.dpn),
+      dpb: clampProfilePage(req.query.dpb),
+      apage: clampProfilePage(req.query.apage),
+      actpage: clampProfilePage(req.query.actpage || req.query.apage),
+    };
+
+    const [apPCompleted, apPCancelled, apPBooked] = await Promise.all([
+      fetchPatientApptBucket(pool, userId, 'completed', profileQuery.ppc, false),
+      fetchPatientApptBucket(pool, userId, 'cancelled', profileQuery.ppn, false),
+      fetchPatientApptBucket(pool, userId, 'booked', profileQuery.ppb, true),
+    ]);
+
+    let apDCompleted = { rows: [], pagination: buildPagination(0, 1, USER_PROFILE_APPT_PAGE_SIZE) };
+    let apDCancelled = { rows: [], pagination: buildPagination(0, 1, USER_PROFILE_APPT_PAGE_SIZE) };
+    let apDBooked = { rows: [], pagination: buildPagination(0, 1, USER_PROFILE_APPT_PAGE_SIZE) };
+    if (u.role === 'doctor') {
+      [apDCompleted, apDCancelled, apDBooked] = await Promise.all([
+        fetchDoctorApptBucket(pool, userId, 'completed', profileQuery.dpc, false),
+        fetchDoctorApptBucket(pool, userId, 'cancelled', profileQuery.dpn, false),
+        fetchDoctorApptBucket(pool, userId, 'booked', profileQuery.dpb, true),
+      ]);
+    }
+
+    const appointmentsAsPatient = {
+      completed: apPCompleted,
+      cancelled: apPCancelled,
+      booked: apPBooked,
+    };
+    const appointmentsAsDoctor = {
+      completed: apDCompleted,
+      cancelled: apDCancelled,
+      booked: apDBooked,
+    };
+
+    // ─── Analytics (based on existing DB fields only) ────────────────────────
+    const now = new Date();
+    const accountCreatedAt = u.created_at ? new Date(u.created_at) : null;
+    const accountAgeDays = accountCreatedAt ? Math.floor(daysBetween(now, accountCreatedAt)) : null;
+
+    const scopeCol = u.role === 'doctor' ? 'doctor_id' : 'patient_id';
+    const apptCountsRes = await pool.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
+         COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+         COUNT(*) FILTER (
+           WHERE status = 'booked'
+             AND (appointment_date + appointment_time) > NOW()
+         )::int AS upcoming
+       FROM appointments
+       WHERE ${scopeCol} = $1`,
+      [userId]
+    );
+    const apptCounts = apptCountsRes.rows[0] || { total: 0, completed: 0, cancelled: 0, upcoming: 0 };
+
+    let mostVisited = null;
+    let favoriteSlot = null;
+    let avgGapDays = null;
+    if (u.role === 'patient') {
+      const mvRes = await pool.query(
+        `SELECT a.doctor_id,
+                COUNT(*)::int AS cnt,
+                d.last_name, d.first_name, d.middle_name,
+                s.name AS specialization
+         FROM appointments a
+         JOIN users d ON d.id = a.doctor_id
+         LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+         LEFT JOIN specializations s ON s.id = dsp.specialization_id
+         WHERE a.patient_id = $1 AND a.status IN ('completed','booked','cancelled')
+         GROUP BY a.doctor_id, d.last_name, d.first_name, d.middle_name, s.name
+         ORDER BY cnt DESC, d.last_name ASC
+         LIMIT 1`,
+        [userId]
+      );
+      if (mvRes.rows.length) {
+        const r = mvRes.rows[0];
+        mostVisited = {
+          doctorId: r.doctor_id,
+          name: `${r.last_name} ${r.first_name}${r.middle_name ? ' ' + r.middle_name : ''}`.trim(),
+          specialization: r.specialization || null,
+          count: r.cnt,
+        };
+      }
+
+      const slotRes = await pool.query(
+        `SELECT
+           CASE
+             WHEN EXTRACT(HOUR FROM appointment_time) BETWEEN 6 AND 8 THEN '06:00–09:00'
+             WHEN EXTRACT(HOUR FROM appointment_time) BETWEEN 9 AND 11 THEN '09:00–12:00'
+             WHEN EXTRACT(HOUR FROM appointment_time) BETWEEN 12 AND 14 THEN '12:00–15:00'
+             WHEN EXTRACT(HOUR FROM appointment_time) BETWEEN 15 AND 17 THEN '15:00–18:00'
+             WHEN EXTRACT(HOUR FROM appointment_time) BETWEEN 18 AND 20 THEN '18:00–21:00'
+             ELSE 'Другое'
+           END AS slot,
+           COUNT(*)::int AS cnt
+         FROM appointments
+         WHERE patient_id = $1 AND status IN ('booked','completed')
+         GROUP BY slot
+         ORDER BY cnt DESC, slot
+         LIMIT 1`,
+        [userId]
+      );
+      if (slotRes.rows.length) {
+        favoriteSlot = { label: slotRes.rows[0].slot, count: slotRes.rows[0].cnt };
+      }
+
+      const avgRes = await pool.query(
+        `WITH t AS (
+           SELECT (appointment_date + appointment_time)::timestamptz AS ts
+           FROM appointments
+           WHERE patient_id = $1 AND status = 'completed'
+           ORDER BY ts
+         ),
+         d AS (
+           SELECT EXTRACT(EPOCH FROM (ts - LAG(ts) OVER (ORDER BY ts))) / 86400 AS gap_days
+           FROM t
+         )
+         SELECT AVG(gap_days) AS avg_gap
+         FROM d
+         WHERE gap_days IS NOT NULL`,
+        [userId]
+      );
+      if (avgRes.rows.length && avgRes.rows[0].avg_gap != null) {
+        avgGapDays = Number(avgRes.rows[0].avg_gap);
+      }
+    }
+
+    let profileCompletion = null;
+    try {
+      if (u.role === 'patient') {
+        const { getPatientProfileCompletion } = require('../utils/patientProfileCompletion');
+        const pc = await getPatientProfileCompletion(pool, userId);
+        const totalFields = 5;
+        const missing = Array.isArray(pc.missing) ? pc.missing : [];
+        const completed = Math.max(0, totalFields - missing.length);
+        profileCompletion = {
+          percent: Math.round((completed / totalFields) * 100),
+          missing,
+          isComplete: pc.isComplete === true,
+        };
+      }
+    } catch (_) {
+      profileCompletion = null;
+    }
+
+    // Refresh tokens can be used as an approximation of sessions / last login
+    let authStats = null;
+    try {
+      const rtRes = await pool.query(
+        `SELECT
+           COUNT(*)::int AS sessions,
+           MAX(created_at) AS last_login
+         FROM refresh_tokens
+         WHERE user_id = $1`,
+        [userId]
+      );
+      authStats = {
+        sessions: rtRes.rows[0].sessions || 0,
+        lastLogin: rtRes.rows[0].last_login || null,
+      };
+    } catch (_) {
+      authStats = null;
+    }
+
+    const userChartPayload = {
+      statusLabels: ['Предстоящие', 'Отменённые', 'Завершённые'],
+      statusCounts: [apptCounts.upcoming || 0, apptCounts.cancelled || 0, apptCounts.completed || 0],
+    };
+
+    let auditRows = [];
+    let auditPagination = buildPagination(0, 1, USER_PROFILE_AUDIT_PAGE_SIZE);
+    try {
+      const auditCountRes = await pool.query(
+        'SELECT COUNT(*)::int AS c FROM audit_logs WHERE user_id = $1',
+        [userId]
+      );
+      const auditTotal = auditCountRes.rows[0].c;
+      auditPagination = buildPagination(auditTotal, profileQuery.apage, USER_PROFILE_AUDIT_PAGE_SIZE);
+      const auditOffset = (auditPagination.currentPage - 1) * USER_PROFILE_AUDIT_PAGE_SIZE;
+      const aRes = await pool.query(
+        `SELECT id, action_type, old_value, new_value, created_at
+         FROM audit_logs
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [userId, USER_PROFILE_AUDIT_PAGE_SIZE, auditOffset]
+      );
+      auditRows = aRes.rows;
+    } catch (auditErr) {
+      auditRows = [];
+      auditPagination = buildPagination(0, 1, USER_PROFILE_AUDIT_PAGE_SIZE);
+    }
+
+    // ─── Activity timeline (registration + audit + appointments) ─────────────
+    let activityItems = [];
+    let activityPagination = buildPagination(0, 1, USER_PROFILE_ACTIVITY_PAGE_SIZE);
+    try {
+      const isDoctor = u.role === 'doctor';
+      const joinSql = isDoctor
+        ? `JOIN users p ON p.id = a.patient_id`
+        : `JOIN users d ON d.id = a.doctor_id
+           LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
+           LEFT JOIN specializations s ON s.id = dsp.specialization_id`;
+      const nameSql = isDoctor
+        ? `TRIM(CONCAT(p.last_name, ' ', p.first_name, CASE WHEN p.middle_name IS NOT NULL AND p.middle_name <> '' THEN CONCAT(' ', p.middle_name) ELSE '' END))`
+        : `TRIM(CONCAT(d.last_name, ' ', d.first_name, CASE WHEN d.middle_name IS NOT NULL AND d.middle_name <> '' THEN CONCAT(' ', d.middle_name) ELSE '' END))`;
+      const whoLabel = isDoctor ? 'Пациент' : 'Врач';
+      const specSql = isDoctor ? `NULL::text` : `s.name`;
+
+      const countRes = await pool.query(
+        `WITH events AS (
+           SELECT 'registration'::text AS kind, u.created_at AS at,
+                  'Регистрация аккаунта'::text AS title,
+                  NULL::text AS meta,
+                  NULL::text AS old_value,
+                  NULL::text AS new_value
+           FROM users u WHERE u.id = $1
+           UNION ALL
+           SELECT 'audit'::text AS kind, al.created_at AS at,
+                  al.action_type::text AS title,
+                  NULL::text AS meta,
+                  al.old_value::text AS old_value,
+                  al.new_value::text AS new_value
+           FROM audit_logs al WHERE al.user_id = $1
+           UNION ALL
+           SELECT 'appointment'::text AS kind,
+                  (CASE
+                     WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
+                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
+                   END) AS at,
+                  (CASE
+                     WHEN a.status = 'booked' THEN 'Создана запись'
+                     WHEN a.status = 'cancelled' THEN 'Запись отменена'
+                     WHEN a.status = 'completed' THEN 'Приём завершён'
+                     ELSE 'Запись'
+                   END) AS title,
+                  (CONCAT('${whoLabel}: ', ${nameSql}, ' · ',
+                          TO_CHAR(a.appointment_date, 'DD Mon YYYY'), ' ', TO_CHAR(a.appointment_time, 'HH24:MI'),
+                          (CASE WHEN ${specSql} IS NOT NULL THEN CONCAT(' · ', ${specSql}) ELSE '' END)
+                  ))::text AS meta,
+                  NULL::text AS old_value,
+                  NULL::text AS new_value
+           FROM appointments a
+           ${joinSql}
+           WHERE a.${isDoctor ? 'doctor_id' : 'patient_id'} = $1
+         )
+         SELECT COUNT(*)::int AS c FROM events`,
+        [userId]
+      );
+      const total = countRes.rows[0].c || 0;
+      activityPagination = buildPagination(total, profileQuery.actpage, USER_PROFILE_ACTIVITY_PAGE_SIZE);
+      const offset = (activityPagination.currentPage - 1) * USER_PROFILE_ACTIVITY_PAGE_SIZE;
+      const listRes = await pool.query(
+        `WITH events AS (
+           SELECT 'registration'::text AS kind, u.created_at AS at,
+                  'Регистрация аккаунта'::text AS title,
+                  NULL::text AS meta,
+                  NULL::text AS old_value,
+                  NULL::text AS new_value
+           FROM users u WHERE u.id = $1
+           UNION ALL
+           SELECT 'audit'::text AS kind, al.created_at AS at,
+                  al.action_type::text AS title,
+                  NULL::text AS meta,
+                  al.old_value::text AS old_value,
+                  al.new_value::text AS new_value
+           FROM audit_logs al WHERE al.user_id = $1
+           UNION ALL
+           SELECT 'appointment'::text AS kind,
+                  (CASE
+                     WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
+                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
+                   END) AS at,
+                  (CASE
+                     WHEN a.status = 'booked' THEN 'Создана запись'
+                     WHEN a.status = 'cancelled' THEN 'Запись отменена'
+                     WHEN a.status = 'completed' THEN 'Приём завершён'
+                     ELSE 'Запись'
+                   END) AS title,
+                  (CONCAT('${whoLabel}: ', ${nameSql}, ' · ',
+                          TO_CHAR(a.appointment_date, 'DD Mon YYYY'), ' ', TO_CHAR(a.appointment_time, 'HH24:MI'),
+                          (CASE WHEN ${specSql} IS NOT NULL THEN CONCAT(' · ', ${specSql}) ELSE '' END)
+                  ))::text AS meta,
+                  NULL::text AS old_value,
+                  NULL::text AS new_value
+           FROM appointments a
+           ${joinSql}
+           WHERE a.${isDoctor ? 'doctor_id' : 'patient_id'} = $1
+         )
+         SELECT kind, at, title, meta, old_value, new_value
+         FROM events
+         ORDER BY at DESC NULLS LAST
+         LIMIT $2 OFFSET $3`,
+        [userId, USER_PROFILE_ACTIVITY_PAGE_SIZE, offset]
+      );
+      activityItems = listRes.rows || [];
+    } catch (_) {
+      activityItems = [];
+      activityPagination = buildPagination(0, 1, USER_PROFILE_ACTIVITY_PAGE_SIZE);
+    }
+
+    res.render('admin/user_profile', {
+      title: 'Профиль пользователя — Админ-панель',
+      targetUser: {
+        id: u.id,
+        email: u.email,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        middle_name: u.middle_name,
+        role: u.role,
+        is_blocked: u.is_blocked,
+        phoneMasked,
+        created_at: u.created_at,
+      },
+      displayPerson: {
+        id: u.id,
+        email: u.email,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        middle_name: u.middle_name,
+        avatar_path: u.avatar_path,
+        avatar_url: u.avatar_url,
+      },
+      appointmentsAsPatient,
+      appointmentsAsDoctor,
+      auditRows,
+      auditPagination,
+      analytics: {
+        appointmentCounts: apptCounts,
+        accountAgeDays,
+        mostVisited,
+        favoriteSlot,
+        avgGapDays,
+        profileCompletion,
+        authStats,
+        chartPayload: userChartPayload,
+        scope: u.role === 'doctor' ? 'doctor' : 'patient',
+      },
+      activityItems,
+      activityPagination,
+      profileQuery,
+    });
+  } catch (err) {
+    console.error('Admin user profile error:', err);
+    res.status(500).render('error', { message: 'Ошибка загрузки профиля' });
   }
 });
 

@@ -552,6 +552,13 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
 
 <script>
   (function () {
+    window.addEventListener('pageshow', function (ev) {
+      if (ev.persisted) window.location.reload();
+    });
+  })();
+</script>
+<script>
+  (function () {
     var wrap = document.querySelector('[data-next-appointment="1"]');
     if (!wrap) return;
     var textEl = wrap.querySelector('[data-countdown-text]');
@@ -636,8 +643,8 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
       }
 
       var visualPct = Math.max(0, Math.min(100, pct));
-      // Чтобы бар не выглядел "сломанный" при очень малом прогрессе.
-      if (visualPct > 0 && visualPct < 4) visualPct = 4;
+      // Чтобы полоса не оставалась пустой при долгом ожидании до приёма (малый % от интервала бронирование→визит).
+      if (diff > 0 && visualPct < 4) visualPct = 4;
       barEl.style.width = String(visualPct) + '%';
       progressWrap.setAttribute('aria-valuenow', String(visualPct));
       return false;

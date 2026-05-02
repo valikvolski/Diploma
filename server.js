@@ -271,9 +271,8 @@ app.get('/', async (req, res) => {
            LEFT JOIN tickets t ON t.appointment_id = a.id
            WHERE a.patient_id = $1
              AND a.status = 'booked'
-             AND (a.appointment_date > CURRENT_DATE
-               OR (a.appointment_date = CURRENT_DATE AND a.appointment_time >= CURRENT_TIME))
-           ORDER BY a.appointment_date, a.appointment_time
+             AND (a.appointment_date + a.appointment_time) > NOW()
+           ORDER BY (a.appointment_date + a.appointment_time) ASC
            LIMIT 3`,
           [user.id]
         ),
@@ -343,9 +342,8 @@ app.get('/', async (req, res) => {
            JOIN users p ON p.id = a.patient_id
            WHERE a.doctor_id = $1
              AND a.status = 'booked'
-             AND (a.appointment_date > CURRENT_DATE
-               OR (a.appointment_date = CURRENT_DATE AND a.appointment_time >= CURRENT_TIME))
-           ORDER BY a.appointment_date, a.appointment_time
+             AND (a.appointment_date + a.appointment_time) > NOW()
+           ORDER BY (a.appointment_date + a.appointment_time) ASC
            LIMIT 1`,
           [user.id]
         ),
@@ -485,6 +483,9 @@ app.get('/', async (req, res) => {
     console.error('Home page data error:', err);
   }
 
+  // Дашборд персонализирован (роль, записи); без кэша, чтобы после записи/отмены сразу была актуальная «Ближайшая запись».
+  res.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+  res.set('Vary', 'Cookie');
   res.render('index', viewData);
 });
 
