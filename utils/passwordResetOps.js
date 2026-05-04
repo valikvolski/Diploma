@@ -149,6 +149,12 @@ async function verifyPurposeCodeAndSetPassword(pool, { userId, purpose, codeRaw,
     await client.query('BEGIN');
     await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [bcryptHash, userId]);
     await client.query('UPDATE password_reset_codes SET used_at = NOW() WHERE id = $1', [pr.id]);
+    await insertAuditLog(client, {
+      userId,
+      actionType: ACTION.PASSWORD_CHANGE,
+      oldValue: null,
+      newValue: null,
+    });
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');
@@ -156,13 +162,6 @@ async function verifyPurposeCodeAndSetPassword(pool, { userId, purpose, codeRaw,
   } finally {
     client.release();
   }
-
-  await insertAuditLog(pool, {
-    userId,
-    actionType: ACTION.PASSWORD_CHANGE,
-    oldValue: null,
-    newValue: null,
-  });
 
   return { ok: true };
 }

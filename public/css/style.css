@@ -558,6 +558,49 @@ a:hover { color: var(--app-primary-dark); }
   max-width: 22rem;
 }
 
+/* Admin → Users: стабильная колонка «Действия», иконки фиксированного размера */
+.admin-users-actions-col,
+.admin-users-actions-cell {
+  width: 1%;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.admin-users-actions-col {
+  min-width: 9rem;
+}
+.audit-timeline-thumb {
+  object-fit: cover;
+  vertical-align: top;
+}
+
+@media (max-width: 767.98px) {
+  .admin-users-actions-cell .app-table-actions--admin-users-icon-row {
+    justify-content: flex-start !important;
+  }
+}
+
+.table.app-table .app-table-actions--admin-users-icon-row .btn.btn-sm.btn-icon-action {
+  width: 2.375rem;
+  min-width: 2.375rem;
+  height: 2.375rem;
+  padding-left: 0;
+  padding-right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table.app-table .app-table-actions--admin-users-icon-row form {
+  flex-shrink: 0;
+  margin-block: 0;
+}
+
+/* Одна строка: базовый .app-table-actions даёт flex-wrap, Bootstrap flex-nowrap дополняет — дублируем на всякий случай */
+.table.app-table .app-table-actions.app-table-actions--admin-users-icon-row {
+  flex-wrap: nowrap !important;
+  flex-direction: row;
+}
+
 /* Ряд действий: без растягивания кнопок на всю ширину */
 .app-table-actions {
   display: flex;

@@ -502,13 +502,23 @@ router.post('/avatar', ...patientOnly, (req, res, next) => {
       const rel = await finalizeTempToWebp(req.file.path, req.user.id);
       const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.user.id]);
       const oldPath = prev.rows[0]?.avatar_path;
-      await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, req.user.id]);
-      await insertAuditLog(pool, {
-        userId: req.user.id,
-        actionType: AUDIT_ACTION.AVATAR_UPDATE,
-        oldValue: oldPath || '',
-        newValue: rel || '',
-      });
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, req.user.id]);
+        await insertAuditLog(client, {
+          userId: req.user.id,
+          actionType: AUDIT_ACTION.AVATAR_UPDATE,
+          oldValue: oldPath || '',
+          newValue: rel || '',
+        });
+        await client.query('COMMIT');
+      } catch (txe) {
+        await client.query('ROLLBACK');
+        throw txe;
+      } finally {
+        client.release();
+      }
       await unlinkDbPath(oldPath);
       const avatarUrl = `/${String(rel).replace(/^\/+/, '')}`;
       if (useJson) {
@@ -538,14 +548,24 @@ router.post('/avatar/remove', ...patientOnly, async (req, res) => {
   try {
     const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.user.id]);
     const oldPath = prev.rows[0]?.avatar_path;
-    await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [req.user.id]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [req.user.id]);
+      await insertAuditLog(client, {
+        userId: req.user.id,
+        actionType: AUDIT_ACTION.AVATAR_UPDATE,
+        oldValue: oldPath || '',
+        newValue: '',
+      });
+      await client.query('COMMIT');
+    } catch (txe) {
+      await client.query('ROLLBACK');
+      throw txe;
+    } finally {
+      client.release();
+    }
     await unlinkDbPath(oldPath);
-    await insertAuditLog(pool, {
-      userId: req.user.id,
-      actionType: AUDIT_ACTION.AVATAR_UPDATE,
-      oldValue: oldPath || '',
-      newValue: '',
-    });
     res.redirect('/profile/edit?success=' + encodeURIComponent('Фото профиля удалено'));
   } catch (e) {
     console.error('Profile avatar remove error:', e);

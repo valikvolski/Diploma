@@ -23,6 +23,11 @@
     if (p.indexOf('http://') === 0 || p.indexOf('https://') === 0) return p;
     return '/' + p.replace(/^\/+/, '');
   }
+  /** Нормализация типа действия аудита из БД/pg (надёжное сравнение в шаблоне). */
+  function auditActionKey(e) {
+    if (!e || e.kind !== 'audit') return '';
+    return String(e.title || '').trim().toLowerCase();
+  }
   var tu = typeof targetUser !== 'undefined' ? targetUser : {};
   var dp = typeof displayPerson !== 'undefined' ? displayPerson : {};
   var apP = typeof appointmentsAsPatient !== 'undefined' ? appointmentsAsPatient : { completed: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } }, cancelled: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } }, booked: { rows: [], pagination: { totalPages: 1, currentPage: 1, totalCount: 0 } } };
@@ -316,8 +321,10 @@
                return { icon: 'bi-calendar-check', color: 'primary', title: 'Запись' };
              }
              if (e.kind === 'audit') {
-               if (e.title === 'password_change') return { icon: 'bi-key', color: 'warning', title: 'Пароль' };
-               if (e.title === 'avatar_update') return { icon: 'bi-image', color: 'info', title: 'Аватар' };
+               var ak = auditActionKey(e);
+               if (ak === 'password_change') return { icon: 'bi-key', color: 'warning', title: 'Пароль' };
+               if (ak === 'avatar_update') return { icon: 'bi-image', color: 'info', title: 'Аватар' };
+               if (ak === 'email_change') return { icon: 'bi-envelope', color: 'primary', title: 'Email' };
                return { icon: 'bi-shield-check', color: 'secondary', title: 'Изменение' };
              }
              return { icon: 'bi-dot', color: 'secondary', title: 'Событие' };
@@ -327,8 +334,10 @@
              if (e.kind === 'registration') return 'Регистрация аккаунта';
              if (e.kind === 'appointment') return e.title || 'Запись';
              if (e.kind === 'audit') {
-               if (e.title === 'password_change') return 'Смена пароля';
-               if (e.title === 'avatar_update') return 'Изменение фото профиля';
+               var ak2 = auditActionKey(e);
+               if (ak2 === 'password_change') return 'Смена пароля';
+               if (ak2 === 'avatar_update') return 'Изменение фото профиля';
+               if (ak2 === 'email_change') return 'Смена email';
                return String(e.title || 'Изменение');
              }
              return String(e.title || 'Событие');
@@ -358,19 +367,33 @@
                       <div class="small text-muted mt-2"><%= eventMeta(e) %></div>
                     <% } %>
 
-                    <% if (e.kind === 'audit' && e.title === 'avatar_update') { %>
-                      <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
+                    <% if (e.kind === 'audit' && auditActionKey(e) === 'email_change' && (e.old_value || e.new_value)) { %>
+                      <div class="small text-muted mt-2 font-monospace">
+                        <% if (e.old_value) { %>Было: <%= e.old_value %><% } %>
+                        <% if (e.old_value && e.new_value) { %> → <% } %>
+                        <% if (e.new_value) { %>Стало: <%= e.new_value %><% } %>
+                      </div>
+                    <% } %>
+
+                    <% if (e.kind === 'audit' && auditActionKey(e) === 'avatar_update') { %>
+                      <div class="d-flex flex-wrap align-items-start gap-3 mt-3">
                         <% var beforeU = auditImgUrl(e.old_value); var afterU = auditImgUrl(e.new_value); %>
                         <% if (beforeU) { %>
                           <div class="text-center">
                             <div class="small text-muted mb-1">Было</div>
-                            <img src="<%= beforeU %>" alt="" class="rounded border" width="56" height="56" style="object-fit:cover;" loading="lazy" />
+                            <div class="d-inline-block audit-timeline-avatar-slot">
+                              <img src="<%= beforeU %>" alt="" class="rounded border audit-timeline-thumb" width="56" height="56" loading="lazy" decoding="async" />
+                              <p class="small text-muted mt-1 mb-0 d-none audit-timeline-img-fallback" role="status">Файл недоступен (старый аватар удалён после смены)</p>
+                            </div>
                           </div>
                         <% } %>
                         <% if (afterU) { %>
                           <div class="text-center">
                             <div class="small text-muted mb-1">Стало</div>
-                            <img src="<%= afterU %>" alt="" class="rounded border" width="56" height="56" style="object-fit:cover;" loading="lazy" />
+                            <div class="d-inline-block audit-timeline-avatar-slot">
+                              <img src="<%= afterU %>" alt="" class="rounded border audit-timeline-thumb" width="56" height="56" loading="lazy" decoding="async" />
+                              <p class="small text-muted mt-1 mb-0 d-none audit-timeline-img-fallback" role="status">Файл недоступен</p>
+                            </div>
                           </div>
                         <% } %>
                         <% if (!beforeU && !afterU) { %>
@@ -408,5 +431,24 @@
     </div>
   </div>
 </div>
+
+<script>
+(function () {
+  document.addEventListener(
+    'error',
+    function (ev) {
+      var el = ev.target;
+      if (!el || el.tagName !== 'IMG' || !el.classList.contains('audit-timeline-thumb')) return;
+      el.classList.add('d-none');
+      var slot = el.closest('.audit-timeline-avatar-slot');
+      if (slot) {
+        var fb = slot.querySelector('.audit-timeline-img-fallback');
+        if (fb) fb.classList.remove('d-none');
+      }
+    },
+    true
+  );
+})();
+</script>
 
 <%- include('../partials/footer') %>

@@ -6,7 +6,23 @@
 const ACTION = {
   PASSWORD_CHANGE: 'password_change',
   AVATAR_UPDATE: 'avatar_update',
+  /** Смена email (значения в логе — только маска, без полного адреса) */
+  EMAIL_CHANGE: 'email_change',
 };
+
+/** Маска для audit_logs (old/new), без полного email. */
+function maskEmailForAudit(email) {
+  if (email == null) return null;
+  const e = String(email).trim().toLowerCase();
+  if (!e) return null;
+  const at = e.indexOf('@');
+  if (at < 1) return '***';
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+  if (!domain) return '***';
+  const vis = local.slice(0, Math.min(2, local.length)) || '?';
+  return `${vis}***@${domain}`;
+}
 
 const MAX_LEN = 2000;
 
@@ -32,4 +48,5 @@ async function insertAuditLog(poolOrClient, { userId, actionType, oldValue = nul
 module.exports = {
   ACTION,
   insertAuditLog,
+  maskEmailForAudit,
 };

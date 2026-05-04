@@ -12,7 +12,7 @@ const {
 } = require('../utils/specializationCompat');
 const { normalizeBelarusPhone } = require('../utils/patientPhone');
 const { maskPhoneForAdmin } = require('../utils/adminPhoneMask');
-const { insertAuditLog, ACTION: AUDIT_ACTION } = require('../utils/auditLog');
+const { insertAuditLog, ACTION: AUDIT_ACTION, maskEmailForAudit } = require('../utils/auditLog');
 
 function parseSpecializationIds(body) {
   const raw =
@@ -544,6 +544,8 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
     }
     const { primary } = resolvePrimarySpecializationId(specIds, primary_specialization_id);
 
+    const emailNorm = email.toLowerCase().trim();
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -560,7 +562,11 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
         return res.redirect(`/admin/doctors/${doctorId}/edit?error=` + encodeURIComponent('Некорректные данные формы'));
       }
 
-      const emailNorm = email.toLowerCase().trim();
+      const prevEmailRes = await client.query('SELECT email FROM users WHERE id = $1 FOR UPDATE', [doctorId]);
+      const prevEmailRaw = prevEmailRes.rows[0]?.email;
+      const prevEmailNorm = prevEmailRaw != null ? String(prevEmailRaw).trim().toLowerCase() : '';
+      const emailChanged = prevEmailNorm !== emailNorm;
+
       const emailConflict = await client.query(
         'SELECT id FROM users WHERE email = $1 AND id <> $2',
         [emailNorm, doctorId]
@@ -595,6 +601,15 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
            WHERE id=$7 AND role='doctor'`,
           [emailNorm, first_name.trim(), last_name.trim(), (middle_name||'').trim(), phoneNormEdit, is_blocked === 'true', doctorId]
         );
+      }
+
+      if (emailChanged) {
+        await insertAuditLog(client, {
+          userId: doctorId,
+          actionType: AUDIT_ACTION.EMAIL_CHANGE,
+          oldValue: maskEmailForAudit(prevEmailRaw) || '',
+          newValue: maskEmailForAudit(emailNorm) || '',
+        });
       }
 
       const profileUpdate = await client.query(
@@ -662,18 +677,28 @@ router.post('/doctors/:id/avatar', ...adminOnly, (req, res, next) => {
       const rel = await finalizeTempToWebp(req.file.path, resolvedDoctorId);
       const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [resolvedDoctorId]);
       const oldPath = prev.rows[0]?.avatar_path;
-      await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2 AND role = $3', [
-        rel,
-        resolvedDoctorId,
-        'doctor',
-      ]);
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('UPDATE users SET avatar_path = $1 WHERE id = $2 AND role = $3', [
+          rel,
+          resolvedDoctorId,
+          'doctor',
+        ]);
+        await insertAuditLog(client, {
+          userId: resolvedDoctorId,
+          actionType: AUDIT_ACTION.AVATAR_UPDATE,
+          oldValue: oldPath || '',
+          newValue: rel || '',
+        });
+        await client.query('COMMIT');
+      } catch (txe) {
+        await client.query('ROLLBACK');
+        throw txe;
+      } finally {
+        client.release();
+      }
       await unlinkDbPath(oldPath);
-      await insertAuditLog(pool, {
-        userId: resolvedDoctorId,
-        actionType: AUDIT_ACTION.AVATAR_UPDATE,
-        oldValue: oldPath || '',
-        newValue: rel || '',
-      });
       res.redirect(`${editPath}?success=` + encodeURIComponent('Фото врача обновлено'));
     } catch (e) {
       console.error('Admin doctor avatar error:', e);
@@ -692,14 +717,24 @@ router.post('/doctors/:id/avatar/remove', ...adminOnly, async (req, res) => {
     }
     const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [resolvedDoctorId]);
     const oldPath = prev.rows[0]?.avatar_path;
-    await pool.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [resolvedDoctorId]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE users SET avatar_path = NULL WHERE id = $1', [resolvedDoctorId]);
+      await insertAuditLog(client, {
+        userId: resolvedDoctorId,
+        actionType: AUDIT_ACTION.AVATAR_UPDATE,
+        oldValue: oldPath || '',
+        newValue: '',
+      });
+      await client.query('COMMIT');
+    } catch (txe) {
+      await client.query('ROLLBACK');
+      throw txe;
+    } finally {
+      client.release();
+    }
     await unlinkDbPath(oldPath);
-    await insertAuditLog(pool, {
-      userId: resolvedDoctorId,
-      actionType: AUDIT_ACTION.AVATAR_UPDATE,
-      oldValue: oldPath || '',
-      newValue: '',
-    });
     res.redirect(
       `/admin/doctors/${resolvedDoctorId}/edit?success=` + encodeURIComponent('Фото врача удалено')
     );
@@ -1111,7 +1146,8 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
       dpn: clampProfilePage(req.query.dpn),
       dpb: clampProfilePage(req.query.dpb),
       apage: clampProfilePage(req.query.apage),
-      actpage: clampProfilePage(req.query.actpage || req.query.apage),
+      /** Только actpage: не подмешивать apage (журнал аудита), иначе лента «Активность» может оказаться пустой на несуществующей странице */
+      actpage: clampProfilePage(req.query.actpage),
     };
 
     const [apPCompleted, apPCancelled, apPBooked] = await Promise.all([

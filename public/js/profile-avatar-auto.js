@@ -31,6 +31,25 @@
     return img;
   }
 
+  function withAvatarCacheBust(url) {
+    var u = String(url || '').trim();
+    if (!u) return u;
+    return u + (u.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
+  }
+
+  function applyAvatarSrcToHolder(holder, bustedUrl) {
+    var img = ensureImg(holder);
+    if (img) img.src = bustedUrl;
+  }
+
+  /** Синхронизировать все аватарки пользователя на странице (шапка, превью и т.п.). */
+  function syncUserAvatarAcrossPage(avatarUrl) {
+    var busted = withAvatarCacheBust(avatarUrl);
+    document.querySelectorAll('.app-nav-avatar-wrap .user-avatar').forEach(function (h) {
+      applyAvatarSrcToHolder(h, busted);
+    });
+  }
+
   function parseFetchResponse(res, text) {
     var data = {};
     if (text) {
@@ -98,12 +117,9 @@
           setLoading(false);
           input.value = '';
           if (out.ok && out.data && out.data.ok && out.data.avatarUrl) {
-            var img = ensureImg(holder);
-            if (img) {
-              var u = out.data.avatarUrl;
-              u += (u.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
-              img.src = u;
-            }
+            var bustedUrl = withAvatarCacheBust(out.data.avatarUrl);
+            applyAvatarSrcToHolder(holder, bustedUrl);
+            syncUserAvatarAcrossPage(out.data.avatarUrl);
             if (window.showAppToast) {
               window.showAppToast(out.data.message || 'Фото профиля обновлено', 'success');
             }
