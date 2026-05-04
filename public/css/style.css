@@ -4953,3 +4953,62 @@ html[data-theme="dark"] {
   border-color: #2d3a4e;
   color: #64748b;
 }
+
+/* Doctors catalog compact cards */
+.doctor-tile-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+  min-height: 2.5em;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.doctor-catalog-card {
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.doctor-catalog-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 .5rem 1rem rgba(15, 23, 42, 0.12) !important;
+}
+
+.catalog-spec-item-hidden {
+  display: none !important;
+}
+
+.js-spec-toggle-chip {
+  border-color: rgba(26, 110, 230, 0.55) !important;
+  color: var(--app-primary) !important;
+  background: rgba(26, 110, 230, 0.08) !important;
+  box-shadow: 0 0 0 2px rgba(26, 110, 230, 0.14);
+  font-weight: 600;
+}
+
+.js-spec-toggle-chip:hover,
+.js-spec-toggle-chip:focus {
+  background: rgba(26, 110, 230, 0.14) !important;
+  border-color: rgba(26, 110, 230, 0.7) !important;
+}
+
+#catalog-doctors-grid {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+#catalog-doctors-grid.catalog-grid-loading {
+  opacity: 0.92;
+}
+
+#catalog-doctors-grid.catalog-grid-fade-out {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+#catalog-doctors-grid.catalog-grid-fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}

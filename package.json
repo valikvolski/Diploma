@@ -9,6 +9,7 @@
     "migrate:001": "node db/apply-migration-001.js",
     "dev": "nodemon server.js",
     "reminders": "node scripts/send-appointment-reminders.js",
+    "seed:demo": "node scripts/seed-demo.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

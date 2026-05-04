@@ -116,23 +116,11 @@
     return '/admin/doctors?' + qp.toString();
   }
 %>
-<% if (p.totalPages > 1) { %>
-  <nav aria-label="Пагинация врачей" class="mt-3">
-    <ul class="pagination pagination-sm mb-0">
-      <li class="page-item <%= p.hasPrev ? '' : 'disabled' %>">
-        <a class="page-link" href="<%= p.hasPrev ? doctorsPageUrl(p.currentPage - 1) : '#' %>">Назад</a>
-      </li>
-      <% for (let i = 1; i <= p.totalPages; i++) { %>
-        <li class="page-item <%= i === p.currentPage ? 'active' : '' %>">
-          <a class="page-link" href="<%= doctorsPageUrl(i) %>"><%= i %></a>
-        </li>
-      <% } %>
-      <li class="page-item <%= p.hasNext ? '' : 'disabled' %>">
-        <a class="page-link" href="<%= p.hasNext ? doctorsPageUrl(p.currentPage + 1) : '#' %>">Вперёд</a>
-      </li>
-    </ul>
-  </nav>
-<% } %>
+<%- include('../partials/admin-pagination', {
+  p: p,
+  pageUrl: doctorsPageUrl,
+  ariaLabel: 'Пагинация врачей'
+}) %>
 
 <div class="modal fade" id="adminConfirmModal" tabindex="-1" aria-labelledby="adminConfirmModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
