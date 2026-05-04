@@ -442,6 +442,12 @@ router.post('/avatar', ...docOnly, (req, res, next) => {
       const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [uid]);
       const oldPath = prev.rows[0]?.avatar_path;
       await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, uid]);
+      await insertAuditLog(pool, {
+        userId: uid,
+        actionType: AUDIT_ACTION.AVATAR_UPDATE,
+        oldValue: oldPath || '',
+        newValue: rel || '',
+      });
       await unlinkDbPath(oldPath);
       res.redirect(`${editPath}?success=${encodeURIComponent('Фото профиля обновлено')}`);
     } catch (e) {

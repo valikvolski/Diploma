@@ -1306,16 +1306,64 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
     let activityPagination = buildPagination(0, 1, USER_PROFILE_ACTIVITY_PAGE_SIZE);
     try {
       const isDoctor = u.role === 'doctor';
-      const joinSql = isDoctor
-        ? `JOIN users p ON p.id = a.patient_id`
-        : `JOIN users d ON d.id = a.doctor_id
+      const appointmentEventsSql = isDoctor
+        ? `SELECT 'appointment'::text AS kind,
+                  (CASE
+                     WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
+                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
+                   END) AS at,
+                  (CASE
+                     WHEN a.status = 'booked' THEN 'Создана запись'
+                     WHEN a.status = 'cancelled' THEN 'Запись отменена'
+                     WHEN a.status = 'completed' THEN 'Приём завершён'
+                     ELSE 'Запись'
+                   END) AS title,
+                  CONCAT(
+                    'Пациент: ',
+                    TRIM(CONCAT(
+                      p.last_name, ' ', p.first_name,
+                      CASE WHEN p.middle_name IS NOT NULL AND p.middle_name <> '' THEN CONCAT(' ', p.middle_name) ELSE '' END
+                    )),
+                    ' · ',
+                    TO_CHAR(a.appointment_date, 'DD.MM.YYYY'),
+                    ' ',
+                    TO_CHAR(a.appointment_time, 'HH24:MI')
+                  )::text AS meta,
+                  NULL::text AS old_value,
+                  NULL::text AS new_value
+           FROM appointments a
+           JOIN users p ON p.id = a.patient_id
+           WHERE a.doctor_id = $1`
+        : `SELECT 'appointment'::text AS kind,
+                  (CASE
+                     WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
+                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
+                   END) AS at,
+                  (CASE
+                     WHEN a.status = 'booked' THEN 'Создана запись'
+                     WHEN a.status = 'cancelled' THEN 'Запись отменена'
+                     WHEN a.status = 'completed' THEN 'Приём завершён'
+                     ELSE 'Запись'
+                   END) AS title,
+                  CONCAT(
+                    'Врач: ',
+                    TRIM(CONCAT(
+                      d.last_name, ' ', d.first_name,
+                      CASE WHEN d.middle_name IS NOT NULL AND d.middle_name <> '' THEN CONCAT(' ', d.middle_name) ELSE '' END
+                    )),
+                    ' · ',
+                    TO_CHAR(a.appointment_date, 'DD.MM.YYYY'),
+                    ' ',
+                    TO_CHAR(a.appointment_time, 'HH24:MI'),
+                    CASE WHEN s.name IS NOT NULL THEN CONCAT(' · ', s.name) ELSE '' END
+                  )::text AS meta,
+                  NULL::text AS old_value,
+                  NULL::text AS new_value
+           FROM appointments a
+           JOIN users d ON d.id = a.doctor_id
            LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
-           LEFT JOIN specializations s ON s.id = dsp.specialization_id`;
-      const nameSql = isDoctor
-        ? `TRIM(CONCAT(p.last_name, ' ', p.first_name, CASE WHEN p.middle_name IS NOT NULL AND p.middle_name <> '' THEN CONCAT(' ', p.middle_name) ELSE '' END))`
-        : `TRIM(CONCAT(d.last_name, ' ', d.first_name, CASE WHEN d.middle_name IS NOT NULL AND d.middle_name <> '' THEN CONCAT(' ', d.middle_name) ELSE '' END))`;
-      const whoLabel = isDoctor ? 'Пациент' : 'Врач';
-      const specSql = isDoctor ? `NULL::text` : `s.name`;
+           LEFT JOIN specializations s ON s.id = dsp.specialization_id
+           WHERE a.patient_id = $1`;
 
       const countRes = await pool.query(
         `WITH events AS (
@@ -1333,26 +1381,7 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
                   al.new_value::text AS new_value
            FROM audit_logs al WHERE al.user_id = $1
            UNION ALL
-           SELECT 'appointment'::text AS kind,
-                  (CASE
-                     WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
-                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
-                   END) AS at,
-                  (CASE
-                     WHEN a.status = 'booked' THEN 'Создана запись'
-                     WHEN a.status = 'cancelled' THEN 'Запись отменена'
-                     WHEN a.status = 'completed' THEN 'Приём завершён'
-                     ELSE 'Запись'
-                   END) AS title,
-                  (CONCAT('${whoLabel}: ', ${nameSql}, ' · ',
-                          TO_CHAR(a.appointment_date, 'DD Mon YYYY'), ' ', TO_CHAR(a.appointment_time, 'HH24:MI'),
-                          (CASE WHEN ${specSql} IS NOT NULL THEN CONCAT(' · ', ${specSql}) ELSE '' END)
-                  ))::text AS meta,
-                  NULL::text AS old_value,
-                  NULL::text AS new_value
-           FROM appointments a
-           ${joinSql}
-           WHERE a.${isDoctor ? 'doctor_id' : 'patient_id'} = $1
+           ${appointmentEventsSql}
          )
          SELECT COUNT(*)::int AS c FROM events`,
         [userId]
@@ -1376,26 +1405,7 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
                   al.new_value::text AS new_value
            FROM audit_logs al WHERE al.user_id = $1
            UNION ALL
-           SELECT 'appointment'::text AS kind,
-                  (CASE
-                     WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
-                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
-                   END) AS at,
-                  (CASE
-                     WHEN a.status = 'booked' THEN 'Создана запись'
-                     WHEN a.status = 'cancelled' THEN 'Запись отменена'
-                     WHEN a.status = 'completed' THEN 'Приём завершён'
-                     ELSE 'Запись'
-                   END) AS title,
-                  (CONCAT('${whoLabel}: ', ${nameSql}, ' · ',
-                          TO_CHAR(a.appointment_date, 'DD Mon YYYY'), ' ', TO_CHAR(a.appointment_time, 'HH24:MI'),
-                          (CASE WHEN ${specSql} IS NOT NULL THEN CONCAT(' · ', ${specSql}) ELSE '' END)
-                  ))::text AS meta,
-                  NULL::text AS old_value,
-                  NULL::text AS new_value
-           FROM appointments a
-           ${joinSql}
-           WHERE a.${isDoctor ? 'doctor_id' : 'patient_id'} = $1
+           ${appointmentEventsSql}
          )
          SELECT kind, at, title, meta, old_value, new_value
          FROM events
@@ -1404,7 +1414,8 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
         [userId, USER_PROFILE_ACTIVITY_PAGE_SIZE, offset]
       );
       activityItems = listRes.rows || [];
-    } catch (_) {
+    } catch (activityErr) {
+      console.error('Admin user activity timeline error:', activityErr);
       activityItems = [];
       activityPagination = buildPagination(0, 1, USER_PROFILE_ACTIVITY_PAGE_SIZE);
     }

@@ -503,6 +503,12 @@ router.post('/avatar', ...patientOnly, (req, res, next) => {
       const prev = await pool.query('SELECT avatar_path FROM users WHERE id = $1', [req.user.id]);
       const oldPath = prev.rows[0]?.avatar_path;
       await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2', [rel, req.user.id]);
+      await insertAuditLog(pool, {
+        userId: req.user.id,
+        actionType: AUDIT_ACTION.AVATAR_UPDATE,
+        oldValue: oldPath || '',
+        newValue: rel || '',
+      });
       await unlinkDbPath(oldPath);
       const avatarUrl = `/${String(rel).replace(/^\/+/, '')}`;
       if (useJson) {
