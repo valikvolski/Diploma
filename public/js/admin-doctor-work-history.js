@@ -4,7 +4,16 @@
 (function () {
   'use strict';
 
-  var MONTH_NAMES = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  function todayYmd() {
+    var n = new Date();
+    return (
+      n.getFullYear() +
+      '-' +
+      String(n.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(n.getDate()).padStart(2, '0')
+    );
+  }
 
   function parseYmd(s) {
     if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
@@ -39,12 +48,41 @@
     return 'лет';
   }
 
+  function clampDateValue(input, min, max) {
+    if (!input || !input.value) return;
+    if (max && input.value > max) input.value = max;
+    if (min && input.value < min) input.value = min;
+  }
+
+  function applyDateLimits(rowEl) {
+    var today = todayYmd();
+    var startInput = rowEl.querySelector('.js-work-start');
+    var endInput = rowEl.querySelector('.js-work-end');
+    var currentCb = rowEl.querySelector('.js-work-current');
+
+    if (startInput) {
+      startInput.max = today;
+      clampDateValue(startInput, null, today);
+    }
+
+    if (endInput && !endInput.disabled) {
+      endInput.max = today;
+      if (startInput && startInput.value) {
+        endInput.min = startInput.value;
+      } else {
+        endInput.removeAttribute('min');
+      }
+      clampDateValue(endInput, startInput ? startInput.value : null, today);
+    }
+  }
+
   function rowTemplate(idx, row) {
     row = row || {};
     var org = row.organization_name || '';
     var start = row.start_date || '';
     var end = row.end_date || '';
     var isCurrent = !end && !!start;
+    var today = todayYmd();
     return (
       '<div class="admin-work-history-row" data-work-row="' +
       idx +
@@ -66,12 +104,16 @@
       '<label class="form-label small fw-semibold mb-1">Дата начала</label>' +
       '<input type="date" class="form-control form-control-sm js-work-start" value="' +
       escapeAttr(start) +
+      '" max="' +
+      today +
       '" required />' +
       '</div>' +
       '<div class="col-md-6">' +
       '<label class="form-label small fw-semibold mb-1">Дата окончания</label>' +
       '<input type="date" class="form-control form-control-sm js-work-end" value="' +
       escapeAttr(end) +
+      '" max="' +
+      today +
       '" ' +
       (isCurrent ? 'disabled' : '') +
       ' />' +
@@ -119,11 +161,7 @@
     var yearsEl = document.getElementById('calculatedExperienceYears');
     if (!yearsEl) return;
     var years = totalYears(collectRows(root));
-    yearsEl.value = String(years);
-    var hint = document.getElementById('experienceYearsHint');
-    if (hint) {
-      hint.textContent = years > 0 ? years + ' ' + expWord(years) + ' (рассчитано автоматически)' : 'Укажите периоды работы';
-    }
+    yearsEl.textContent = years > 0 ? years + ' ' + expWord(years) : '0 лет';
   }
 
   function syncJson(root) {
@@ -140,6 +178,12 @@
     hidden.value = JSON.stringify(rows);
   }
 
+  function onRowInputsChange(rowEl, root) {
+    applyDateLimits(rowEl);
+    updatePreview(root);
+    syncJson(root);
+  }
+
   function bindRow(rowEl, root) {
     var endInput = rowEl.querySelector('.js-work-end');
     var currentCb = rowEl.querySelector('.js-work-current');
@@ -151,18 +195,15 @@
         } else {
           endInput.disabled = false;
         }
-        updatePreview(root);
-        syncJson(root);
+        onRowInputsChange(rowEl, root);
       });
     }
     rowEl.querySelectorAll('input').forEach(function (inp) {
       inp.addEventListener('change', function () {
-        updatePreview(root);
-        syncJson(root);
+        onRowInputsChange(rowEl, root);
       });
       inp.addEventListener('input', function () {
-        updatePreview(root);
-        syncJson(root);
+        onRowInputsChange(rowEl, root);
       });
     });
     var removeBtn = rowEl.querySelector('.js-work-remove');
@@ -174,13 +215,14 @@
         syncJson(root);
       });
     }
+    applyDateLimits(rowEl);
   }
 
   function renumberRows(root) {
     root.querySelectorAll('[data-work-row]').forEach(function (el, i) {
       el.setAttribute('data-work-row', String(i));
-      var label = el.querySelector('.small.text-muted.fw-semibold');
-      if (label) label.textContent = 'Период #' + (i + 1);
+      var badge = el.querySelector('.admin-work-history-row__badge');
+      if (badge) badge.textContent = 'Период ' + (i + 1);
     });
   }
 
@@ -228,6 +270,9 @@
     var form = document.getElementById('adminDoctorMainForm');
     if (form) {
       form.addEventListener('submit', function () {
+        root.querySelectorAll('[data-work-row]').forEach(function (rowEl) {
+          applyDateLimits(rowEl);
+        });
         syncJson(root);
       });
     }

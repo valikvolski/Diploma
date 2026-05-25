@@ -15,10 +15,14 @@ const { maskPhoneForAdmin } = require('../utils/adminPhoneMask');
 const { insertAuditLog, ACTION: AUDIT_ACTION, maskEmailForAudit } = require('../utils/auditLog');
 const { getActivityEventLabel } = require('../utils/activityEventLabels');
 const {
+  validateWorkHistoryFromBody,
   parseWorkHistoryFromBody,
   loadDoctorWorkHistory,
   replaceDoctorWorkHistory,
   totalExperienceYears,
+  syncDoctorExperienceYears,
+  loadWorkHistoryMapForDoctors,
+  applyExperienceToDoctorRows,
 } = require('../utils/doctorWorkHistory');
 
 function wantsAdminAvatarJson(req) {
@@ -373,10 +377,15 @@ router.get('/doctors', ...adminOnly, async (req, res) => {
 
     const totalCount = countRes.rows[0] ? countRes.rows[0].cnt : 0;
     const pagination = buildPagination(totalCount, page, limit);
+    const historyMap = await loadWorkHistoryMapForDoctors(
+      pool,
+      result.rows.map((r) => r.id)
+    );
+    const doctors = applyExperienceToDoctorRows(result.rows, historyMap);
 
     res.render('admin/doctors', {
       title: 'Управление врачами — Админ-панель',
-      doctors: result.rows,
+      doctors,
       specializations: specsFilterRes.rows,
       filters,
       pagination,
@@ -425,6 +434,15 @@ router.post('/doctors', ...adminOnly, (req, res, next) => {
     const { email, password, first_name, last_name, middle_name, phone,
             cabinet, education, description, primary_specialization_id } = req.body;
     const specIds = parseSpecializationIds(req.body);
+    const workHistoryDateError = validateWorkHistoryFromBody(req.body);
+    if (workHistoryDateError) {
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      return res.redirect(newFormPath + '?error=' + encodeURIComponent(workHistoryDateError));
+    }
     const workHistoryEntries = parseWorkHistoryFromBody(req.body);
     const experienceYears = totalExperienceYears(workHistoryEntries);
 
@@ -559,11 +577,12 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
     const primaryRow = dsRes.rows.find((r) => r.is_primary);
     const primarySpecId = primaryRow ? primaryRow.specialization_id : dp.specialization_id;
     const workHistory = await loadDoctorWorkHistory(pool, resolvedDoctorId);
+    const computedExperience = await syncDoctorExperienceYears(pool, resolvedDoctorId);
     // Важно: id в шаблоне должен быть users.id (для action формы и проверок). Иначе doctor_profiles.id
     // перезапишет users.id и POST уйдёт на чужого врача → ложный «email занят» и редирект не туда.
     res.render('admin/doctor_form', {
       title: 'Редактировать врача — Админ-панель',
-      doctor: { ...u, ...dp, id: u.id, profile_id: dp.id },
+      doctor: { ...u, ...dp, id: u.id, profile_id: dp.id, experience_years: computedExperience },
       workHistory,
       doctorSpecIds,
       primarySpecId,

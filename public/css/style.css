@@ -5076,7 +5076,7 @@ html[data-theme="dark"] {
 }
 
 .admin-work-history-panel {
-  padding: 1rem 1.125rem;
+  padding: 0.85rem 1.125rem 1rem;
   border-radius: var(--radius-lg, 1rem);
   background: rgba(26, 110, 230, 0.04);
   border: 1px solid rgba(26, 110, 230, 0.1);
@@ -5235,25 +5235,20 @@ html[data-theme="dark"] {
 
 .admin-work-history-toolbar {
   border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
-  padding-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0 !important;
+}
+
+.admin-work-history-toolbar__main {
+  min-width: 0;
 }
 
 .admin-work-history-experience {
-  min-width: 5.5rem;
+  flex-shrink: 0;
 }
 
-.admin-work-history-experience .form-control {
-  width: 4.5rem;
-  font-weight: 600;
-  text-align: center;
-  background: var(--bs-body-bg);
-}
-
-.admin-work-history-panel--readonly {
-  background: var(--bs-tertiary-bg, #f8f9fa);
-  border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.06));
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
+.admin-work-history-experience {
+  white-space: nowrap;
 }
 
 .admin-doctor-cabinet-input .input-group-text {

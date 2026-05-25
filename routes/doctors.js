@@ -1,6 +1,11 @@
 const express = require('express');
 const { pool } = require('../db/db');
 const { bookingMaxDateYmd, bookingMinMonthKey, bookingMaxMonthKey } = require('../utils/bookingWindow');
+const {
+  loadWorkHistoryMapForDoctors,
+  applyExperienceToDoctorRows,
+  syncDoctorExperienceYears,
+} = require('../utils/doctorWorkHistory');
 
 const router = express.Router();
 
@@ -81,9 +86,15 @@ async function fetchCatalogPayload(filters, knownSpecIds, specNameById) {
     [...params, CATALOG_PAGE_SIZE, offset]
   );
 
+  const historyMap = await loadWorkHistoryMapForDoctors(
+    pool,
+    listRes.rows.map((d) => d.id)
+  );
+  const doctors = applyExperienceToDoctorRows(listRes.rows, historyMap);
+
   return {
     filters: normalized,
-    doctors: listRes.rows,
+    doctors,
     selectedSpecializationName:
       normalized.specialization_id !== ''
         ? (specNameById.get(Number(normalized.specialization_id)) || null)
@@ -201,9 +212,12 @@ router.get('/:id', async (req, res) => {
       return res.status(404).render('error', { message: 'Врач не найден' });
     }
 
+    const experienceYears = await syncDoctorExperienceYears(pool, doctorId);
+    const doctor = { ...result.rows[0], experience_years: experienceYears };
+
     res.render('doctors/detail', {
-      title: `${result.rows[0].last_name} ${result.rows[0].first_name} — Запись к врачу`,
-      doctor: result.rows[0],
+      title: `${doctor.last_name} ${doctor.first_name} — Запись к врачу`,
+      doctor,
       bookingMaxDate: bookingMaxDateYmd(),
       bookingMinMonth: bookingMinMonthKey(),
       bookingMaxMonth: bookingMaxMonthKey(),

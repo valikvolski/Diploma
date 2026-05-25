@@ -102,6 +102,9 @@ function normalizeEntry(raw) {
   if (!parseYmd(start)) return null;
   if (end && !parseYmd(end)) return null;
   if (end && parseYmd(end) < parseYmd(start)) return null;
+  const today = todayYmd();
+  if (start > today) return null;
+  if (end && end > today) return null;
   return {
     organization_name: org.slice(0, 200),
     start_date: start,
@@ -112,6 +115,37 @@ function normalizeEntry(raw) {
 /**
  * Парсинг из тела запроса (JSON или массивы полей формы).
  */
+/**
+ * @returns {string|null} сообщение об ошибке
+ */
+function validateWorkHistoryFromBody(body) {
+  if (!body || typeof body !== 'object') return null;
+  const today = todayYmd();
+  let items = [];
+
+  if (body.work_history_json) {
+    try {
+      const parsed = JSON.parse(String(body.work_history_json));
+      if (Array.isArray(parsed)) items = parsed;
+    } catch (_) {
+      return 'Некорректный формат истории работы';
+    }
+  }
+
+  for (const raw of items) {
+    const start = String(raw.start_date || '').trim();
+    const isCurrent =
+      raw.is_current === true || raw.is_current === '1' || raw.is_current === 'true';
+    let end = String(raw.end_date || '').trim();
+    if (isCurrent) end = '';
+    if (!start) continue;
+    if (start > today) return 'Дата начала работы не может быть в будущем';
+    if (end && end > today) return 'Дата окончания работы не может быть в будущем';
+    if (end && end < start) return 'Дата окончания не может быть раньше даты начала';
+  }
+  return null;
+}
+
 function parseWorkHistoryFromBody(body) {
   if (!body || typeof body !== 'object') return [];
 
@@ -171,6 +205,63 @@ async function loadDoctorWorkHistory(poolOrClient, doctorUserId) {
 /**
  * Заменить историю работы и обновить experience_years.
  */
+/**
+ * Стаж по истории работы (открытые периоды — до сегодня); иначе значение из профиля.
+ */
+function experienceYearsFromHistory(workHistoryRows, fallbackYears = 0, refDate = new Date()) {
+  if (!Array.isArray(workHistoryRows) || !workHistoryRows.length) {
+    return Math.max(0, parseInt(fallbackYears, 10) || 0);
+  }
+  const entries = workHistoryRows.map((r) => ({
+    start_date: r.start_date,
+    end_date: r.end_date || null,
+  }));
+  return totalExperienceYears(entries, refDate);
+}
+
+async function syncDoctorExperienceYears(poolOrClient, doctorUserId) {
+  const res = await poolOrClient.query(
+    `SELECT TO_CHAR(start_date, 'YYYY-MM-DD') AS start_date,
+            TO_CHAR(end_date, 'YYYY-MM-DD') AS end_date
+     FROM doctor_work_history
+     WHERE doctor_user_id = $1`,
+    [doctorUserId]
+  );
+  const years = experienceYearsFromHistory(res.rows, 0);
+  await poolOrClient.query('UPDATE doctor_profiles SET experience_years = $1 WHERE user_id = $2', [
+    years,
+    doctorUserId,
+  ]);
+  return years;
+}
+
+async function loadWorkHistoryMapForDoctors(poolOrClient, doctorUserIds) {
+  const ids = [...new Set((doctorUserIds || []).map((id) => parseInt(id, 10)).filter((id) => !isNaN(id)))];
+  const map = new Map();
+  if (!ids.length) return map;
+  const res = await poolOrClient.query(
+    `SELECT doctor_user_id,
+            TO_CHAR(start_date, 'YYYY-MM-DD') AS start_date,
+            TO_CHAR(end_date, 'YYYY-MM-DD') AS end_date
+     FROM doctor_work_history
+     WHERE doctor_user_id = ANY($1::int[])`,
+    [ids]
+  );
+  for (const row of res.rows) {
+    const uid = row.doctor_user_id;
+    if (!map.has(uid)) map.set(uid, []);
+    map.get(uid).push(row);
+  }
+  return map;
+}
+
+function applyExperienceToDoctorRows(doctors, historyMap) {
+  return (doctors || []).map((d) => ({
+    ...d,
+    experience_years: experienceYearsFromHistory(historyMap.get(d.id) || [], d.experience_years),
+  }));
+}
+
 async function replaceDoctorWorkHistory(client, doctorUserId, entries) {
   const normalized = (entries || []).map(normalizeEntry).filter(Boolean);
   const years = totalExperienceYears(normalized);
@@ -198,9 +289,14 @@ module.exports = {
   todayYmd,
   periodMonths,
   totalExperienceYears,
+  experienceYearsFromHistory,
+  syncDoctorExperienceYears,
+  loadWorkHistoryMapForDoctors,
+  applyExperienceToDoctorRows,
   formatDurationRu,
   formatPeriodRu,
   formatMonthYearRu,
+  validateWorkHistoryFromBody,
   parseWorkHistoryFromBody,
   loadDoctorWorkHistory,
   replaceDoctorWorkHistory,
