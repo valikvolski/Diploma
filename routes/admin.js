@@ -1346,7 +1346,7 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
         ? `SELECT 'appointment'::text AS kind,
                   (CASE
                      WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
-                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
+                     ELSE COALESCE(a.updated_at, a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
                    END) AS at,
                   (CASE
                      WHEN a.status = 'booked' THEN 'Создана запись'
@@ -1359,21 +1359,18 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
                     TRIM(CONCAT(
                       p.last_name, ' ', p.first_name,
                       CASE WHEN p.middle_name IS NOT NULL AND p.middle_name <> '' THEN CONCAT(' ', p.middle_name) ELSE '' END
-                    )),
-                    ' · ',
-                    TO_CHAR(a.appointment_date, 'DD.MM.YYYY'),
-                    ' ',
-                    TO_CHAR(a.appointment_time, 'HH24:MI')
+                    ))
                   )::text AS meta,
                   NULL::text AS old_value,
-                  NULL::text AS new_value
+                  NULL::text AS new_value,
+                  ('запись на ' || TO_CHAR(a.appointment_date, 'DD.MM.YYYY') || ', ' || TO_CHAR(a.appointment_time, 'HH24:MI'))::text AS slot_ref
            FROM appointments a
            JOIN users p ON p.id = a.patient_id
            WHERE a.doctor_id = $1`
         : `SELECT 'appointment'::text AS kind,
                   (CASE
                      WHEN a.status = 'booked' THEN COALESCE(a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
-                     ELSE (a.appointment_date + a.appointment_time)::timestamptz
+                     ELSE COALESCE(a.updated_at, a.created_at::timestamptz, (a.appointment_date + a.appointment_time)::timestamptz)
                    END) AS at,
                   (CASE
                      WHEN a.status = 'booked' THEN 'Создана запись'
@@ -1387,14 +1384,11 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
                       d.last_name, ' ', d.first_name,
                       CASE WHEN d.middle_name IS NOT NULL AND d.middle_name <> '' THEN CONCAT(' ', d.middle_name) ELSE '' END
                     )),
-                    ' · ',
-                    TO_CHAR(a.appointment_date, 'DD.MM.YYYY'),
-                    ' ',
-                    TO_CHAR(a.appointment_time, 'HH24:MI'),
                     CASE WHEN s.name IS NOT NULL THEN CONCAT(' · ', s.name) ELSE '' END
                   )::text AS meta,
                   NULL::text AS old_value,
-                  NULL::text AS new_value
+                  NULL::text AS new_value,
+                  ('запись на ' || TO_CHAR(a.appointment_date, 'DD.MM.YYYY') || ', ' || TO_CHAR(a.appointment_time, 'HH24:MI'))::text AS slot_ref
            FROM appointments a
            JOIN users d ON d.id = a.doctor_id
            LEFT JOIN doctor_specializations dsp ON dsp.doctor_user_id = d.id AND dsp.is_primary = TRUE
@@ -1407,14 +1401,16 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
                   'Регистрация аккаунта'::text AS title,
                   NULL::text AS meta,
                   NULL::text AS old_value,
-                  NULL::text AS new_value
+                  NULL::text AS new_value,
+                  NULL::text AS slot_ref
            FROM users u WHERE u.id = $1
            UNION ALL
            SELECT 'audit'::text AS kind, al.created_at AS at,
                   al.action_type::text AS title,
                   NULL::text AS meta,
                   al.old_value::text AS old_value,
-                  al.new_value::text AS new_value
+                  al.new_value::text AS new_value,
+                  NULL::text AS slot_ref
            FROM audit_logs al WHERE al.user_id = $1
            UNION ALL
            ${appointmentEventsSql}
@@ -1431,19 +1427,21 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
                   'Регистрация аккаунта'::text AS title,
                   NULL::text AS meta,
                   NULL::text AS old_value,
-                  NULL::text AS new_value
+                  NULL::text AS new_value,
+                  NULL::text AS slot_ref
            FROM users u WHERE u.id = $1
            UNION ALL
            SELECT 'audit'::text AS kind, al.created_at AS at,
                   al.action_type::text AS title,
                   NULL::text AS meta,
                   al.old_value::text AS old_value,
-                  al.new_value::text AS new_value
+                  al.new_value::text AS new_value,
+                  NULL::text AS slot_ref
            FROM audit_logs al WHERE al.user_id = $1
            UNION ALL
            ${appointmentEventsSql}
          )
-         SELECT kind, at, title, meta, old_value, new_value
+         SELECT kind, at, title, meta, old_value, new_value, slot_ref
          FROM events
          ORDER BY at DESC NULLS LAST
          LIMIT $2 OFFSET $3`,

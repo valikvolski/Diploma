@@ -137,8 +137,8 @@ router.post(
       try {
         await client.query('BEGIN');
         const apptRes = await client.query(
-          `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status)
-           VALUES ($1, $2, $3, $4, 'booked')
+          `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status, updated_at)
+           VALUES ($1, $2, $3, $4, 'booked', NOW())
            RETURNING id`,
           [patientId, doctor_id, date, time]
         );

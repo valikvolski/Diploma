@@ -1,0 +1,74 @@
+<mxfile host="app.diagrams.net" modified="2026-05-20T07:50:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="slotAlgorithm" name="Алгоритм слотов">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="start" value="Старт: выбран врач и дата" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="640" y="20" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="pastDate" value="Дата &lt; сегодня?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="650" y="120" width="160" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="empty1" value="Вернуть пустой список" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="980" y="140" width="180" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="schedule" value="Получить базовое расписание&#xa;(schedules по DOW выбранной даты)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="580" y="260" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="exception" value="Проверить schedule_exceptions&#xa;(последнее перекрывающее исключение)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="580" y="360" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="dayoff" value="Исключение = нерабочий день?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="650" y="460" width="160" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="mergeWindow" value="Определить рабочие границы:&#xa;start_time, end_time, slot_duration&#xa;(с учётом override из exception)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="560" y="600" width="340" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="validWindow" value="Есть валидные start/end?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="650" y="720" width="160" height="100" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="generate" value="Сгенерировать allSlots&#xa;по slot_duration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="600" y="860" width="260" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="booked" value="Получить занятые времена&#xa;appointments со статусом&#xa;booked/completed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="600" y="960" width="260" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="filterBooked" value="freeSlots = allSlots - bookedSet" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1080" width="260" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="today" value="Дата = сегодня?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="650" y="1170" width="160" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="timeFilter" value="Удалить слоты&#xa;со временем &lt;= now" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="600" y="1310" width="260" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="result" value="Вернуть freeSlots" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="640" y="1420" width="180" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" edge="1" parent="1" source="start" target="pastDate" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="Да" edge="1" parent="1" source="pastDate" target="empty1" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="Нет" edge="1" parent="1" source="pastDate" target="schedule" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="schedule" target="exception" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="exception" target="dayoff" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" value="Да" edge="1" parent="1" source="dayoff" target="empty1" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" value="Нет" edge="1" parent="1" source="dayoff" target="mergeWindow" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="mergeWindow" target="validWindow" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="Нет" edge="1" parent="1" source="validWindow" target="empty1" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" value="Да" edge="1" parent="1" source="validWindow" target="generate" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="generate" target="booked" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="booked" target="filterBooked" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="filterBooked" target="today" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" value="Да" edge="1" parent="1" source="today" target="timeFilter" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e15" value="Нет" edge="1" parent="1" source="today" target="result" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="timeFilter" target="result" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="empty1" target="result" style="endArrow=block;html=1;dashed=1;strokeColor=#b85450;"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

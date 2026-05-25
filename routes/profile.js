@@ -278,7 +278,7 @@ router.post('/appointments/:id/cancel', ...patientOnly, async (req, res) => {
     }
 
     await pool.query(
-      "UPDATE appointments SET status = 'cancelled' WHERE id = $1",
+      "UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1",
       [appointmentId]
     );
 

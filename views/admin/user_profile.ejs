@@ -359,6 +359,9 @@
                       <div>
                         <div class="fw-semibold"><%= eventTitle(e) %></div>
                         <div class="small text-muted"><%= fmtDt(e.at) %></div>
+                        <% if (e.kind === 'appointment' && e.slot_ref) { %>
+                          <div class="small text-muted mt-1">(<%= e.slot_ref %>)</div>
+                        <% } %>
                       </div>
                       <span class="badge bg-light text-muted border"><%= (e.kind || '').toString() %></span>
                     </div>

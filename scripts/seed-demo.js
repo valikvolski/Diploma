@@ -566,8 +566,8 @@ async function createAppointmentsTicketsNotifications(client, doctorIds, patient
 
     const createdAt = randomCreatedAtForAppointment(status, apptDateObj);
     const apptIns = await client.query(
-      `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $6)
        RETURNING id`,
       [patientId, doctorId, dateStr, `${hhmm}:00`, status, createdAt]
     );

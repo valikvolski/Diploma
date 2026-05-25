@@ -341,7 +341,11 @@ router.get('/patients', ...docOnly, async (req, res) => {
          a.id AS appointment_id,
          TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
          a.status,
-         p.last_name, p.first_name, p.middle_name, p.phone
+         p.last_name, p.first_name, p.middle_name, p.phone,
+         (
+           a.appointment_date < CURRENT_DATE
+           OR (a.appointment_date = CURRENT_DATE AND a.appointment_time <= CURRENT_TIME)
+         ) AS can_complete_now
        FROM appointments a
        JOIN users p ON a.patient_id = p.id
        WHERE a.doctor_id = $1 AND a.appointment_date = $2
@@ -368,9 +372,18 @@ router.get('/patients', ...docOnly, async (req, res) => {
 router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
   const { status, redirect_date } = req.body;
   const apptId = parseInt(req.params.id, 10);
+  const dateParam = redirect_date || new Date().toISOString().split('T')[0];
 
-  if (!['completed', 'cancelled'].includes(status)) {
-    return res.redirect('/doctor/patients?error=' + encodeURIComponent('Недопустимый статус'));
+  if (status === 'cancelled') {
+    return res.redirect(
+      `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Врач не может отменять записи пациентов.')
+    );
+  }
+
+  if (status !== 'completed') {
+    return res.redirect(
+      `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Недопустимый статус')
+    );
   }
 
   try {
@@ -392,27 +405,34 @@ router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
       return res.status(403).render('error', { message: 'Доступ запрещён' });
     }
     const appt = check.rows[0];
-    if (status === 'completed' && !appt.can_complete_now) {
-      const dateParam = redirect_date || new Date().toISOString().split('T')[0];
+    if (!appt.can_complete_now) {
       return res.redirect(
-        `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Нельзя принять талон раньше времени приёма.')
+        `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Нельзя завершить приём до наступления времени записи.')
       );
     }
 
-    await pool.query('UPDATE appointments SET status = $1 WHERE id = $2', [status, apptId]);
-
-    if (status === 'cancelled') {
-      await notifyAppointmentCancelled(apptId, {
-        mode: 'manual',
-        reason: 'Запись отменена врачом',
-      });
+    if (appt.current_status !== 'booked') {
+      return res.redirect(
+        `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Эту запись нельзя изменить.')
+      );
     }
 
-    const dateParam = redirect_date || new Date().toISOString().split('T')[0];
+    const up = await pool.query(
+      `UPDATE appointments SET status = $1, updated_at = NOW() WHERE id = $2 AND doctor_id = $3 AND status = 'booked'`,
+      ['completed', apptId, req.user.id]
+    );
+    if (up.rowCount === 0) {
+      return res.redirect(
+        `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Запись уже изменена или недоступна.')
+      );
+    }
+
     res.redirect(`/doctor/patients?date=${dateParam}&success=` + encodeURIComponent('Статус обновлён'));
   } catch (err) {
     console.error('Status update error:', err);
-    res.redirect('/doctor/patients?error=' + encodeURIComponent('Ошибка обновления'));
+    res.redirect(
+      `/doctor/patients?date=${dateParam}&error=` + encodeURIComponent('Ошибка обновления')
+    );
   }
 });
 
