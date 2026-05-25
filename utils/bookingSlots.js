@@ -57,9 +57,11 @@ function currentLocalTimeMinutes() {
 /**
  * Свободные слоты на дату (пустой массив если нет расписания / исключение / прошлое).
  */
+const { bookingMaxDateYmd, isMonthInBookingWindow } = require('./bookingWindow');
+
 async function getFreeSlotsForDate(pool, doctorId, dateStr, todayYmd = null) {
   const today = todayYmd || todayLocalYmd();
-  if (dateStr < today) return [];
+  if (dateStr < today || dateStr > bookingMaxDateYmd()) return [];
 
   const scheduleRes = await pool.query(
     `SELECT start_time, end_time, slot_duration
@@ -133,6 +135,7 @@ function invalidateDoctorAvailabilityCache(doctorId, appointmentDateYmd) {
  */
 async function getMonthAvailabilityMap(pool, doctorId, yearMonth, { bypassCache = false } = {}) {
   if (!/^\d{4}-\d{2}$/.test(yearMonth)) return {};
+  if (!isMonthInBookingWindow(yearMonth)) return {};
 
   const key = cacheKey(doctorId, yearMonth);
   if (!bypassCache) {
@@ -149,6 +152,7 @@ async function getMonthAvailabilityMap(pool, doctorId, yearMonth, { bypassCache 
   const rangeStart = `${yearMonth}-01`;
   const rangeEnd = `${yearMonth}-${String(dim).padStart(2, '0')}`;
   const today = todayLocalYmd();
+  const maxDate = bookingMaxDateYmd();
 
   const [schedulesRes, exceptionsRes, bookedRes] = await Promise.all([
     pool.query(
@@ -205,7 +209,7 @@ async function getMonthAvailabilityMap(pool, doctorId, yearMonth, { bypassCache 
   const out = {};
   for (let day = 1; day <= dim; day++) {
     const ds = ymd(year, month, day);
-    if (ds < today) {
+    if (ds < today || ds > maxDate) {
       out[ds] = 0;
       continue;
     }

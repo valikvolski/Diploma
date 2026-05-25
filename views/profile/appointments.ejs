@@ -111,6 +111,8 @@ function pastPageUrl(pg) {
                       <i class="bi bi-ticket-perforated me-1"></i>Талон
                     </a>
                   <% } %>
+                  <% var canCancel = a.can_cancel === true || a.can_cancel === 't'; %>
+                  <% if (canCancel) { %>
                   <button
                     type="button"
                     class="btn btn-outline-danger btn-sm cancel-btn"
@@ -121,6 +123,7 @@ function pastPageUrl(pg) {
                   >
                     <i class="bi bi-x-lg me-1"></i>Отменить
                   </button>
+                  <% } %>
                 </div>
               </div>
             </div>

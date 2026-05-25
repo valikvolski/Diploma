@@ -105,6 +105,7 @@ function experienceLabel(n) {
           <label class="form-label fw-semibold d-block">
             <i class="bi bi-calendar3 me-1 text-primary"></i>Выберите дату
           </label>
+          <p class="small text-muted mb-2">Запись доступна на текущий месяц и два следующих (до <%= typeof bookingMaxDate !== 'undefined' ? bookingMaxDate.split('-').reverse().join('.') : '' %>).</p>
           <div class="booking-cal-shell w-100">
             <div class="booking-cal card border-0 shadow-sm app-card">
               <div class="card-body p-3 p-md-4">
@@ -320,8 +321,9 @@ function experienceLabel(n) {
       const dayNum = i - startPad + 1;
       const ds = toYmd(calYear, calMonth, dayNum);
       const isPast = ds < today;
+      const isBeyond = BOOKING_MAX_YMD && ds > BOOKING_MAX_YMD;
       const count = Object.prototype.hasOwnProperty.call(avail, ds) ? avail[ds] : 0;
-      const clickable = !isPast && count > 0;
+      const clickable = !isPast && !isBeyond && count > 0;
 
       cell.className = cellClass(count, isPast);
       cell.disabled = !clickable;
@@ -352,8 +354,10 @@ function experienceLabel(n) {
   }
 
   async function showMonth(y, m1) {
+    if (!canShowMonth(y, m1)) return;
     calYear = y;
     calMonth = m1;
+    syncNavButtons();
     renderSkeletonCalendar();
     if (bcalViewport) bcalViewport.classList.add('is-loading');
     bcalLoading.classList.remove('d-none');
@@ -438,6 +442,32 @@ function experienceLabel(n) {
     });
   }
 
+  const BOOKING_MIN_MONTH = '<%= typeof bookingMinMonth !== "undefined" ? bookingMinMonth : "" %>';
+  const BOOKING_MAX_MONTH = '<%= typeof bookingMaxMonth !== "undefined" ? bookingMaxMonth : "" %>';
+  const BOOKING_MAX_YMD = '<%= typeof bookingMaxDate !== "undefined" ? bookingMaxDate : "" %>';
+
+  function monthKey(y, m1) { return y + '-' + pad2(m1); }
+
+  function monthIndex(key) {
+    if (!/^\d{4}-\d{2}$/.test(key)) return 0;
+    const p = key.split('-').map(Number);
+    return p[0] * 12 + (p[1] - 1);
+  }
+
+  function canShowMonth(y, m1) {
+    const k = monthKey(y, m1);
+    if (BOOKING_MIN_MONTH && k < BOOKING_MIN_MONTH) return false;
+    if (BOOKING_MAX_MONTH && k > BOOKING_MAX_MONTH) return false;
+    return true;
+  }
+
+  function syncNavButtons() {
+    const prevKey = monthKey(calMonth === 1 ? calYear - 1 : calYear, calMonth === 1 ? 12 : calMonth - 1);
+    const nextKey = monthKey(calMonth === 12 ? calYear + 1 : calYear, calMonth === 12 ? 1 : calMonth + 1);
+    bcalPrev.disabled = BOOKING_MIN_MONTH ? monthIndex(prevKey) < monthIndex(BOOKING_MIN_MONTH) : false;
+    bcalNext.disabled = BOOKING_MAX_MONTH ? monthIndex(nextKey) > monthIndex(BOOKING_MAX_MONTH) : false;
+  }
+
   const now = new Date();
   calYear = now.getFullYear();
   calMonth = now.getMonth() + 1;
@@ -447,17 +477,22 @@ function experienceLabel(n) {
     e.stopPropagation();
     calMonth--;
     if (calMonth < 1) { calMonth = 12; calYear--; }
+    if (!canShowMonth(calYear, calMonth)) return;
     showMonth(calYear, calMonth);
+    syncNavButtons();
   });
   bcalNext.addEventListener('click', function (e) {
     e.preventDefault();
     e.stopPropagation();
     calMonth++;
     if (calMonth > 12) { calMonth = 1; calYear++; }
+    if (!canShowMonth(calYear, calMonth)) return;
     showMonth(calYear, calMonth);
+    syncNavButtons();
   });
 
   showMonth(calYear, calMonth);
+  syncNavButtons();
 
   document.getElementById('bookingForm').addEventListener('submit', function () {
     availabilityCache = {};

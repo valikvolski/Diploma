@@ -13,6 +13,11 @@ const {
   timeToMinutes,
   currentLocalTimeMinutes,
 } = require('../utils/bookingSlots');
+const {
+  bookingMaxDateYmd,
+  isDateInBookingWindow,
+  isMonthInBookingWindow,
+} = require('../utils/bookingWindow');
 
 const router = express.Router();
 
@@ -30,7 +35,7 @@ router.get('/api/doctors/:id/slots', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Неверные параметры запроса', errors: {} });
   }
 
-  if (date < todayLocalYmd()) {
+  if (!isDateInBookingWindow(date)) {
     return res.json({ success: true, slots: [] });
   }
 
@@ -53,8 +58,11 @@ router.get('/api/doctors/:id/availability', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Укажите month=YYYY-MM', errors: {} });
   }
 
+  if (!isMonthInBookingWindow(month)) {
+    return res.json({ success: true, availability: {} });
+  }
+
   try {
-    // Не делаем 404: страница врача уже проверена; здесь только расчёт (как у /slots)
     const availability = await getMonthAvailabilityMap(pool, doctorId, month);
     res.json({ success: true, availability });
   } catch (err) {
@@ -77,8 +85,10 @@ router.post(
       return res.status(400).render('error', { message: 'Некорректные данные для записи' });
     }
 
-    if (date < todayLocalYmd()) {
-      return res.status(400).render('error', { message: 'Нельзя записаться на прошедшую дату' });
+    if (!isDateInBookingWindow(date)) {
+      return res.status(400).render('error', {
+        message: `Запись доступна только до ${bookingMaxDateYmd().split('-').reverse().join('.')} (текущий месяц и два следующих).`,
+      });
     }
     if (date === todayLocalYmd() && timeToMinutes(time) <= currentLocalTimeMinutes()) {
       return res.status(409).render('error', { message: 'Нельзя записаться на прошедшее время.' });

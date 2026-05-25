@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../db/db');
+const { bookingMaxDateYmd, bookingMinMonthKey, bookingMaxMonthKey } = require('../utils/bookingWindow');
 
 const router = express.Router();
 
@@ -203,6 +204,9 @@ router.get('/:id', async (req, res) => {
     res.render('doctors/detail', {
       title: `${result.rows[0].last_name} ${result.rows[0].first_name} — Запись к врачу`,
       doctor: result.rows[0],
+      bookingMaxDate: bookingMaxDateYmd(),
+      bookingMinMonth: bookingMinMonthKey(),
+      bookingMaxMonth: bookingMaxMonthKey(),
     });
   } catch (err) {
     console.error('Doctor detail error:', err);

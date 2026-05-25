@@ -106,6 +106,9 @@ router.get('/appointments', ...patientOnly, async (req, res) => {
          TO_CHAR(a.appointment_date, 'YYYY-MM-DD') AS appointment_date,
          TO_CHAR(a.appointment_time, 'HH24:MI') AS appointment_time,
          a.status,
+         (
+           (a.appointment_date::timestamp + a.appointment_time) > NOW()
+         ) AS can_cancel,
          d.id AS doctor_id,
          d.last_name AS doctor_last_name,
          d.first_name AS doctor_first_name,
@@ -118,7 +121,7 @@ router.get('/appointments', ...patientOnly, async (req, res) => {
        ${commonFromSql}
        WHERE a.patient_id = $1
          AND a.status = 'booked'
-         AND a.appointment_date >= CURRENT_DATE
+         AND (a.appointment_date::timestamp + a.appointment_time) > NOW()
        ORDER BY a.appointment_date ASC, a.appointment_time ASC`,
       [req.user.id]
     );
@@ -250,7 +253,16 @@ router.post('/appointments/:id/cancel', ...patientOnly, async (req, res) => {
 
   try {
     const check = await pool.query(
-      `SELECT id, patient_id, appointment_date, status
+      `SELECT
+         id,
+         patient_id,
+         appointment_date,
+         appointment_time,
+         status,
+         (
+           status = 'booked'
+           AND (appointment_date::timestamp + appointment_time) > NOW()
+         ) AS can_cancel
        FROM appointments WHERE id = $1`,
       [appointmentId]
     );
@@ -269,12 +281,11 @@ router.post('/appointments/:id/cancel', ...patientOnly, async (req, res) => {
       return res.redirect('/profile/appointments?error=' + encodeURIComponent('Эту запись нельзя отменить'));
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const apptDate = new Date(appt.appointment_date);
-    apptDate.setHours(0, 0, 0, 0);
-    if (apptDate < today) {
-      return res.redirect('/profile/appointments?error=' + encodeURIComponent('Нельзя отменить прошедшую запись'));
+    if (!appt.can_cancel) {
+      return res.redirect(
+        '/profile/appointments?error=' +
+          encodeURIComponent('Нельзя отменить запись после наступления времени приёма.')
+      );
     }
 
     await pool.query(

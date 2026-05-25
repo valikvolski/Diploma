@@ -10,6 +10,7 @@
     "dev": "nodemon server.js",
     "reminders": "node scripts/send-appointment-reminders.js",
     "seed:demo": "node scripts/seed-demo.js",
+    "db:cleanup": "node scripts/cleanup-db-sanity.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
