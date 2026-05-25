@@ -94,6 +94,9 @@
     var toggleAllBtn = document.getElementById('catalog-toggle-all-specs');
     var searchForm = document.getElementById('catalog-search-form');
     var searchInput = document.getElementById('catalog-search');
+    var specSearchInput = document.getElementById('catalog-spec-search');
+    var specEmptyEl = document.getElementById('catalog-spec-empty');
+    var allSpecs = Array.isArray(window.__DOCTORS_CATALOG_SPECS__) ? window.__DOCTORS_CATALOG_SPECS__ : [];
     if (!grid || !loadMoreBtn || !specList || !specRoot || !searchForm || !searchInput) return;
 
     var specsExpanded = specListWrap && specListWrap.classList.contains('is-expanded');
@@ -115,12 +118,23 @@
       return tops;
     }
 
+    function specSearchQuery() {
+      return specSearchInput ? String(specSearchInput.value || '').trim().toLowerCase() : '';
+    }
+
+    function isSpecChipSearchVisible(el) {
+      return el && !el.classList.contains('catalog-spec-search-hidden');
+    }
+
     function applyTwoRowsClamp() {
       if (!specList) return;
       var chips = Array.from(specList.querySelectorAll('.js-spec-filter'));
       chips.forEach(function (el) {
-        el.classList.remove('catalog-spec-item-hidden');
+        el.classList.remove('catalog-spec-clamp-hidden');
       });
+
+      var query = specSearchQuery();
+      if (query) return;
       if (!toggleAllBtn) return;
       if (specsExpanded) return;
       if (!chips.length) return;
@@ -128,11 +142,13 @@
       var guard = 0;
       while (guard < chips.length + 5) {
         guard += 1;
-        var visibleChips = chips.filter(function (el) { return !el.classList.contains('catalog-spec-item-hidden'); });
+        var visibleChips = chips.filter(function (el) {
+          return isSpecChipSearchVisible(el) && !el.classList.contains('catalog-spec-clamp-hidden');
+        });
         var rows = rowTopsFor(visibleChips.concat([toggleAllBtn]));
         if (rows.length <= 2) break;
         if (!visibleChips.length) break;
-        visibleChips[visibleChips.length - 1].classList.add('catalog-spec-item-hidden');
+        visibleChips[visibleChips.length - 1].classList.add('catalog-spec-clamp-hidden');
       }
     }
 
@@ -159,6 +175,62 @@
         a.classList.toggle('btn-primary', active);
         a.classList.toggle('btn-outline-primary', !active);
       });
+    }
+
+    function specNameById(specId) {
+      if (!specId) return '';
+      var found = allSpecs.find(function (s) { return String(s.id) === String(specId); });
+      return found ? String(found.name || '') : '';
+    }
+
+    function filterSpecChips() {
+      if (!specList) return;
+      var query = specSearchQuery();
+      var hasQuery = query.length > 0;
+      var chips = specList.querySelectorAll('.js-spec-filter');
+      var matchedSpecCount = 0;
+
+      if (specListWrap) {
+        specListWrap.classList.toggle('is-search-active', hasQuery);
+        if (hasQuery) specListWrap.classList.add('is-expanded');
+      }
+      if (toggleAllBtn) {
+        toggleAllBtn.classList.toggle('catalog-spec-search-hidden', hasQuery);
+      }
+
+      chips.forEach(function (chip) {
+        chip.classList.remove('catalog-spec-clamp-hidden');
+        var id = String(chip.getAttribute('data-spec-id') || '');
+        if (id === '') {
+          chip.classList.toggle('catalog-spec-search-hidden', hasQuery);
+          return;
+        }
+        var name = String(chip.getAttribute('data-spec-name') || '').trim().toLowerCase();
+        if (!name) {
+          var raw = chip.textContent || '';
+          name = raw.replace(/\s*\(\d+\)\s*$/, '').trim().toLowerCase();
+        }
+        var match = !hasQuery || name.indexOf(query) >= 0;
+        chip.classList.toggle('catalog-spec-search-hidden', !match);
+        if (match) matchedSpecCount += 1;
+      });
+
+      if (specEmptyEl) {
+        var showEmpty = hasQuery && matchedSpecCount === 0;
+        specEmptyEl.classList.toggle('d-none', !showEmpty);
+      }
+
+      if (!hasQuery) {
+        applyTwoRowsClamp();
+      }
+    }
+
+    function applySpecializationFilter(specId) {
+      state.specialization_id = String(specId || '');
+      state.selectedSpecializationName = specNameById(state.specialization_id);
+      state.page = 1;
+      setSpecActive(state.specialization_id);
+      loadDoctors({ page: 1, append: false });
     }
 
     function buildQuery(nextPage) {
@@ -255,10 +327,13 @@
       var a = e.target.closest('.js-spec-filter');
       if (!a) return;
       e.preventDefault();
-      state.specialization_id = String(a.getAttribute('data-spec-id') || '');
-      state.page = 1;
-      loadDoctors({ page: 1, append: false });
+      applySpecializationFilter(String(a.getAttribute('data-spec-id') || ''));
     });
+
+    if (specSearchInput) {
+      specSearchInput.addEventListener('input', filterSpecChips);
+      filterSpecChips();
+    }
 
     var searchTimer = null;
     searchInput.addEventListener('input', function () {
@@ -286,9 +361,12 @@
       var params = new URLSearchParams(window.location.search || '');
       state.search = String(params.get('search') || '');
       state.specialization_id = String(params.get('specialization_id') || '');
+      state.selectedSpecializationName = specNameById(state.specialization_id);
       var p = parseInt(params.get('page'), 10);
       state.page = Number.isFinite(p) && p > 0 ? p : 1;
       searchInput.value = state.search;
+      setSpecActive(state.specialization_id);
+      filterSpecChips();
       loadDoctors({ page: state.page, append: false });
     });
 

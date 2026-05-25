@@ -5020,8 +5020,52 @@ html[data-theme="dark"] {
   box-shadow: 0 .5rem 1rem rgba(15, 23, 42, 0.12) !important;
 }
 
-.catalog-spec-item-hidden {
+.catalog-spec-item-hidden,
+.catalog-spec-search-hidden,
+.catalog-spec-clamp-hidden {
   display: none !important;
+}
+
+.catalog-spec-toolbar {
+  row-gap: 0.5rem;
+}
+
+.catalog-spec-search-wrap .input-group-text {
+  background: var(--bs-body-bg, #fff);
+}
+
+.admin-profile-appt-list {
+  margin-bottom: 0;
+}
+
+.admin-pagination-wrap--compact {
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 0.5rem !important;
+}
+
+.admin-pagination-wrap--compact .pagination {
+  --bs-pagination-padding-y: 0.2rem;
+  --bs-pagination-padding-x: 0.45rem;
+  --bs-pagination-font-size: 0.75rem;
+}
+
+.admin-pagination-jump-input {
+  width: 3.25rem;
+  min-height: 1.65rem;
+  padding: 0.15rem 0.35rem;
+  text-align: center;
+}
+
+.admin-pagination-jump-btn {
+  min-width: 1.65rem;
+  line-height: 1.2;
+}
+
+.admin-pagination-jump-item .page-link {
+  border: none;
+  background: transparent;
+  padding: 0;
 }
 
 .js-spec-toggle-chip {

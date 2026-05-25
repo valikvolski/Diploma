@@ -13,6 +13,14 @@ const {
 const { normalizeBelarusPhone } = require('../utils/patientPhone');
 const { maskPhoneForAdmin } = require('../utils/adminPhoneMask');
 const { insertAuditLog, ACTION: AUDIT_ACTION, maskEmailForAudit } = require('../utils/auditLog');
+const { getActivityEventLabel } = require('../utils/activityEventLabels');
+
+function wantsAdminAvatarJson(req) {
+  return (
+    req.get('X-Requested-With') === 'XMLHttpRequest' ||
+    (req.get('Accept') || '').includes('application/json')
+  );
+}
 
 function parseSpecializationIds(body) {
   const raw =
@@ -400,64 +408,111 @@ router.get('/doctors/new', ...adminOnly, async (req, res) => {
 
 // ─── POST /admin/doctors ─────────────────────────────────────────────────────
 
-router.post('/doctors', ...adminOnly, async (req, res) => {
-  const { email, password, first_name, last_name, middle_name, phone,
-          cabinet, experience_years, education, description, primary_specialization_id } = req.body;
-  const specIds = parseSpecializationIds(req.body);
+router.post('/doctors', ...adminOnly, (req, res, next) => {
+  const newFormPath = '/admin/doctors/new';
+  uploadAvatar(req, res, async (err) => {
+    if (redirectMulterAvatarError(err, res, newFormPath)) return;
+    if (err) return next(err);
 
-  if (!email || !password || !first_name || !last_name) {
-    return res.redirect('/admin/doctors?error=' + encodeURIComponent('Заполните обязательные поля'));
-  }
+    const { email, password, first_name, last_name, middle_name, phone,
+            cabinet, experience_years, education, description, primary_specialization_id } = req.body;
+    const specIds = parseSpecializationIds(req.body);
 
-  const phoneNormCreate = normalizeBelarusPhone(phone);
-  if (!phoneNormCreate) {
-    return res.redirect(
-      '/admin/doctors/new?error=' + encodeURIComponent('Неверный формат телефона. Укажите номер с кодом страны.')
-    );
-  }
-
-  try {
-    const allSpecs = await loadSpecsForForms(pool);
-    const v = validateSpecializationSet(specIds, allSpecs);
-    if (!v.ok) {
-      return res.redirect('/admin/doctors?error=' + encodeURIComponent(v.message));
-    }
-    const { primary } = resolvePrimarySpecializationId(specIds, primary_specialization_id);
-
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
-    if (exists.rows.length > 0) {
-      return res.redirect('/admin/doctors?error=' + encodeURIComponent('Пользователь с таким email уже существует'));
+    if (!email || !password || !first_name || !last_name) {
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      return res.redirect(newFormPath + '?error=' + encodeURIComponent('Заполните обязательные поля'));
     }
 
-    const hash = await bcrypt.hash(password, SALT_ROUNDS);
-    const client = await pool.connect();
+    const phoneNormCreate = normalizeBelarusPhone(phone);
+    if (!phoneNormCreate) {
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      return res.redirect(
+        newFormPath + '?error=' + encodeURIComponent('Неверный формат телефона. Укажите номер с кодом страны.')
+      );
+    }
+
     try {
-      await client.query('BEGIN');
-      const userRes = await client.query(
-        `INSERT INTO users (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked)
-         VALUES ($1, $2, $3, $4, $5, $6, 'doctor', false) RETURNING id`,
-        [email.toLowerCase().trim(), hash, first_name.trim(), last_name.trim(), (middle_name || '').trim(), phoneNormCreate]
-      );
-      const uid = userRes.rows[0].id;
-      await client.query(
-        `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [uid, primary, cabinet || null, parseInt(experience_years) || 0, education || null, description || null]
-      );
-      await replaceDoctorSpecializations(client, uid, specIds, primary);
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
-    }
+      const allSpecs = await loadSpecsForForms(pool);
+      const v = validateSpecializationSet(specIds, allSpecs);
+      if (!v.ok) {
+        if (req.file?.path) {
+          try {
+            await fs.unlink(req.file.path);
+          } catch (_) {}
+        }
+        return res.redirect(newFormPath + '?error=' + encodeURIComponent(v.message));
+      }
+      const { primary } = resolvePrimarySpecializationId(specIds, primary_specialization_id);
 
-    res.redirect('/admin/doctors?success=' + encodeURIComponent('Врач добавлен'));
-  } catch (err) {
-    console.error('Create doctor error:', err);
-    res.redirect('/admin/doctors?error=' + encodeURIComponent('Ошибка создания'));
-  }
+      const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
+      if (exists.rows.length > 0) {
+        if (req.file?.path) {
+          try {
+            await fs.unlink(req.file.path);
+          } catch (_) {}
+        }
+        return res.redirect(newFormPath + '?error=' + encodeURIComponent('Пользователь с таким email уже существует'));
+      }
+
+      const hash = await bcrypt.hash(password, SALT_ROUNDS);
+      const client = await pool.connect();
+      let uid;
+      try {
+        await client.query('BEGIN');
+        const userRes = await client.query(
+          `INSERT INTO users (email, password_hash, first_name, last_name, middle_name, phone, role, is_blocked)
+           VALUES ($1, $2, $3, $4, $5, $6, 'doctor', false) RETURNING id`,
+          [email.toLowerCase().trim(), hash, first_name.trim(), last_name.trim(), (middle_name || '').trim(), phoneNormCreate]
+        );
+        uid = userRes.rows[0].id;
+        await client.query(
+          `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [uid, primary, cabinet || null, parseInt(experience_years) || 0, education || null, description || null]
+        );
+        await replaceDoctorSpecializations(client, uid, specIds, primary);
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+      } finally {
+        client.release();
+      }
+
+      if (req.file) {
+        try {
+          const rel = await finalizeTempToWebp(req.file.path, uid);
+          await pool.query('UPDATE users SET avatar_path = $1 WHERE id = $2 AND role = $3', [
+            rel,
+            uid,
+            'doctor',
+          ]);
+        } catch (avatarErr) {
+          console.error('Create doctor avatar error:', avatarErr);
+        }
+      }
+
+      res.redirect(
+        `/admin/doctors/${uid}/edit?success=` + encodeURIComponent('Врач добавлен')
+      );
+    } catch (createErr) {
+      console.error('Create doctor error:', createErr);
+      if (req.file?.path) {
+        try {
+          await fs.unlink(req.file.path);
+        } catch (_) {}
+      }
+      res.redirect(newFormPath + '?error=' + encodeURIComponent('Ошибка создания'));
+    }
+  });
 });
 
 // ─── GET /admin/doctors/:id/edit ─────────────────────────────────────────────
@@ -645,18 +700,22 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
 // ─── POST /admin/doctors/:id/avatar ────────────────────────────────────────────
 
 router.post('/doctors/:id/avatar', ...adminOnly, (req, res, next) => {
+  const useJson = wantsAdminAvatarJson(req);
   uploadAvatar(req, res, async (err) => {
     const resolvedDoctorId = await resolveDoctorUserId(req.params.id, pool);
     const editPath = resolvedDoctorId
       ? `/admin/doctors/${resolvedDoctorId}/edit`
       : '/admin/doctors';
-    if (redirectMulterAvatarError(err, res, editPath)) return;
+    if (redirectMulterAvatarError(err, res, editPath, { useJson })) return;
     if (err) return next(err);
     if (!verifyCsrfFromRequest(req)) {
       if (req.file?.path) {
         try {
           await fs.unlink(req.file.path);
         } catch (_) {}
+      }
+      if (useJson) {
+        return res.status(403).json({ ok: false, error: 'csrf' });
       }
       return res.status(403).render('error', {
         message: 'Запрос отклонён (защита CSRF). Обновите страницу и попробуйте снова.',
@@ -668,9 +727,15 @@ router.post('/doctors/:id/avatar', ...adminOnly, (req, res, next) => {
           await fs.unlink(req.file.path);
         } catch (_) {}
       }
+      if (useJson) {
+        return res.status(404).json({ ok: false, error: 'Врач не найден' });
+      }
       return res.redirect('/admin/doctors?error=' + encodeURIComponent('Врач не найден'));
     }
     if (!req.file) {
+      if (useJson) {
+        return res.status(400).json({ ok: false, error: 'Выберите файл изображения' });
+      }
       return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
     }
     try {
@@ -699,9 +764,20 @@ router.post('/doctors/:id/avatar', ...adminOnly, (req, res, next) => {
         client.release();
       }
       await unlinkDbPath(oldPath);
+      const avatarUrl = `/${String(rel).replace(/^\/+/, '')}`;
+      if (useJson) {
+        return res.json({
+          ok: true,
+          avatarUrl,
+          message: 'Фото врача обновлено',
+        });
+      }
       res.redirect(`${editPath}?success=` + encodeURIComponent('Фото врача обновлено'));
     } catch (e) {
       console.error('Admin doctor avatar error:', e);
+      if (useJson) {
+        return res.status(500).json({ ok: false, error: 'Не удалось обработать изображение' });
+      }
       res.redirect(`${editPath}?error=` + encodeURIComponent('Не удалось обработать изображение'));
     }
   });
@@ -1447,7 +1523,10 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
          LIMIT $2 OFFSET $3`,
         [userId, USER_PROFILE_ACTIVITY_PAGE_SIZE, offset]
       );
-      activityItems = listRes.rows || [];
+      activityItems = (listRes.rows || []).map((row) => ({
+        ...row,
+        displayTitle: getActivityEventLabel(row),
+      }));
     } catch (activityErr) {
       console.error('Admin user activity timeline error:', activityErr);
       activityItems = [];

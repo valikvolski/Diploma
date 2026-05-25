@@ -2,6 +2,9 @@
   var _p = typeof p !== 'undefined' && p ? p : { currentPage: 1, totalPages: 1, hasPrev: false, hasNext: false };
   var _label = typeof ariaLabel !== 'undefined' && ariaLabel ? ariaLabel : 'Пагинация';
   var _pageUrl = typeof pageUrl === 'function' ? pageUrl : function (n) { return '#'; };
+  var _compact = typeof compact !== 'undefined' && compact;
+  var _pageParam = typeof pageParam !== 'undefined' && pageParam ? pageParam : 'page';
+  var _basePath = typeof basePath !== 'undefined' && basePath ? basePath : '';
   function _items(cur, total) {
     var out = [];
     if (total <= 7) {
@@ -12,38 +15,62 @@
     var start = Math.max(2, cur - 1);
     var end = Math.min(total - 1, cur + 1);
     if (start > 2) out.push('...');
-    for (var p = start; p <= end; p++) out.push(p);
+    for (var pg = start; pg <= end; pg++) out.push(pg);
     if (end < total - 1) out.push('...');
     out.push(total);
     return out;
   }
   var _pages = _items(_p.currentPage || 1, _p.totalPages || 1);
+  var _jumpRendered = false;
 %>
 <% if ((_p.totalPages || 1) > 1) { %>
-  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+  <div class="admin-pagination-wrap<%= _compact ? ' admin-pagination-wrap--compact' : '' %> d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
     <div class="small text-muted">Стр. <%= _p.currentPage %> из <%= _p.totalPages %></div>
     <nav aria-label="<%= _label %>">
       <ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap gap-1">
         <li class="page-item <%= _p.currentPage > 1 ? '' : 'disabled' %>">
-          <% if (_p.currentPage > 1) { %><a class="page-link" href="<%= _pageUrl(1) %>">Первая</a><% } else { %><span class="page-link">Первая</span><% } %>
+          <% if (_p.currentPage > 1) { %><a class="page-link" href="<%= _pageUrl(1) %>" aria-label="Первая страница">1</a><% } else { %><span class="page-link">1</span><% } %>
         </li>
         <li class="page-item <%= _p.hasPrev ? '' : 'disabled' %>">
-          <% if (_p.hasPrev) { %><a class="page-link" href="<%= _pageUrl(_p.currentPage - 1) %>">Назад</a><% } else { %><span class="page-link">Назад</span><% } %>
+          <% if (_p.hasPrev) { %><a class="page-link" href="<%= _pageUrl(_p.currentPage - 1) %>" aria-label="Предыдущая"><i class="bi bi-chevron-left" aria-hidden="true"></i></a><% } else { %><span class="page-link"><i class="bi bi-chevron-left" aria-hidden="true"></i></span><% } %>
         </li>
         <% _pages.forEach(function(it) { %>
           <% if (it === '...') { %>
-            <li class="page-item disabled"><span class="page-link">…</span></li>
-          <% } else { %>
+            <% if (!_jumpRendered) { _jumpRendered = true; %>
+              <li class="page-item admin-pagination-jump-item">
+                <form
+                  class="admin-pagination-jump-form d-flex align-items-center gap-1"
+                  data-admin-page-jump
+                  data-max-pages="<%= _p.totalPages %>"
+                  data-page-param="<%= _pageParam %>"
+                  <% if (_basePath) { %>data-base-path="<%= _basePath %>"<% } %>
+                  aria-label="Перейти на страницу"
+                >
+                  <input
+                    type="number"
+                    class="form-control form-control-sm admin-pagination-jump-input"
+                    min="1"
+                    max="<%= _p.totalPages %>"
+                    value=""
+                    placeholder="№"
+                    aria-label="Номер страницы"
+                    title="Введите номер от 1 до <%= _p.totalPages %>"
+                  />
+                  <button type="submit" class="btn btn-sm btn-outline-primary admin-pagination-jump-btn py-0" aria-label="Перейти">→</button>
+                </form>
+              </li>
+            <% } %>
+          <% } else if (it !== 1 && it !== _p.totalPages) { %>
             <li class="page-item <%= it === _p.currentPage ? 'active' : '' %>">
               <% if (it === _p.currentPage) { %><span class="page-link"><%= it %></span><% } else { %><a class="page-link" href="<%= _pageUrl(it) %>"><%= it %></a><% } %>
             </li>
           <% } %>
         <% }) %>
-        <li class="page-item <%= _p.hasNext ? '' : 'disabled' %>">
-          <% if (_p.hasNext) { %><a class="page-link" href="<%= _pageUrl(_p.currentPage + 1) %>">Вперёд</a><% } else { %><span class="page-link">Вперёд</span><% } %>
-        </li>
         <li class="page-item <%= _p.currentPage < _p.totalPages ? '' : 'disabled' %>">
-          <% if (_p.currentPage < _p.totalPages) { %><a class="page-link" href="<%= _pageUrl(_p.totalPages) %>">Последняя</a><% } else { %><span class="page-link">Последняя</span><% } %>
+          <% if (_p.currentPage < _p.totalPages) { %><a class="page-link" href="<%= _pageUrl(_p.totalPages) %>" aria-label="Последняя страница"><%= _p.totalPages %></a><% } else { %><span class="page-link"><%= _p.totalPages %></span><% } %>
+        </li>
+        <li class="page-item <%= _p.hasNext ? '' : 'disabled' %>">
+          <% if (_p.hasNext) { %><a class="page-link" href="<%= _pageUrl(_p.currentPage + 1) %>" aria-label="Следующая"><i class="bi bi-chevron-right" aria-hidden="true"></i></a><% } else { %><span class="page-link"><i class="bi bi-chevron-right" aria-hidden="true"></i></span><% } %>
         </li>
       </ul>
     </nav>

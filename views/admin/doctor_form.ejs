@@ -13,28 +13,7 @@
     <% } %>
 
     <% if (doctor) { %>
-    <div class="admin-doctor-avatar-panel border rounded-3 p-3 p-md-4 mb-4">
-      <h2 class="h6 fw-bold mb-3">Фото врача</h2>
-      <div class="d-flex flex-column flex-md-row align-items-start gap-3">
-        <%- include('../partials/user-avatar', { person: doctor, size: 'profile' }) %>
-        <div class="flex-grow-1 w-100" style="min-width: 0;">
-          <p class="small text-muted mb-2">JPG, PNG или WebP, до 2 МБ. Для каталога и карточки врача.</p>
-          <div class="d-flex flex-wrap gap-2 align-items-center">
-            <form method="POST" action="/admin/doctors/<%= doctor.id %>/avatar" enctype="multipart/form-data" class="d-flex flex-wrap align-items-center gap-2">
-              <%- include('../partials/csrf') %>
-              <input type="file" name="avatar" class="form-control form-control-sm" style="max-width: 220px;" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required />
-              <button type="submit" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-upload me-1"></i>Загрузить</button>
-            </form>
-            <% if (doctor.avatar_path) { %>
-            <form method="POST" action="/admin/doctors/<%= doctor.id %>/avatar/remove" class="d-inline" onsubmit="return confirm('Удалить фото врача?');">
-              <%- include('../partials/csrf') %>
-              <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-trash me-1"></i>Удалить</button>
-            </form>
-            <% } %>
-          </div>
-        </div>
-      </div>
-    </div>
+      <%- include('../partials/admin-doctor-avatar-panel', { avatarPerson: doctor, avatarMode: 'edit', doctorId: doctor.id }) %>
     <% } %>
 
     <% const chosen = typeof doctorSpecIds !== 'undefined' && doctorSpecIds ? doctorSpecIds : []; %>
@@ -47,10 +26,21 @@
       initialPrimary: prim != null ? String(prim) : ''
     }) %></script>
 
-    <form method="POST" action="<%= doctor ? '/admin/doctors/' + doctor.id + '/edit' : '/admin/doctors' %>" data-no-validation-success="1">
+    <form
+      method="POST"
+      action="<%= doctor ? '/admin/doctors/' + doctor.id + '/edit' : '/admin/doctors' %>"
+      data-no-validation-success="1"
+      id="adminDoctorMainForm"
+      <% if (!doctor) { %>enctype="multipart/form-data"<% } %>
+    >
       <%- include('../partials/csrf') %>
     <% if (doctor) { %>
       <input type="hidden" name="user_id" value="<%= doctor.id %>">
+    <% } else { %>
+      <%- include('../partials/admin-doctor-avatar-panel', {
+        avatarPerson: { first_name: '', last_name: '', id: 'new', email: '' },
+        avatarMode: 'create'
+      }) %>
     <% } %>
 
       <div class="row g-3 mb-3">
@@ -167,4 +157,62 @@
 </div>
 
 <script src="/js/phone-international.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var hint = document.getElementById('adminDoctorAvatarHint');
+  if (hint && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+    new bootstrap.Tooltip(hint, { container: 'body' });
+  }
+  var file = document.getElementById('adminDoctorAvatarFile');
+  var btn = document.getElementById('adminDoctorAvatarChangeBtn');
+  var hit = document.getElementById('adminDoctorAvatarChangeTrigger');
+  function pick() {
+    if (file) file.click();
+  }
+  if (btn && file) btn.addEventListener('click', pick);
+  if (hit && file) {
+    hit.addEventListener('click', function (e) {
+      e.preventDefault();
+      pick();
+    });
+  }
+  if (!file || !document.querySelector('.admin-doctor-avatar-create-preview')) return;
+  file.addEventListener('change', function () {
+    var f = file.files && file.files[0];
+    var holder = document.querySelector('#adminDoctorAvatarHolder .user-avatar');
+    if (!f || !holder) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 2 * 1024 * 1024) return;
+    var url = URL.createObjectURL(f);
+    var img = holder.querySelector('.user-avatar__img');
+    if (!img) {
+      holder.classList.add('user-avatar--has-img');
+      holder.style.background = '';
+      var ini = holder.querySelector('.user-avatar__initials');
+      if (ini) ini.remove();
+      img = document.createElement('img');
+      img.className = 'user-avatar__img';
+      img.alt = '';
+      holder.appendChild(img);
+    }
+    img.onload = function () { URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+  ['last_name', 'first_name'].forEach(function (name) {
+    var inp = document.querySelector('input[name="' + name + '"]');
+    if (!inp) return;
+    inp.addEventListener('input', function () {
+      var holder = document.querySelector('#adminDoctorAvatarHolder .user-avatar');
+      if (!holder || holder.querySelector('.user-avatar__img')) return;
+      var L = (document.querySelector('input[name="last_name"]') || {}).value || '';
+      var F = (document.querySelector('input[name="first_name"]') || {}).value || '';
+      var ini = '';
+      if (L.trim()) ini += L.trim().charAt(0).toUpperCase();
+      if (F.trim()) ini += F.trim().charAt(0).toUpperCase();
+      var el = holder.querySelector('.user-avatar__initials');
+      if (el) el.textContent = ini || '?';
+    });
+  });
+});
+</script>
 <%- include('../partials/footer') %>
+<% if (doctor) { %><script src="/js/admin-doctor-avatar-auto.js"></script><% } %>

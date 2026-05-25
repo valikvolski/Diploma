@@ -235,7 +235,7 @@
         <% function apptPersonName(a, kind) { return kind === 'doctor' ? ((a.patient_last_name || '') + ' ' + (a.patient_first_name || '')).trim() : ((a.doctor_last_name || '') + ' ' + (a.doctor_first_name || '')).trim(); } %>
         <% function renderApptCard(opts) { var title = opts.title; var icon = opts.icon; var color = opts.color; var bucket = opts.bucket; var kind = opts.kind; var pageKey = opts.pageKey; var label = opts.label; %>
           <div class="col-md-4">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 admin-profile-appt-card">
               <div class="card-body d-flex flex-column">
                 <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
                   <div class="fw-semibold text-<%= color %>">
@@ -248,7 +248,7 @@
                 <% if (!bucket || !bucket.rows || !bucket.rows.length) { %>
                   <p class="small text-muted mb-0">Нет</p>
                 <% } else { %>
-                  <ul class="list-group list-group-flush small mb-0">
+                  <ul class="list-group list-group-flush small mb-0 admin-profile-appt-list">
                     <% bucket.rows.forEach(function(a) { %>
                       <li class="list-group-item px-0 py-2">
                         <div class="d-flex justify-content-between gap-2">
@@ -260,18 +260,23 @@
                     <% }) %>
                   </ul>
                 <% } %>
-                <% var pg = bucket && bucket.pagination ? bucket.pagination : null; if (pg && pg.totalPages > 1) { %>
-                  <nav class="mt-auto pt-2" aria-label="Страницы <%= label %>">
-                    <ul class="pagination pagination-sm mb-0 justify-content-between align-items-center flex-nowrap gap-1">
-                      <li class="page-item <%= pg.hasPrev ? '' : 'disabled' %>">
-                        <a class="page-link py-1 px-2" href="<%= profilePathBase %><%= uProfileQs(Object.assign({ tab: 'appts' }, (function(){ var o = {}; o[pageKey] = pg.hasPrev ? pg.currentPage - 1 : 1; return o; })())) %>">Назад</a>
-                      </li>
-                      <li class="page-item disabled flex-shrink-0"><span class="page-link py-1 px-2 border-0 bg-transparent small text-muted">стр. <%= pg.currentPage %> / <%= pg.totalPages %></span></li>
-                      <li class="page-item <%= pg.hasNext ? '' : 'disabled' %>">
-                        <a class="page-link py-1 px-2" href="<%= profilePathBase %><%= uProfileQs(Object.assign({ tab: 'appts' }, (function(){ var o = {}; o[pageKey] = pg.hasNext ? pg.currentPage + 1 : pg.currentPage; return o; })())) %>">Вперёд</a>
-                      </li>
-                    </ul>
-                  </nav>
+                <% var pg = bucket && bucket.pagination ? bucket.pagination : null; if (pg && pg.totalPages > 1) {
+                  var apptPageUrlFn = function (n) {
+                    var o = { tab: 'appts' };
+                    o[pageKey] = n;
+                    return profilePathBase + uProfileQs(o);
+                  };
+                %>
+                  <div class="admin-profile-appt-pager pt-2 mt-2 border-top">
+                    <%- include('../partials/admin-pagination', {
+                      p: pg,
+                      pageUrl: apptPageUrlFn,
+                      ariaLabel: 'Страницы ' + label,
+                      compact: true,
+                      pageParam: pageKey,
+                      basePath: profilePathBase
+                    }) %>
+                  </div>
                 <% } %>
               </div>
             </div>
@@ -331,16 +336,17 @@
            } %>
         <% function eventTitle(e) {
              if (!e) return 'Событие';
+             if (e.displayTitle) return String(e.displayTitle);
              if (e.kind === 'registration') return 'Регистрация аккаунта';
              if (e.kind === 'appointment') return e.title || 'Запись';
              if (e.kind === 'audit') {
                var ak2 = auditActionKey(e);
-               if (ak2 === 'password_change') return 'Смена пароля';
+               if (ak2 === 'password_change') return 'Пароль изменён';
                if (ak2 === 'avatar_update') return 'Изменение фото профиля';
                if (ak2 === 'email_change') return 'Смена email';
-               return String(e.title || 'Изменение');
+               return 'Изменение';
              }
-             return String(e.title || 'Событие');
+             return 'Событие';
            } %>
 
         <div class="position-relative">
@@ -355,15 +361,12 @@
                 </div>
                 <div class="card border-0 shadow-sm flex-grow-1">
                   <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-start gap-2">
-                      <div>
-                        <div class="fw-semibold"><%= eventTitle(e) %></div>
-                        <div class="small text-muted"><%= fmtDt(e.at) %></div>
-                        <% if (e.kind === 'appointment' && e.slot_ref) { %>
-                          <div class="small text-muted mt-1">(<%= e.slot_ref %>)</div>
-                        <% } %>
-                      </div>
-                      <span class="badge bg-light text-muted border"><%= (e.kind || '').toString() %></span>
+                    <div>
+                      <div class="fw-semibold"><%= eventTitle(e) %></div>
+                      <div class="small text-muted"><%= fmtDt(e.at) %></div>
+                      <% if (e.kind === 'appointment' && e.slot_ref) { %>
+                        <div class="small text-muted mt-1">(<%= e.slot_ref %>)</div>
+                      <% } %>
                     </div>
 
                     <% if (eventMeta(e)) { %>

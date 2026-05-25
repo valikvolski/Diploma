@@ -1,0 +1,84 @@
+<%#
+  avatarPerson — объект для user-avatar (first_name, last_name, avatar_path, id, email)
+  avatarMode — 'create' | 'edit'
+  doctorId — id врача (только edit)
+-%>
+<%
+  var ap = typeof avatarPerson !== 'undefined' && avatarPerson ? avatarPerson : {};
+  var mode = typeof avatarMode !== 'undefined' ? avatarMode : 'create';
+  var isEdit = mode === 'edit' && doctorId;
+  var uploadUrl = isEdit ? '/admin/doctors/' + doctorId + '/avatar' : '';
+  var removeUrl = isEdit ? '/admin/doctors/' + doctorId + '/avatar/remove' : '';
+%>
+<div class="profile-avatar-panel app-card border-0 shadow-sm p-3 p-md-4 mb-4">
+  <h2 class="h6 fw-bold mb-3">Фото врача</h2>
+  <div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-start gap-3 gap-md-4">
+    <div
+      class="profile-avatar-preview-wrap text-center text-md-start flex-shrink-0 position-relative<% if (!isEdit) { %> admin-doctor-avatar-create-preview<% } %>"
+      <% if (isEdit) { %>data-admin-doctor-avatar-upload data-upload-url="<%= uploadUrl %>"<% } %>
+      id="adminDoctorAvatarPreviewWrap"
+    >
+      <button
+        type="button"
+        class="btn btn-link p-0 border-0 profile-avatar-change-hitarea text-decoration-none"
+        id="adminDoctorAvatarChangeTrigger"
+        aria-label="<%= isEdit ? 'Сменить фото врача' : 'Выбрать фото врача' %>"
+      >
+        <span class="d-inline-block position-relative">
+          <span id="adminDoctorAvatarHolder">
+            <%- include('user-avatar', { person: ap, size: 'profile' }) %>
+          </span>
+          <% if (isEdit) { %>
+          <span
+            class="profile-avatar-upload-spinner position-absolute top-50 start-50 translate-middle d-none"
+            role="status"
+            aria-live="polite"
+            aria-label="Загрузка"
+          >
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+          </span>
+          <% } %>
+        </span>
+      </button>
+      <input
+        type="file"
+        id="adminDoctorAvatarFile"
+        name="avatar"
+        class="d-none"
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        autocomplete="off"
+        aria-hidden="true"
+        tabindex="-1"
+      />
+    </div>
+    <div class="flex-grow-1 w-100 d-flex flex-column justify-content-center" style="min-width: 0;">
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="button" class="btn btn-primary btn-sm rounded-pill mb-0" id="adminDoctorAvatarChangeBtn">
+          <i class="bi bi-camera me-1"></i><%= isEdit ? 'Сменить фото' : 'Выбрать фото' %>
+        </button>
+        <button
+          type="button"
+          class="btn btn-link btn-sm text-body-secondary p-1 rounded-circle profile-avatar-info-btn"
+          id="adminDoctorAvatarHint"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          data-bs-title="Допустимые форматы: JPG, PNG, WebP. Максимум 2 МБ. Фото будет обрезано до квадрата."
+          aria-label="Справка по загрузке фото"
+        >
+          <i class="bi bi-info-circle fs-5" aria-hidden="true"></i>
+        </button>
+        <% if (isEdit && ap.avatar_path) { %>
+        <form method="POST" action="<%= removeUrl %>" class="d-inline mb-0" onsubmit="return confirm('Удалить фото врача?');">
+          <%- include('csrf') %>
+          <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-trash me-1"></i>Удалить</button>
+        </form>
+        <% } %>
+      </div>
+      <% if (!isEdit) { %>
+      <p class="small text-muted mb-0 mt-2">Можно загрузить сразу при создании или позже в карточке врача.</p>
+      <% } else { %>
+      <p class="small text-muted mb-0 mt-2">Нажмите на фото или кнопку — файл загрузится автоматически.</p>
+      <% } %>
+    </div>
+  </div>
+</div>
