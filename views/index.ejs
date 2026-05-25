@@ -461,55 +461,49 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
       </div>
     </section>
 
-    <div class="row g-4 mb-4">
-      <div class="col-lg-7">
-        <% if (patient && patient.previouslyVisitedDoctors && patient.previouslyVisitedDoctors.length) { %>
-          <% const _prev = patient.previouslyVisitedDoctors.slice(0, 2); %>
-          <% const _prevLen = _prev.length; %>
-          <section class="mb-0" aria-labelledby="patient-prevdocs-heading">
-            <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
-              <div>
-                <h2 id="patient-prevdocs-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-1 js-home-reveal">Вы уже записывались к этим врачам</h2>
-                <p class="small text-muted mb-0 js-home-reveal">Можно быстро открыть карточку врача и записаться снова.</p>
-              </div>
-            </div>
-            <div class="row g-3 <%= _prevLen < 3 ? 'justify-content-center' : '' %>" data-reveal-stagger="1">
-              <% _prev.forEach(function(d, idx) { %>
-                <div class="col-md-6 <%= _prevLen === 1 ? 'col-lg-6' : (_prevLen === 2 ? 'col-lg-6' : 'col-lg-4') %>">
-                  <article class="app-card border-0 shadow-sm p-4 h-100 d-flex flex-column js-home-stagger" data-stagger-order="<%= idx %>">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                      <div class="flex-shrink-0">
-                        <%- include('partials/user-avatar', { person: d, size: 'sm' }) %>
-                      </div>
-                      <div class="patient-prev-doc-text">
-                        <div class="fw-semibold text-truncate d-block patient-prev-doc-name"><%= d.last_name %> <%= d.first_name %><% if (d.middle_name) { %> <%= d.middle_name %><% } %></div>
-                        <div class="small text-muted text-truncate"><%= d.specialization || 'Врач' %></div>
-                      </div>
-                    </div>
-                    <a href="/doctors/<%= d.id %>" class="btn btn-primary btn-sm rounded-pill mt-auto">
-                      <i class="bi bi-calendar-plus me-1"></i>Записаться снова
-                    </a>
-                  </article>
+    <% if (patient && patient.previouslyVisitedDoctors && patient.previouslyVisitedDoctors.length) { %>
+      <% const _prev = patient.previouslyVisitedDoctors.slice(0, 2); %>
+      <section class="patient-home-prev-docs mb-4" aria-labelledby="patient-prevdocs-heading">
+        <div class="mb-3">
+          <h2 id="patient-prevdocs-heading" class="h6 text-uppercase text-muted fw-semibold letter-spacing-wide mb-1 js-home-reveal">Вы уже записывались к этим врачам</h2>
+          <p class="small text-muted mb-0 js-home-reveal">Можно быстро открыть карточку врача и записаться снова.</p>
+        </div>
+        <div class="row g-3 patient-home-prev-docs__grid" data-reveal-stagger="1">
+          <% _prev.forEach(function(d, idx) { %>
+            <div class="col-sm-6">
+              <article class="app-card border-0 shadow-sm p-4 h-100 d-flex flex-column js-home-stagger" data-stagger-order="<%= idx %>">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  <div class="flex-shrink-0">
+                    <%- include('partials/user-avatar', { person: d, size: 'sm' }) %>
+                  </div>
+                  <div class="patient-prev-doc-text min-w-0">
+                    <div class="fw-semibold text-truncate patient-prev-doc-name"><%= d.last_name %> <%= d.first_name %><% if (d.middle_name) { %> <%= d.middle_name %><% } %></div>
+                    <div class="small text-muted text-truncate"><%= d.specialization || 'Врач' %></div>
+                  </div>
                 </div>
-              <% }) %>
+                <a href="/doctors/<%= d.id %>" class="btn btn-primary btn-sm rounded-pill mt-auto w-100">
+                  <i class="bi bi-calendar-plus me-1"></i>Записаться снова
+                </a>
+              </article>
             </div>
-          </section>
-        <% } %>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
 
-        <section aria-labelledby="patient-health-advice-heading" class="mb-4">
-          <div class="card border-0 shadow-sm rounded-4 mb-4 js-home-reveal">
+    <div class="row g-4 patient-home-info-row align-items-stretch">
+      <div class="col-lg-7">
+        <section aria-labelledby="patient-health-advice-heading" class="h-100">
+          <div class="app-card border-0 shadow-sm rounded-4 h-100 js-home-reveal">
             <div class="card-body p-4">
               <h2 id="patient-health-advice-heading" class="h6 fw-bold mb-3">Как подготовиться к приёму</h2>
-
               <p class="text-muted mb-3">
                 Чтобы консультация прошла максимально эффективно, заранее зафиксируйте основные жалобы: когда они начались, как часто проявляются и что усиливает или облегчает симптомы. Краткие заметки в телефоне помогут не упустить важные детали на приёме.
               </p>
-
               <p class="text-muted mb-3">
                 Если у вас уже есть результаты анализов, выписки или заключения предыдущих специалистов, подготовьте их заранее. Это сокращает время на уточнения и помогает врачу быстрее определить дальнейший план обследования или лечения.
               </p>
-
-              <div class="app-card border-0 shadow-sm rounded-4 p-3 mt-3">
+              <div class="app-card border-0 shadow-sm rounded-4 p-3 mt-3 mb-0">
                 <div class="fw-semibold mb-2">Важно помнить</div>
                 <ul class="mb-0 ps-3 text-muted small">
                   <li>Если симптомы усиливаются, не откладывайте запись и выбирайте ближайшее доступное время.</li>
@@ -521,28 +515,27 @@ const todayLabel = new Date().toLocaleDateString('ru-RU', {
           </div>
         </section>
       </div>
-
       <div class="col-lg-5">
-        <section aria-labelledby="patient-info-heading">
+        <section aria-labelledby="patient-info-heading" class="h-100 d-flex flex-column">
           <h2 id="patient-info-heading" class="h6 fw-bold mb-3 js-home-reveal">Забота о здоровье начинается с регулярных осмотров</h2>
-          <div class="app-card border-0 shadow-sm rounded-4 p-4 js-home-reveal">
-            <p class="text-muted mb-3">
-              Регулярные профилактические осмотры позволяют своевременно выявлять возможные отклонения и поддерживать общее состояние здоровья на должном уровне. Даже при отсутствии выраженных симптомов рекомендуется проходить консультацию врача не реже одного раза в год.
-            </p>
-
-            <p class="text-muted mb-4">
-              Использование системы «МедЗапись» позволяет быстро выбрать специалиста, подобрать удобное время приёма и получить электронный талон без необходимости личного обращения в регистратуру.
-            </p>
-
-            <article class="patient-info-card rounded-4">
-              <div class="patient-info-card__icon"><i class="bi bi-clipboard2-check"></i></div>
-              <div class="fw-bold mb-2">Перед визитом к врачу</div>
-              <ul class="mb-0 ps-3 text-muted small patient-visit-list">
-                <li>Приходите за 10–15 минут до назначенного времени.</li>
-                <li>Возьмите с собой необходимые медицинские документы.</li>
-                <li>Предъявите электронный талон на экране телефона или в распечатанном виде.</li>
-              </ul>
-            </article>
+          <div class="app-card border-0 shadow-sm rounded-4 flex-grow-1 js-home-reveal">
+            <div class="card-body p-4 d-flex flex-column h-100">
+              <p class="text-muted mb-3">
+                Регулярные профилактические осмотры позволяют своевременно выявлять возможные отклонения и поддерживать общее состояние здоровья на должном уровне. Даже при отсутствии выраженных симптомов рекомендуется проходить консультацию врача не реже одного раза в год.
+              </p>
+              <p class="text-muted mb-4">
+                Использование системы «МедЗапись» позволяет быстро выбрать специалиста, подобрать удобное время приёма и получить электронный талон без необходимости личного обращения в регистратуру.
+              </p>
+              <article class="patient-info-card rounded-4 mt-auto">
+                <div class="patient-info-card__icon"><i class="bi bi-clipboard2-check"></i></div>
+                <div class="fw-bold mb-2">Перед визитом к врачу</div>
+                <ul class="mb-0 ps-3 text-muted small patient-visit-list">
+                  <li>Приходите за 10–15 минут до назначенного времени.</li>
+                  <li>Возьмите с собой необходимые медицинские документы.</li>
+                  <li>Предъявите электронный талон на экране телефона или в распечатанном виде.</li>
+                </ul>
+              </article>
+            </div>
           </div>
         </section>
       </div>

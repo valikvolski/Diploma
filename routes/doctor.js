@@ -438,10 +438,18 @@ router.post('/appointments/:id/status', ...docOnly, async (req, res) => {
 
 // ─── POST /doctor/avatar ───────────────────────────────────────────────────────
 
+function wantsDoctorAvatarJson(req) {
+  return (
+    req.get('X-Requested-With') === 'XMLHttpRequest' ||
+    (req.get('Accept') || '').includes('application/json')
+  );
+}
+
 router.post('/avatar', ...docOnly, (req, res, next) => {
+  const useJson = wantsDoctorAvatarJson(req);
   uploadAvatar(req, res, async (err) => {
     const editPath = '/doctor/schedule';
-    if (redirectMulterAvatarError(err, res, editPath)) return;
+    if (redirectMulterAvatarError(err, res, editPath, { useJson })) return;
     if (err) return next(err);
     if (!verifyCsrfFromRequest(req)) {
       if (req.file?.path) {
@@ -449,11 +457,17 @@ router.post('/avatar', ...docOnly, (req, res, next) => {
           await fs.unlink(req.file.path);
         } catch (_) {}
       }
+      if (useJson) {
+        return res.status(403).json({ ok: false, error: 'csrf' });
+      }
       return res.status(403).render('error', {
         message: 'Запрос отклонён (защита CSRF). Обновите страницу и попробуйте снова.',
       });
     }
     if (!req.file) {
+      if (useJson) {
+        return res.status(400).json({ ok: false, error: 'Выберите файл изображения' });
+      }
       return res.redirect(`${editPath}?error=${encodeURIComponent('Выберите файл изображения')}`);
     }
     try {
@@ -479,12 +493,23 @@ router.post('/avatar', ...docOnly, (req, res, next) => {
         client.release();
       }
       await unlinkDbPath(oldPath);
+      const avatarUrl = `/${String(rel).replace(/^\/+/, '')}`;
+      if (useJson) {
+        return res.json({
+          ok: true,
+          avatarUrl,
+          message: 'Фото профиля обновлено',
+        });
+      }
       res.redirect(`${editPath}?success=${encodeURIComponent('Фото профиля обновлено')}`);
     } catch (e) {
       console.error('Doctor avatar error:', e);
       try {
         await fs.unlink(req.file.path);
       } catch (_) {}
+      if (useJson) {
+        return res.status(500).json({ ok: false, error: 'Не удалось обработать изображение' });
+      }
       res.redirect(`${editPath}?error=${encodeURIComponent('Не удалось обработать изображение')}`);
     }
   });

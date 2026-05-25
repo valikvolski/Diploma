@@ -3028,6 +3028,22 @@ a:hover { color: var(--app-primary-dark); }
 
 .patient-appt-compact__right { margin-left: auto; }
 
+.patient-home-prev-docs__grid {
+  max-width: 52rem;
+}
+
+.patient-home-prev-docs__grid > .col-sm-6 {
+  display: flex;
+}
+
+.patient-home-info-row {
+  margin-top: 0;
+}
+
+.patient-home-info-row .app-card {
+  height: 100%;
+}
+
 .patient-prev-doc-text {
   min-width: 0;
   flex: 1 1 auto;

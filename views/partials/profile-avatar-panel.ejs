@@ -1,0 +1,90 @@
+<%#
+  avatarPerson — для user-avatar
+  panelTitle — заголовок
+  uploadUrl — POST URL автозагрузки
+  removeUrl — POST удаления (опционально)
+  idPrefix — уникальный префикс id (строка)
+  panelHint — подсказка под кнопками
+  showRemove — показывать кнопку удаления
+-%>
+<%
+  var ap = typeof avatarPerson !== 'undefined' && avatarPerson ? avatarPerson : {};
+  var pTitle = typeof panelTitle !== 'undefined' && panelTitle ? panelTitle : 'Фото профиля';
+  var pUpload = typeof uploadUrl !== 'undefined' ? uploadUrl : '/profile/avatar';
+  var pRemove = typeof removeUrl !== 'undefined' ? removeUrl : '/profile/avatar/remove';
+  var pPrefix = typeof idPrefix !== 'undefined' && idPrefix ? idPrefix : 'profileAvatar';
+  var pHint = typeof panelHint !== 'undefined' && panelHint
+    ? panelHint
+    : 'Нажмите на фото или кнопку — файл загрузится автоматически.';
+  var pShowRemove = typeof showRemove !== 'undefined'
+    ? showRemove
+    : !!ap.avatar_path;
+%>
+<div class="profile-avatar-panel app-card border-0 shadow-sm p-3 p-md-4 mb-4">
+  <h2 class="h6 fw-bold mb-3"><%= pTitle %></h2>
+  <div class="d-flex flex-column flex-md-row align-items-stretch align-items-md-start gap-3 gap-md-4">
+    <div
+      class="profile-avatar-preview-wrap text-center text-md-start flex-shrink-0 position-relative"
+      data-avatar-auto-upload
+      data-upload-url="<%= pUpload %>"
+      id="<%= pPrefix %>PreviewWrap"
+    >
+      <button
+        type="button"
+        class="btn btn-link p-0 border-0 profile-avatar-change-hitarea text-decoration-none"
+        id="<%= pPrefix %>ChangeTrigger"
+        data-avatar-pick-trigger
+        aria-label="Сменить фото"
+      >
+        <span class="d-inline-block position-relative">
+          <span id="<%= pPrefix %>Holder">
+            <%- include('user-avatar', { person: ap, size: 'profile' }) %>
+          </span>
+          <span
+            class="profile-avatar-upload-spinner position-absolute top-50 start-50 translate-middle d-none"
+            role="status"
+            aria-live="polite"
+            aria-label="Загрузка"
+          >
+            <span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>
+          </span>
+        </span>
+      </button>
+      <input
+        type="file"
+        id="<%= pPrefix %>File"
+        name="avatar"
+        class="d-none"
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        autocomplete="off"
+        aria-hidden="true"
+        tabindex="-1"
+      />
+    </div>
+    <div class="flex-grow-1 w-100 d-flex flex-column justify-content-center" style="min-width: 0;">
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="button" class="btn btn-primary btn-sm rounded-pill mb-0" id="<%= pPrefix %>ChangeBtn" data-avatar-pick-trigger>
+          <i class="bi bi-camera me-1"></i>Сменить фото
+        </button>
+        <button
+          type="button"
+          class="btn btn-link btn-sm text-body-secondary p-1 rounded-circle profile-avatar-info-btn"
+          id="<%= pPrefix %>Hint"
+          data-bs-toggle="tooltip"
+          data-bs-placement="top"
+          data-bs-title="Допустимые форматы: JPG, PNG, WebP. Максимум 2 МБ. Фото будет обрезано до квадрата."
+          aria-label="Справка по загрузке фото"
+        >
+          <i class="bi bi-info-circle fs-5" aria-hidden="true"></i>
+        </button>
+        <% if (pShowRemove && pRemove) { %>
+        <form method="POST" action="<%= pRemove %>" class="d-inline mb-0" onsubmit="return confirm('Удалить фото?');">
+          <%- include('csrf') %>
+          <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="bi bi-trash me-1"></i>Удалить</button>
+        </form>
+        <% } %>
+      </div>
+      <p class="small text-muted mb-0 mt-2"><%= pHint %></p>
+    </div>
+  </div>
+</div>

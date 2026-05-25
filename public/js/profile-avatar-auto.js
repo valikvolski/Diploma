@@ -1,5 +1,5 @@
 /**
- * Profile edit: auto-upload avatar on file pick (POST /profile/avatar as JSON).
+ * Автозагрузка аватара: [data-avatar-auto-upload] + data-upload-url (или legacy data-profile-avatar-upload).
  */
 (function () {
   'use strict';
@@ -42,7 +42,6 @@
     if (img) img.src = bustedUrl;
   }
 
-  /** Синхронизировать все аватарки пользователя на странице (шапка, превью и т.п.). */
   function syncUserAvatarAcrossPage(avatarUrl) {
     var busted = withAvatarCacheBust(avatarUrl);
     document.querySelectorAll('.app-nav-avatar-wrap .user-avatar').forEach(function (h) {
@@ -60,13 +59,33 @@
     return { ok: res.ok, status: res.status, data: data };
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    var root = document.querySelector('[data-profile-avatar-upload]');
-    if (!root) return;
+  function wirePickControls(root) {
     var input = root.querySelector('input[type="file"][name="avatar"]');
-    var holder = root.querySelector('.user-avatar');
+    var panel = root.closest('.profile-avatar-panel') || document;
+    function pick() {
+      if (input) input.click();
+    }
+    panel.querySelectorAll('[data-avatar-pick-trigger]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        pick();
+      });
+    });
+  }
+
+  function initAvatarRoot(root) {
+    var uploadUrl =
+      root.getAttribute('data-upload-url') ||
+      (root.hasAttribute('data-profile-avatar-upload') ? '/profile/avatar' : '');
+    if (!uploadUrl) return;
+
+    var input = root.querySelector('input[type="file"][name="avatar"]');
+    var holderWrap = root.querySelector('[id$="Holder"]');
+    var holder = holderWrap ? holderWrap.querySelector('.user-avatar') : root.querySelector('.user-avatar');
     var spinner = root.querySelector('.profile-avatar-upload-spinner');
     if (!input || !holder) return;
+
+    wirePickControls(root);
 
     function setLoading(on) {
       root.classList.toggle('profile-avatar-preview-wrap--loading', !!on);
@@ -79,16 +98,12 @@
 
       if (ALLOWED_TYPES.indexOf(file.type) === -1) {
         input.value = '';
-        if (window.showAppToast) {
-          window.showAppToast('Разрешены только JPG, PNG и WebP', 'danger');
-        }
+        if (window.showAppToast) window.showAppToast('Разрешены только JPG, PNG и WebP', 'danger');
         return;
       }
       if (file.size > MAX_BYTES) {
         input.value = '';
-        if (window.showAppToast) {
-          window.showAppToast('Файл не должен превышать 2 МБ', 'danger');
-        }
+        if (window.showAppToast) window.showAppToast('Файл не должен превышать 2 МБ', 'danger');
         return;
       }
 
@@ -98,7 +113,7 @@
       if (tok) fd.append('_csrf', tok);
 
       setLoading(true);
-      fetch('/profile/avatar', {
+      fetch(uploadUrl, {
         method: 'POST',
         body: fd,
         credentials: 'same-origin',
@@ -117,11 +132,10 @@
           setLoading(false);
           input.value = '';
           if (out.ok && out.data && out.data.ok && out.data.avatarUrl) {
-            var bustedUrl = withAvatarCacheBust(out.data.avatarUrl);
-            applyAvatarSrcToHolder(holder, bustedUrl);
+            applyAvatarSrcToHolder(holder, withAvatarCacheBust(out.data.avatarUrl));
             syncUserAvatarAcrossPage(out.data.avatarUrl);
             if (window.showAppToast) {
-              window.showAppToast(out.data.message || 'Фото профиля обновлено', 'success');
+              window.showAppToast(out.data.message || 'Фото обновлено', 'success');
             }
             return;
           }
@@ -138,6 +152,17 @@
           input.value = '';
           if (window.showAppToast) window.showAppToast('Ошибка сети', 'danger');
         });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var roots = document.querySelectorAll('[data-avatar-auto-upload], [data-profile-avatar-upload]');
+    roots.forEach(initAvatarRoot);
+
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+      if (el.id && el.id.indexOf('Hint') !== -1 && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        new bootstrap.Tooltip(el, { container: 'body' });
+      }
     });
   });
 })();
