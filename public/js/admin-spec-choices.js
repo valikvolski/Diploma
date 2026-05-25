@@ -120,14 +120,14 @@
       }
       hintEl.classList.remove('d-none');
       if (lock === '__CONFLICT__') {
-        hintEl.textContent = 'Удалите лишние специализации — допустима только одна группа совместимости.';
+        hintEl.textContent = 'Удалите лишние специализации — допустим только один раздел.';
         hintEl.classList.remove('text-muted');
         hintEl.classList.add('text-danger');
         return;
       }
       hintEl.classList.add('text-muted');
       hintEl.classList.remove('text-danger');
-      hintEl.textContent = 'Доступны совместимые специализации той же группы.';
+      hintEl.textContent = 'Доступны специализации того же раздела.';
     }
 
     function buildChoiceList() {

@@ -126,18 +126,17 @@
         </div>
       </div>
 
-      <div class="row g-3 mb-3">
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Кабинет</label>
-          <input type="text" class="form-control" name="cabinet" value="<%= doctor ? doctor.cabinet || '' : '' %>">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Стаж (лет)</label>
-          <input type="number" class="form-control" name="experience_years" min="0" value="<%= doctor ? doctor.experience_years || 0 : 0 %>">
+      <div class="row g-3 mb-3 align-items-end">
+        <div class="col-sm-6 col-md-4 col-lg-3">
+          <label class="form-label fw-semibold mb-1">Кабинет</label>
+          <div class="input-group admin-doctor-cabinet-input">
+            <span class="input-group-text" aria-hidden="true"><i class="bi bi-door-open"></i></span>
+            <input type="text" class="form-control" name="cabinet" value="<%= doctor ? doctor.cabinet || '' : '' %>" placeholder="№" inputmode="numeric" autocomplete="off">
+          </div>
         </div>
         <% if (doctor) { %>
-          <div class="col-md-4">
-            <label class="form-label fw-semibold">Статус</label>
+          <div class="col-sm-6 col-md-4 col-lg-3">
+            <label class="form-label fw-semibold mb-1">Статус</label>
             <select class="form-select" name="is_blocked">
               <option value="false" <%= !doctor.is_blocked ? 'selected' : '' %>>Активен</option>
               <option value="true" <%= doctor.is_blocked ? 'selected' : '' %>>Заблокирован</option>
@@ -145,6 +144,68 @@
           </div>
         <% } %>
       </div>
+
+      <% if (!doctor) { %>
+      <script type="application/json" id="admin-work-history-initial">[]</script>
+      <div class="mb-4 admin-work-history-panel" id="adminWorkHistoryRoot">
+        <div class="admin-work-history-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+          <div class="d-flex flex-wrap align-items-end gap-3">
+            <h2 class="h6 fw-bold mb-0">История работы</h2>
+            <div class="admin-work-history-experience">
+              <label class="form-label small fw-semibold mb-1" for="calculatedExperienceYears">Стаж (лет)</label>
+              <input
+                type="number"
+                class="form-control form-control-sm"
+                id="calculatedExperienceYears"
+                min="0"
+                value="0"
+                readonly
+                tabindex="-1"
+                aria-readonly="true"
+                title="Считается по периодам работы"
+              />
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" id="workHistoryAddBtn">
+            <i class="bi bi-plus-lg me-1"></i>Добавить период
+          </button>
+        </div>
+        <div id="workHistoryRows" class="admin-work-history-stack"></div>
+        <input type="hidden" name="work_history_json" id="workHistoryJson" value="[]" />
+      </div>
+      <% } else { %>
+      <% const _workHistoryView = typeof workHistory !== 'undefined' && workHistory ? workHistory : []; %>
+      <div class="mb-4 admin-work-history-panel admin-work-history-panel--readonly">
+        <div class="admin-work-history-toolbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+          <h2 class="h6 fw-bold mb-0">История работы</h2>
+          <div class="admin-work-history-experience">
+            <label class="form-label small fw-semibold mb-1" for="calculatedExperienceYears">Стаж (лет)</label>
+            <input
+              type="number"
+              class="form-control form-control-sm"
+              id="calculatedExperienceYears"
+              min="0"
+              value="<%= doctor.experience_years || 0 %>"
+              readonly
+              tabindex="-1"
+              aria-readonly="true"
+            />
+          </div>
+        </div>
+        <% if (_workHistoryView.length) { %>
+        <ul class="list-group list-group-flush border rounded-3 mb-0">
+          <% _workHistoryView.forEach(function (w) { %>
+            <li class="list-group-item px-3 py-2">
+              <div class="fw-semibold"><%= w.organization_name %></div>
+              <div class="small text-muted"><%= w.period_label %> · <%= w.duration_label %></div>
+            </li>
+          <% }) %>
+        </ul>
+        <% } else { %>
+        <p class="small text-muted mb-0">Периоды работы не указаны.</p>
+        <% } %>
+      </div>
+      <% } %>
 
       <div class="mb-3">
         <label class="form-label fw-semibold">Образование</label>
@@ -224,3 +285,6 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 <%- include('../partials/footer') %>
 <% if (doctor) { %><script src="/js/profile-avatar-auto.js"></script><% } %>
+<% if (!doctor) { %>
+<script src="/js/admin-doctor-work-history.js"></script>
+<% } %>

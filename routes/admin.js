@@ -14,6 +14,12 @@ const { normalizeBelarusPhone } = require('../utils/patientPhone');
 const { maskPhoneForAdmin } = require('../utils/adminPhoneMask');
 const { insertAuditLog, ACTION: AUDIT_ACTION, maskEmailForAudit } = require('../utils/auditLog');
 const { getActivityEventLabel } = require('../utils/activityEventLabels');
+const {
+  parseWorkHistoryFromBody,
+  loadDoctorWorkHistory,
+  replaceDoctorWorkHistory,
+  totalExperienceYears,
+} = require('../utils/doctorWorkHistory');
 
 function wantsAdminAvatarJson(req) {
   return (
@@ -392,6 +398,7 @@ router.get('/doctors/new', ...adminOnly, async (req, res) => {
     res.render('admin/doctor_form', {
       title: 'Добавить врача — Админ-панель',
       doctor: null,
+      workHistory: [],
       doctorSpecIds: [],
       primarySpecId: null,
       specializations: specs,
@@ -399,6 +406,7 @@ router.get('/doctors/new', ...adminOnly, async (req, res) => {
       loadChoicesCss: true,
       loadChoicesJs: true,
       loadAdminSpecChoices: true,
+      loadAdminWorkHistory: true,
     });
   } catch (err) {
     console.error(err);
@@ -415,8 +423,10 @@ router.post('/doctors', ...adminOnly, (req, res, next) => {
     if (err) return next(err);
 
     const { email, password, first_name, last_name, middle_name, phone,
-            cabinet, experience_years, education, description, primary_specialization_id } = req.body;
+            cabinet, education, description, primary_specialization_id } = req.body;
     const specIds = parseSpecializationIds(req.body);
+    const workHistoryEntries = parseWorkHistoryFromBody(req.body);
+    const experienceYears = totalExperienceYears(workHistoryEntries);
 
     if (!email || !password || !first_name || !last_name) {
       if (req.file?.path) {
@@ -476,9 +486,10 @@ router.post('/doctors', ...adminOnly, (req, res, next) => {
         await client.query(
           `INSERT INTO doctor_profiles (user_id, specialization_id, cabinet, experience_years, education, description)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [uid, primary, cabinet || null, parseInt(experience_years) || 0, education || null, description || null]
+          [uid, primary, cabinet || null, experienceYears, education || null, description || null]
         );
         await replaceDoctorSpecializations(client, uid, specIds, primary);
+        await replaceDoctorWorkHistory(client, uid, workHistoryEntries);
         await client.query('COMMIT');
       } catch (e) {
         await client.query('ROLLBACK');
@@ -547,11 +558,13 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
     const doctorSpecIds = dsRes.rows.map((r) => r.specialization_id);
     const primaryRow = dsRes.rows.find((r) => r.is_primary);
     const primarySpecId = primaryRow ? primaryRow.specialization_id : dp.specialization_id;
+    const workHistory = await loadDoctorWorkHistory(pool, resolvedDoctorId);
     // Важно: id в шаблоне должен быть users.id (для action формы и проверок). Иначе doctor_profiles.id
     // перезапишет users.id и POST уйдёт на чужого врача → ложный «email занят» и редирект не туда.
     res.render('admin/doctor_form', {
       title: 'Редактировать врача — Админ-панель',
       doctor: { ...u, ...dp, id: u.id, profile_id: dp.id },
+      workHistory,
       doctorSpecIds,
       primarySpecId,
       specializations: specs,
@@ -571,7 +584,7 @@ router.get('/doctors/:id/edit', ...adminOnly, async (req, res) => {
 
 router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
   const { email, new_password, first_name, last_name, middle_name, phone, is_blocked,
-          cabinet, experience_years, education, description, user_id, primary_specialization_id } = req.body;
+          cabinet, education, description, user_id, primary_specialization_id } = req.body;
   const specIds = parseSpecializationIds(req.body);
   const rawId = req.params.id;
 
@@ -667,11 +680,17 @@ router.post('/doctors/:id/edit', ...adminOnly, async (req, res) => {
         });
       }
 
+      const expRes = await client.query(
+        'SELECT experience_years FROM doctor_profiles WHERE user_id = $1',
+        [doctorId]
+      );
+      const experienceYears = expRes.rows[0]?.experience_years ?? 0;
+
       const profileUpdate = await client.query(
         `UPDATE doctor_profiles
          SET specialization_id=$1, cabinet=$2, experience_years=$3, education=$4, description=$5
          WHERE user_id=$6`,
-        [primary, cabinet || null, parseInt(experience_years) || 0, education || null, description || null, doctorId]
+        [primary, cabinet || null, experienceYears, education || null, description || null, doctorId]
       );
       if (profileUpdate.rowCount === 0) {
         await client.query('ROLLBACK');
@@ -927,12 +946,12 @@ router.post('/specializations', ...adminOnly, async (req, res) => {
   }
   const groupId = parseInt(specialization_group_id, 10);
   if (isNaN(groupId)) {
-    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выберите группу совместимости'));
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выберите раздел'));
   }
   try {
     const gRes = await pool.query('SELECT id, code FROM specialization_groups WHERE id = $1', [groupId]);
     if (!gRes.rows.length) {
-      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выбрана несуществующая группа совместимости'));
+      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выбран несуществующий раздел'));
     }
     const groupCode = gRes.rows[0].code;
     await pool.query(
@@ -959,7 +978,7 @@ router.post('/specializations/:id/edit', ...adminOnly, async (req, res) => {
   try {
     const gRes = await pool.query('SELECT id, code FROM specialization_groups WHERE id = $1', [groupId]);
     if (!gRes.rows.length) {
-      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выбрана несуществующая группа совместимости'));
+      return res.redirect('/admin/specializations?error=' + encodeURIComponent('Выбран несуществующий раздел'));
     }
     const upd = await pool.query(
       `UPDATE specializations
@@ -970,7 +989,7 @@ router.post('/specializations/:id/edit', ...adminOnly, async (req, res) => {
     if (!upd.rowCount) {
       return res.redirect('/admin/specializations?error=' + encodeURIComponent('Специализация не найдена'));
     }
-    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Группа совместимости обновлена'));
+    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Раздел обновлён'));
   } catch (err) {
     console.error(err);
     return res.redirect('/admin/specializations?error=' + encodeURIComponent('Ошибка сохранения'));
@@ -1000,7 +1019,7 @@ router.post('/specializations/:id/delete', ...adminOnly, async (req, res) => {
 router.post('/specialization-groups', ...adminOnly, async (req, res) => {
   const name = String(req.body.group_name || '').trim();
   if (!name) {
-    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Введите название группы совместимости'));
+    return res.redirect('/admin/specializations?error=' + encodeURIComponent('Введите название раздела'));
   }
   try {
     const code = await makeUniqueGroupCode(pool, name);
@@ -1008,7 +1027,7 @@ router.post('/specialization-groups', ...adminOnly, async (req, res) => {
       'INSERT INTO specialization_groups (name, code) VALUES ($1, $2)',
       [name, code]
     );
-    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Группа совместимости создана'));
+    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Раздел создан'));
   } catch (err) {
     if (err.code === '23505') {
       return res.redirect('/admin/specializations?error=' + encodeURIComponent('Такая группа уже существует'));
@@ -1033,7 +1052,7 @@ router.post('/specialization-groups/:id/delete', ...adminOnly, async (req, res) 
       return res.redirect('/admin/specializations?error=' + encodeURIComponent('Нельзя удалить группу: к ней привязаны специализации'));
     }
     await pool.query('DELETE FROM specialization_groups WHERE id = $1', [groupId]);
-    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Группа совместимости удалена'));
+    return res.redirect('/admin/specializations?success=' + encodeURIComponent('Раздел удалён'));
   } catch (err) {
     console.error(err);
     return res.redirect('/admin/specializations?error=' + encodeURIComponent('Ошибка удаления группы'));
@@ -1211,7 +1230,23 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
     const phoneMasked = maskPhoneForAdmin(u.phone);
 
     const tabRaw = String(req.query.tab || '').trim().toLowerCase();
-    const profileTab = ['info', 'appts', 'activity'].includes(tabRaw) ? tabRaw : '';
+    const profileTab = ['info', 'appts', 'activity'].includes(tabRaw) ? tabRaw : 'info';
+
+    let doctorWorkHistory = [];
+    let doctorExperienceYears = null;
+    if (u.role === 'doctor' && profileTab === 'info') {
+      try {
+        doctorWorkHistory = await loadDoctorWorkHistory(pool, userId);
+        const dpExp = await pool.query(
+          'SELECT experience_years FROM doctor_profiles WHERE user_id = $1',
+          [userId]
+        );
+        doctorExperienceYears = dpExp.rows[0]?.experience_years ?? 0;
+      } catch (whErr) {
+        console.error('Doctor work history load error:', whErr);
+        doctorWorkHistory = [];
+      }
+    }
 
     const profileQuery = {
       tab: profileTab,
@@ -1573,6 +1608,8 @@ router.get('/users/:id', ...adminOnly, async (req, res) => {
       activityItems,
       activityPagination,
       profileQuery,
+      doctorWorkHistory,
+      doctorExperienceYears,
     });
   } catch (err) {
     console.error('Admin user profile error:', err);

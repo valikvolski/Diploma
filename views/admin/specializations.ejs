@@ -9,15 +9,15 @@
   <div class="col-md-6">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body p-4">
-        <h2 class="h6 fw-semibold mb-3">Добавить группу совместимости</h2>
+        <h2 class="h6 fw-semibold mb-3">Новый раздел</h2>
         <form method="POST" action="/admin/specialization-groups">
           <%- include('../partials/csrf') %>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Название группы</label>
-            <input type="text" class="form-control" name="group_name" placeholder="Например, Консультативные профили" required>
+            <label class="form-label fw-semibold">Название</label>
+            <input type="text" class="form-control" name="group_name" placeholder="Консультативные профили" required>
           </div>
           <div class="admin-spec-card-actions pt-1">
-          <button type="submit" class="btn btn-primary rounded-pill px-4">Создать группу</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4">Создать</button>
           </div>
         </form>
       </div>
@@ -34,9 +34,9 @@
             <input type="text" class="form-control" name="name" placeholder="Например, Терапевт" required>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Группа совместимости</label>
+            <label class="form-label fw-semibold">Раздел</label>
             <select class="form-select" name="specialization_group_id" required>
-              <option value="">Выберите группу</option>
+              <option value="">Выберите раздел</option>
               <% groups.forEach(function(g) { %>
                 <option value="<%= g.id %>"><%= g.name %></option>
               <% }) %>
@@ -55,9 +55,9 @@
   <div class="card-body p-4">
     <form method="GET" action="/admin/specializations" class="row g-3 align-items-end admin-filter-form">
       <div class="col-md-4">
-        <label class="form-label small fw-semibold">Группа</label>
+        <label class="form-label small fw-semibold">Раздел</label>
         <select name="group_id" class="form-select form-select-sm">
-          <option value="">Все группы</option>
+          <option value="">Все разделы</option>
           <% (groups || []).forEach(function(g){ %>
             <option value="<%= g.id %>" <%= String(filters && filters.group_id || '') === String(g.id) ? 'selected' : '' %>><%= g.name %></option>
           <% }) %>
@@ -83,7 +83,7 @@
     <div class="app-table-wrap app-table-wrap--sticky">
       <div class="table-responsive app-table-responsive">
         <table class="table app-table table-hover align-middle mb-0">
-          <thead><tr><th class="nowrap-heading">#</th><th>Название</th><th>Группа совместимости</th><th class="nowrap-heading text-end">Врачей</th><th class="text-end nowrap-heading">Действие</th></tr></thead>
+          <thead><tr><th class="nowrap-heading">#</th><th>Название</th><th>Раздел</th><th class="nowrap-heading text-end">Врачей</th><th class="text-end nowrap-heading">Действие</th></tr></thead>
           <tbody>
             <% if (!specializations || specializations.length === 0) { %>
               <tr>
@@ -105,14 +105,16 @@
                 <td class="text-end"><span class="badge app-count-badge"><%= s.doctor_count %></span></td>
                 <td class="text-end spec-actions-cell align-middle">
                   <div class="app-table-actions spec-actions-inner">
-                  <form method="POST" action="/admin/specializations/<%= s.id %>/edit" class="mb-0 align-items-center">
+                  <form method="POST" action="/admin/specializations/<%= s.id %>/edit" class="mb-0 align-items-center admin-spec-group-form">
                     <%- include('../partials/csrf') %>
-                    <select class="form-select form-select-sm" name="specialization_group_id" required aria-label="Группа для «<%= s.name %>»">
+                    <div class="admin-spec-group-select">
+                    <select class="form-select form-select-sm admin-spec-group-select__control" name="specialization_group_id" required aria-label="Раздел для «<%= s.name %>»" title="<%= s.group_name %>">
                       <% groups.forEach(function(g) { %>
                         <option value="<%= g.id %>" <%= Number(s.specialization_group_id) === Number(g.id) ? 'selected' : '' %>><%= g.name %></option>
                       <% }) %>
                     </select>
-                    <button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0" title="Сохранить группу">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0" title="Сохранить раздел">
                       <i class="bi bi-check2"></i>
                     </button>
                   </form>
@@ -151,15 +153,15 @@
   <div class="col-12">
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
-        <h2 class="h6 fw-semibold mb-3">Группы совместимости</h2>
+        <h2 class="h6 fw-semibold mb-3">Разделы</h2>
         <div class="d-grid gap-2">
           <% groups.forEach(function(g) { %>
             <div class="d-flex justify-content-between align-items-center gap-2">
               <span class="badge rounded-pill text-bg-secondary"><%= g.name %></span>
               <div class="d-flex align-items-center gap-2">
-                <span class="badge app-count-badge" title="Специализаций в группе"><%= g.specialization_count %></span>
+                <span class="badge app-count-badge" title="Специализаций в разделе"><%= g.specialization_count %></span>
                 <form method="POST" action="/admin/specialization-groups/<%= g.id %>/delete" class="d-inline js-confirm-form"
-                  data-confirm-title="Удаление группы совместимости"
+                  data-confirm-title="Удаление раздела"
                   data-confirm-name="«<%= g.name %>»"
                   data-confirm-action="Удалить">
                   <%- include('../partials/csrf') %>

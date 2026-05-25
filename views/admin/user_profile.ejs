@@ -38,6 +38,8 @@
   var acts = typeof activityItems !== 'undefined' ? activityItems : [];
   var actPg = typeof activityPagination !== 'undefined' && activityPagination ? activityPagination : { totalCount: 0, totalPages: 1, currentPage: 1, limit: 20, hasPrev: false, hasNext: false };
   var pq = typeof profileQuery !== 'undefined' && profileQuery ? profileQuery : { tab: '', ppc: 1, ppn: 1, ppb: 1, dpc: 1, dpn: 1, dpb: 1, apage: 1, actpage: 1 };
+  var doctorWorkHistory = typeof doctorWorkHistory !== 'undefined' ? doctorWorkHistory : [];
+  var doctorExperienceYears = typeof doctorExperienceYears !== 'undefined' ? doctorExperienceYears : null;
   function uProfileQs(overrides) {
     var m = { tab: pq.tab || '', ppc: +pq.ppc || 1, ppn: +pq.ppn || 1, ppb: +pq.ppb || 1, dpc: +pq.dpc || 1, dpn: +pq.dpn || 1, dpb: +pq.dpb || 1, apage: +pq.apage || 1, actpage: +pq.actpage || 1 };
     if (overrides) for (var k in overrides) { if (Object.prototype.hasOwnProperty.call(overrides, k)) m[k] = overrides[k]; }
@@ -229,6 +231,50 @@
             </div>
           </div>
         </div>
+
+        <% if (tu.role === 'doctor') { %>
+        <section class="mt-4" aria-labelledby="admin-doctor-work-history-heading">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h3 id="admin-doctor-work-history-heading" class="h6 fw-bold text-muted text-uppercase mb-0">
+              <i class="bi bi-briefcase me-2"></i>История работы
+            </h3>
+            <% if (doctorExperienceYears != null) { %>
+              <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                Стаж: <strong><%= doctorExperienceYears %></strong>
+                <%= doctorExperienceYears === 1 ? 'год' : (doctorExperienceYears >= 2 && doctorExperienceYears <= 4 ? 'года' : 'лет') %>
+              </span>
+            <% } %>
+          </div>
+          <% if (doctorWorkHistory && doctorWorkHistory.length) { %>
+            <div class="app-table-wrap">
+              <div class="table-responsive">
+                <table class="table app-table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Организация</th>
+                      <th>Период</th>
+                      <th class="text-end">Длительность</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% doctorWorkHistory.forEach(function (w) { %>
+                      <tr>
+                        <td class="fw-semibold"><%= w.organization_name %></td>
+                        <td class="text-muted"><%= w.period_label %></td>
+                        <td class="text-end text-muted"><%= w.duration_label %></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% } else { %>
+            <div class="app-card border-0 shadow-sm p-4">
+              <p class="small text-muted mb-0">История работы не указана. Заполняется только при создании учётной записи врача.</p>
+            </div>
+          <% } %>
+        </section>
+        <% } %>
       </div>
 
       <div class="tab-pane fade <%= tabApptsActive ? 'show active' : '' %>" id="tab-appts" role="tabpanel" aria-labelledby="tab-appts-btn">
